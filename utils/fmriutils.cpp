@@ -1674,10 +1674,10 @@ MRI *MRIframeMean(MRI *vol, MRI *volmn, std::vector<double> FrameWeight)
     printf("ERROR: MRIframeMean(): dim mismatch: weight=%d, vol=%d\n",(int)FrameWeight.size(),vol->nframes);
     return(NULL);
   }
-  if(FrameWeight.size() != 0){
-    for (f = 0; f < vol->nframes; f++) printf(" %8.4lf",FrameWeight[f]);
-    printf("\n");  fflush(stdout);
-  }
+  //if(FrameWeight.size() != 0){
+  //for (f = 0; f < vol->nframes; f++) printf(" %8.4lf",FrameWeight[f]);
+  //printf("\n");  fflush(stdout);
+  //}
 
   if (volmn == NULL) {
     volmn = MRIallocSequence(vol->width, vol->height, vol->depth, MRI_FLOAT, 1);
@@ -2394,6 +2394,39 @@ MRI *fMRIsubSample(MRI *f, int Start, int Delta, int Stop, MRI *fsub)
   }
 
   return (fsub);
+}
+MRI *fMRIextractFrames(MRI *mri, std::vector<int> framelist)
+{
+  if(framelist.size()==0) {
+    printf("ERROR: fMRIextractFrames(): framelist is empty\n");
+    return(NULL);
+  }
+  for(int n=0; n < framelist.size(); n++){
+    int f = framelist[n];
+    if(f >= mri->nframes){
+      printf("ERROR: fMRIextractFrames(): f=%d >= %d\n",f,mri->nframes);
+      return(NULL);
+    }
+  }
+
+  MRI *ssmri = MRIcloneBySpace(mri, mri->type, framelist.size());
+  MRIcopyPulseParameters(mri,ssmri);
+
+  #ifdef HAVE_OPENMP
+  #pragma omp parallel for 
+  #endif
+  for(int c=0; c < mri->width; c++){
+    for(int r=0; r < mri->height; r++){
+      for(int s=0; s < mri->depth; s++){
+        for(int n=0; n < framelist.size(); n++){
+          int f = framelist[n];
+          double val = MRIgetVoxVal(mri,c,r,s,f);
+          MRIsetVoxVal(ssmri,c,r,s,n,val);
+        }
+      }
+    }
+  }
+  return(ssmri);
 }
 /*!
   \fn MRI *fMRIexcludeFrames(MRI *f, int *ExcludeFrames, int nExclude, MRI *fex)

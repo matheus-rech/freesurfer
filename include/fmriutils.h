@@ -116,6 +116,7 @@ int fMRIspatialAR2Mean(MRI *src, MRI *mask, double *car2mn,
                        double *rar2mn,double *sar2mn);
 MRI *fMRIaddOffset(MRI *in, MRI *offset, MRI *mask, MRI *out);
 MRI *fMRIsubSample(MRI *f, int Start, int Delta, int Stop, MRI *fsub);
+MRI *fMRIextractFrames(MRI *mri, std::vector<int> framelist);
 MRI *fMRIexcludeFrames(MRI *f, int *ExcludeFrames, int nExclude, MRI *fex);
 MRI *MRIframeSum(MRI *vol, MRI *volsum);
 MRI *fMRItemporalGaussian(MRI *src, double gstdmsec, MRI *targ);
