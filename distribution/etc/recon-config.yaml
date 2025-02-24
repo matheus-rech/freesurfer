@@ -173,6 +173,12 @@ FixGA:
     action: enable
     descr: Fix the cortex label around gyrus ambiens
     
+NoFixGA:
+    value: False
+    flags: -no-fix-ga
+    action: enable
+    descr: Turn off fix to the cortex label around gyrus ambiens
+    
 FixACJ:
     value: False
     flags: -fix-acj

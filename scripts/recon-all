@@ -8724,6 +8724,8 @@ check_params:
     endif
   endif
 
+  if($NoFixGA) set FixGA = 0
+
   if($FixGA && ! $FixEntoWM) then
     echo "ERROR: --fix-ento-wm is necessary with --fix-ga"
     exit 1
