@@ -240,7 +240,11 @@ if(BUILD_DNG)
 endif()
 
 # -------- petsc --------
-find_package(PETSC)
+if (NOT FREEVIEW_LINEPROF)
+   set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
+else()
+   find_package(PETSC)
+endif()
 
 # -------- ann --------
 # ANN is only used by mris_resample
@@ -624,8 +628,9 @@ add_subdirectory(utils)
 
 # the following utility libraries are required for freeview
 # if(NOT APPLE_ARM64)
-if(APPLE_ARM64)
-   message(STATUS "For HOST_OS=${HOST_OS}skipping lineprof")
+# if(APPLE_ARM64)
+if(APPLE_ARM64 OR NOT FREEVIEW_LINEPROF)
+   message(STATUS "For HOST_OS=${HOST_OS} skipping lineprof")
    # elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
    # message(STATUS "For HOST_OS=${HOST_OS} skipping lineprof")
 else()

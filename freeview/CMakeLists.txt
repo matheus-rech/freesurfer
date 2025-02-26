@@ -7,11 +7,14 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${FS_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/vtkutils
-    ${CMAKE_SOURCE_DIR}/lineprof
     SYSTEM
     ${ITK_INCLUDE_DIRS}
     ${VTK_INCLUDE_DIRS}
   )
+
+if (FREEVIEW_LINEPROF)
+   include_directories(${CMAKE_SOURCE_DIR}/lineprof)
+endif()
 
   include(${VTK_USE_FILE})
   set(CMAKE_AUTOUIC ON)
@@ -283,7 +286,8 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   add_executable(freeview ${SOURCES})
 
   # turn off compile of profiling for some platforms
-  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9"))
+  # if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9"))
+  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9" OR NOT FREEVIEW_LINEPROF))
      target_link_libraries(freeview
        nifti
        vtkutils
