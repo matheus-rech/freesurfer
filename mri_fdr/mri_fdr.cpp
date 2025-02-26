@@ -50,7 +50,6 @@
 #include "fsenv.h"
 #include "matfile.h"
 #include "icosahedron.h"
-#include "cpputils.h"
 #include "numerics.h"
 #include "randomfields.h"
 #include "mri_conform.h"

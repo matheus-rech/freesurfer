@@ -17,6 +17,7 @@
  *
  */
 
+#if 0  // cpputils.cpp is not used YJH 2025-02-18
 // include guard
 #ifndef cpputils_h
 #define cpputils_h
@@ -24,4 +25,5 @@
 MRI* MRISsignedFixedDistanceTransform(MRI_SURFACE *mris, MRI *mri_dist, double distance);
 MRI* MRISfillInterior2(MRI_SURFACE *mris, MRI* mri_interior);
 
-#endif 
+#endif
+#endif

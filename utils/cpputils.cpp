@@ -17,6 +17,7 @@
  *
  */
 
+#if 0  // cpputils.cpp is not used YJH 2025-02-18
 #include "cma.h"
 #include "diag.h"
 #include "macros.h"
@@ -181,3 +182,4 @@ MRI *MRISfillInterior2(MRI_SURFACE *mris, MRI *mri_interior)
   MRIfree(&_mridist);
   return (mri_out);
 }
+#endif
