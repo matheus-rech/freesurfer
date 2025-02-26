@@ -25,11 +25,11 @@ else()
 endif()
 
 if (FSPYTHON_INSTALL_TREE)
-   install_pyscript_fspython_tree(infant_recon_py)
+   install_pyscript_fspython_tree(infant_recon_all)
    install_pyscript_fspython_tree(mri_label_fusion)
    install(FILES freesurfer_pipeline.py DESTINATION ${infant_dest})
 else()
-   install_pyscript(infant_recon_py)
+   install_pyscript(infant_recon_all)
    install_pyscript(mri_label_fusion)
    install(FILES freesurfer_pipeline.py DESTINATION ${infant_dest})
 endif()
@@ -38,7 +38,7 @@ install(FILES CNYBCH.yaml DESTINATION average)
 
 install_symlinks(niftyreg/license.niftyreg.txt TYPE files DESTINATION docs)
 
-install_append_help(infant_recon_all infant_recon_all.help.xml bin)
+#install_append_help(infant_recon_all infant_recon_all.help.xml bin)
 
 install_symlinks(all_c_robtemplate_affine_mean.05.01.2018.nii.gz TYPE files DESTINATION average)
 
@@ -68,28 +68,3 @@ endforeach()
 
 # install the model file for skullstripping
 install_symlinks(infant_synthstrip_01012025.pt TYPE files DESTINATION average/sscnn_skullstripping)
-# install externally-stored skullstripping models
-#foreach(MODEL ax_sscnn.h5 cor_sscnn.h5 sag_sscnn.h5 12600.pt)
-#  install(PROGRAMS /autofs/cluster/freesurfer/build/misc/infant/sscnn_skullstripping/${MODEL} #DESTINATION average/sscnn_skullstripping)
-#endforeach()
-#endif()
-
-# install any package requirements
-#if(INSTALL_PYTHON_DEPENDENCIES)
-#  set(PY_PKGS "numpy==1.16 tensorflow==1.5.0 keras==2.2.2 h5py==2.10.0 sklearn scikit-image tables psutil nibabel")
-#  if(NOT DISTRIBUTE_FSPYTHON)
-#    set(PKG_TARGET "--target=${pydir}/packages")
-#  endif()
-#  install(CODE "
-#    message(STATUS \"Installing infant-freesurfer python package dependencies\")
-#    execute_process(COMMAND bash -c \"${pydir}/bin/python3 -m pip install ${PKG_TARGET} ${PY_PKGS}\" RESULT_VARIABLE retcode)
-#    if(NOT \${retcode} STREQUAL 0)
-#      message(FATAL_ERROR \"Could not install infant-freesurfer python dependencies\")
-#    endif()
-#    execute_process(COMMAND bash -c \"find ${pydir}/bin ! -name 'python3*' -type f -exec rm -f {} +\" RESULT_VARIABLE retcode)
-#    if(NOT \${retcode} STREQUAL 0)
-#      message(FATAL_ERROR \"Could not remove pip-installed scripts\")
-#    endif()"
-#  )
-#endif()
-
