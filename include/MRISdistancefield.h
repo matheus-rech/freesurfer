@@ -27,7 +27,8 @@
 #include "mrisurf.h"
 #include "diag.h"
 
-MRI *MRISdistancefield(MRIS *mris, MRI *mri_tmp, double max_distance, int signedfield);
+// 2025-02-24 YJH this function is not implemented
+//MRI *MRISdistancefield(MRIS *mris, MRI *mri_tmp, double max_distance, int signedfield);
 
 #include <iostream>
 #include "utilsmath.h"

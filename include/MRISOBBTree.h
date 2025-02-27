@@ -162,10 +162,10 @@ class MRISOBBTree
     }
 
     //! The main method which constructs the OBB Tree for the mris surface
-    void ConstructTree()
+    void ConstructTree(double aabb_delta=0.0)
     {
       //create an axis aligned bounding box used to trivially reject points in inclusion tests
-      this->aabb=new Math::AABB(this->mris, 0.0); 
+      this->aabb=new Math::AABB(this->mris, aabb_delta);
 
       // init the face id list with the face numbers sequentially
       std::vector<int> faceidlistvector;
@@ -490,6 +490,11 @@ class MRISOBBTree
     
     } // end ComputeOBB method 
 
+    void PrintSurfBoundingBox(int threadid, const char *hemi, const char *surfname)
+    {
+      this->aabb->PrintBoundingBox(threadid, hemi, surfname);
+    }
+
     //! Check whether the given point is inside or outside
     /*!
      \param x, y and z - the test point 
@@ -507,13 +512,12 @@ class MRISOBBTree
 
       // the idea is to construct a ray that is guaranteed to hit one of the faces
       // and use that as pointinclusion test
-      VERTEX *v;
-      FACE *face;
-      double pt1[3], pt2[3], pt3[3];
       for (int fno=0; fno < mris->nfaces; fno++)
       {
-        face = &mris->faces[fno];
-        v = &mris->vertices[face->v[0]];
+        FACE *face = &mris->faces[fno];
+        VERTEX *v = &mris->vertices[face->v[0]];
+        double pt1[3], pt2[3], pt3[3];
+
         pt1[0] = v->x; pt1[1] = v->y; pt1[2] = v->z;
         v = &mris->vertices[face->v[1]];
         pt2[0] = v->x; pt2[1] = v->y; pt2[2] = v->z;
