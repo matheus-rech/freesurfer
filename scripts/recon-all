@@ -4881,7 +4881,7 @@ if($DoCortRibbonVolMask) then
   set cmd = (mris_volmask --aseg_name aseg.presurf \
     --label_left_white   2 --label_left_ribbon   3 \
     --label_right_white 41 --label_right_ribbon 42 \
-    --save_ribbon)
+    --save_ribbon --parallel)
   if($LHonly) set cmd = ($cmd --lh-only )
   if($RHonly) set cmd = ($cmd --rh-only )
   # ATH: Disabling --parallel here as it sometimes causes a race-condition bug

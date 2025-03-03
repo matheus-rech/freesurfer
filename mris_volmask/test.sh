@@ -7,6 +7,7 @@ test_command mris_volmask \
     --label_right_white 41 \
     --label_right_ribbon 42 \
     --save_ribbon \
+    --parallel \
     bert
 
 compare_vol bert/mri/ribbon.mgz bert/mri/ribbon.ref.mgz
