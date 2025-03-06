@@ -1239,12 +1239,13 @@ static int push_cstm(gxml_data *xd)
 {
   giiDataArray *da = xd->gim->darray[xd->gim->numDA - 1]; /* current DA */
 
-  if (da->intent != NIFTI_INTENT_POINTSET && xd->verb > 0)
+  if ((da->intent != NIFTI_INTENT_POINTSET && da->intent != NIFTI_INTENT_TIME_SERIES) && xd->verb > 0)
     fprintf(stderr,
-            "** DA[%d] has coordsys with intent %s (should be %s)\n",
+            "** DA[%d] has coordsys with intent %s (should be %s or %s)\n",
             xd->gim->numDA - 1,
             gifti_intent_to_string(da->intent),
-            gifti_intent_to_string(NIFTI_INTENT_POINTSET));
+            gifti_intent_to_string(NIFTI_INTENT_POINTSET),
+	    gifti_intent_to_string(NIFTI_INTENT_TIME_SERIES));
 
   if (gifti_add_empty_CS(da)) return 1;
 
