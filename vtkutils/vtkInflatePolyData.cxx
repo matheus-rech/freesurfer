@@ -141,7 +141,11 @@ vtkInflatePolyData::RequestData ( vtkInformation *vtkNotUsed(iRequest),
   vtkIdType cPoints = 0;
   vtkIdType* pPoints = NULL;
   for( polys->InitTraversal(); 
+   #if VTK_MAJOR_VERSION >= 9
+       polys->GetNextCell( cPoints, (vtkIdType const *&)pPoints ); cellID++ ) {
+   #else
        polys->GetNextCell( cPoints, pPoints ); cellID++ ) {
+   #endif
     
     // Compute the normal for this polygon.
     double normal[3] = { 0, 0, 0 };

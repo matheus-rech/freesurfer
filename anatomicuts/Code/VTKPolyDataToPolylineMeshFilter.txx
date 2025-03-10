@@ -95,7 +95,11 @@ outputMesh->SetCellData (i, val);
     vtkCellArray *lines = m_VTKPolyData->GetLines();
     lines->InitTraversal();
     vtkIdType pointCount, *pointBuf;
+#if VTK_MAJOR_VERSION > 8
+    while ( lines->GetNextCell(pointCount, (vtkIdType const*&)pointBuf) )
+#else
     while ( lines->GetNextCell(pointCount, pointBuf) )
+#endif
     {
 
       CellAutoPointer line;

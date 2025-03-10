@@ -82,7 +82,11 @@ void AppendBundleFilter::Update()
 				int cellId = arrayCellData->GetValue(0);
 				for(int k=0;k<=cellId;k++)
 				{
+#if VTK_MAJOR_VERSION > 8				
+					lines->GetNextCell(pointCount, (vtkIdType const*&)pointBuf);
+#else
 					lines->GetNextCell(pointCount, pointBuf);
+#endif
 				}
 				//            std::cout <<" rep " << cellId << std::endl;
 				for (vtkIdType k=0; k<pointCount; k++)
@@ -115,7 +119,11 @@ void AppendBundleFilter::Update()
 			}       
 			}
 			*/
+#if VTK_MAJOR_VERSION > 8			
+			while ( lines->GetNextCell(pointCount, (vtkIdType const*&)pointBuf) )
+#else
 			while ( lines->GetNextCell(pointCount, pointBuf) )
+#endif
 			{
 				for (vtkIdType k=0; k<pointCount; k++)
 				{

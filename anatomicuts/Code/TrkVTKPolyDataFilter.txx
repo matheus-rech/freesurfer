@@ -224,7 +224,11 @@ void TrkVTKPolyDataFilter<TImage>::VTKToTrk(std::string outputName)
 	vnl_matrix<float> ras_to_vox = 	vnl_inverse(vox_to_ras);
 	//std::cout << vox_to_ras<< std::endl;
 	//std::cout << ras_to_vox << std::endl;
+#if VTK_MAJOR_VERSION > 8
+	while ( lines->GetNextCell(pointCount, (vtkIdType const*&)pointBuf) )
+#else
 	while ( lines->GetNextCell(pointCount, pointBuf) )
+#endif
 	{
 
 		std::vector<float> points( pointCount*3,0);

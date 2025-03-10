@@ -23,7 +23,7 @@ void
 	this->m_outputBundles.clear();
 	this->m_clustersIds.clear();
 //	std::cout << " Hierarchy file : " <<  this->m_hierarchyFilename << std::endl;
-	ifstream file (  this->m_hierarchyFilename); 
+	std::ifstream file (  this->m_hierarchyFilename); 
 	std::string value;
 	getline ( file, value, ',' ); 
 	getline ( file, value, ',' ); 
@@ -82,7 +82,7 @@ void
 		std::string num = std::to_string(b);
 //		std::cout << num<< std::endl;
 		std::string clusterFile = this->m_clustersPath + "/" +num+"."+a;
-		ifstream ifile(clusterFile);
+		std::ifstream ifile(clusterFile);
 		if (ifile)
 		{	
 			fiberFiles[*it] =clusterFile;

@@ -289,7 +289,7 @@ void vtkRGBATransferFunction::AddHSVASegment( double x1, double h1,
 
 //----------------------------------------------------------------------------
 // Returns the RGBA color evaluated at the specified location
-#if VTK_MAJOR_VERSION >= 8 && VTK_MINOR_VERSION >= 2
+#if (VTK_MAJOR_VERSION == 8 && VTK_MINOR_VERSION >= 2) || VTK_MAJOR_VERSION > 8
 const unsigned char *vtkRGBATransferFunction::MapValue( double x ) 
 #else
 unsigned char *vtkRGBATransferFunction::MapValue( double x ) 
