@@ -317,7 +317,7 @@ if($DoGTMSeg) then
   set gtmseg = $sd/mri/gtmseg.mgz
   set ud = (`UpdateNeeded $gtmseg $apas`) # may not be exactly right
   if($ud || $ForceUpdate) then
-    set cmd = (gtmseg --s $subject --xcerseg)
+    set cmd = (gtmseg --s $subject --xcerseg --samseg)
     echo $cmd |& tee -a $LF
     fs_time $cos7run $cmd |& tee -a $LF
     if($status) then

@@ -14,7 +14,7 @@ set DoPons = 1;
 set DoVermis = 1;
 set seg1name = ()
 set DoStats = 0;
-set UseSamseg = 0
+set UseSamseg = 1
 set ForceUpdate = 0
 set SamsegRevert = 0
 set ctab = $FREESURFER_HOME/FreeSurferColorLUT.txt 
@@ -409,6 +409,7 @@ if($UseSamseg == 0 && $#seg1name == 0) then
   set xformpath = $SUBJECTS_DIR/$subject/mri/transforms/$xform
   if(! -e $xformpath) then
     echo "ERROR: cannot find $xformpath"
+    echo " Try using the --samseg flag"
     exit 1;
   endif
 endif

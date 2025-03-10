@@ -25,7 +25,7 @@ set SubSegCblumWM = 0;
 set AddPons = 1;
 set AddVermis = 1;
 set DoXCerSeg = ();
-set UseSamseg = 0
+set UseSamseg = 1
 set threads = 1
 set xcthresh = ()
 set nErodeWM = 0
@@ -108,7 +108,7 @@ if($DoXCerSeg) then
   if(! $cleanup) set cmd = ($cmd --tmpdir $tmpdir/xcerebralseg)
   if($AddPons == 0)   set cmd = ($cmd --no-pons)
   if($AddVermis == 0) set cmd = ($cmd --no-vermis)
-  if($UseSamseg) set cmd = ($cmd --samseg)
+  if(! $UseSamseg) set cmd = ($cmd --no-samseg)
   if($#xcthresh) set cmd = ($cmd --thresh $xcthresh)
   echo $cmd | tee -a $LF
   $cmd | tee -a $LF
