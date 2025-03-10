@@ -455,6 +455,9 @@ const char* MRI::intentName(int code)
     case MGZ_INTENT_WARPMAP_INV:
       intentname = "WARP_INV";
       break;
+    case MGZ_INTENT_TIME_SERIES:
+      intentname = "TIME_SERIES";
+      break;
   }
   
   return intentname;
@@ -476,6 +479,8 @@ int MRI::intentCode(const char *name)
     intentcode = MGZ_INTENT_WARPMAP;
   else if (strcmp(name, "WARP_INV") == 0)
     intentcode = MGZ_INTENT_WARPMAP_INV;
+  else if (strcmp(name, "TIME_SERIES") == 0)
+    intentcode = MGZ_INTENT_TIME_SERIES;
   
   return intentcode;
 }

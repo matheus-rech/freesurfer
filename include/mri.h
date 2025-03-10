@@ -503,6 +503,7 @@ typedef VOL_GEOM VG;
 #define MGZ_INTENT_SHAPE        2
 #define MGZ_INTENT_WARPMAP      3
 #define MGZ_INTENT_WARPMAP_INV  4
+#define MGZ_INTENT_TIME_SERIES  5
 
 class MRI : public VOL_GEOM
 {
