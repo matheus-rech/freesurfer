@@ -141,7 +141,7 @@ vtkInflatePolyData::RequestData ( vtkInformation *vtkNotUsed(iRequest),
   vtkIdType cPoints = 0;
   vtkIdType* pPoints = NULL;
   for( polys->InitTraversal(); 
-   #if VTK_MAJOR_VERSION >= 9
+   #if VTK_MAJOR_VERSION > 8
        polys->GetNextCell( cPoints, (vtkIdType const *&)pPoints ); cellID++ ) {
    #else
        polys->GetNextCell( cPoints, pPoints ); cellID++ ) {
