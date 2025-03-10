@@ -30,6 +30,10 @@ signals:
 public slots:
   void Compute(LayerMRI *mri, LayerMRI* seg, LayerMRI* seeds, int nPlane, int nSlice, double fill_val);
   void Apply(LayerMRI *seg, LayerMRI *filled);
+  void LoadModel(const QString& fn)
+  {
+    Initialize(fn);
+  }
 
 private slots:
   void DoInitialization(const QString& fn);

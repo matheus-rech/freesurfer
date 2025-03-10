@@ -66,6 +66,7 @@ protected slots:
   void OnGeoSegProgress(double val);
 
   void OnSegFinished(double time);
+  void OnComboSPModel(int nSel);
 
 protected:
   virtual void showEvent(QShowEvent *);

@@ -21,6 +21,7 @@
 #include "mrisurf.h"
 #include "diag.h"
 #include "proto.h"
+#include "timer.h"
 
 #include <iostream>
 #include <limits.h>
@@ -102,6 +103,15 @@ namespace Math
         return 1;
       return 0;
     }
+
+    void PrintBoundingBox(int threadid, const char *hemi, const char *surf)
+    {
+      if (Gdiag & DIAG_VERBOSE)
+	printf("[DEBUG] [thread %d] %s %s bounding box: [%4.2f, %4.2f, %4.2f] - [%4.2f, %4.2f, %4.2f]\n",
+	       threadid, hemi, surf,
+	       mincorner[0], mincorner[1], mincorner[2],
+	       maxcorner[0], maxcorner[1], maxcorner[2]);
+    }
   };
 
   //! A simple templated bounding box class
@@ -128,6 +138,29 @@ namespace Math
     }
   };
 
+  void _surfTkrRAS2Vox(int threadid, int idx_start, int idx_end, MRIS *mris, MATRIX *tkrRAS2Vox)
+  {
+    if (Gdiag & DIAG_VERBOSE)
+      printf("[DEBUG] [thread %d] Math::_surfTkrRAS2Vox() start = %d, end = %d\n", threadid, idx_start, idx_end);
+  
+    MATRIX *tkregRAS = MatrixAlloc(4, 1, MATRIX_REAL);
+    MATRIX *vertexCRS = MatrixAlloc(4, 1, MATRIX_REAL);
+
+    for (int i = idx_start; i < idx_end; i++)
+    {
+      VERTEX const * const vertex = &mris->vertices[i];
+      tkregRAS->rptr[1][1] = vertex->x;
+      tkregRAS->rptr[2][1] = vertex->y;
+      tkregRAS->rptr[3][1] = vertex->z;
+      tkregRAS->rptr[4][1] = 1;
+
+      MatrixMultiply(tkrRAS2Vox, tkregRAS, vertexCRS);
+
+      // and reassign the vertices
+      MRISsetXYZ(mris, i, (float)vertexCRS->rptr[1][1], (float)vertexCRS->rptr[2][1],(float)vertexCRS->rptr[3][1]);
+    }
+  }
+  
   /** The surface vertices are in RAS. They need to be converted to Vox space
    * because the test voxels are in Vox space.
    * For this we need a mri_template image which is in the same
@@ -140,28 +173,26 @@ namespace Math
    \param mris - the surface whose vertices have to be converted to vox space
    \param mri_template - the MRI template of the same subject which is needed for the ras2vox call
   */
-  void ConvertSurfaceRASToVoxel(MRIS *mris, MRI *mri_template)
+  void ConvertSurfaceRASToVoxel(int threadid, MRIS *mris, MRI *mri_template)
   {
+    Timer then1;
+    if (Gdiag & DIAG_VERBOSE)
+      then1.reset();
+    
     MRISfreeDistsButNotOrig(mris);
       // MRISsetXYZ will invalidate all of these,
       // so make sure they are recomputed before being used again!
 
-    for (int i=0; i< mris->nvertices; i++)
-    {
-      VERTEX const * const vertex = &mris->vertices[i];
-      double cx = vertex->x;
-      double cy = vertex->y;
-      double cz = vertex->z;
+    MATRIX *tkrRAS2Vox = NULL;
+    if (mris->vg.valid)
+      tkrRAS2Vox = mris->vg.get_TkregRAS2Vox();
+    else
+      tkrRAS2Vox = mri_template->get_TkregRAS2Vox();
 
-      // for every surface vertex do this call
-      double vx, vy, vz;
-      MRISsurfaceRASToVoxelCached(mris,
-                                  mri_template,
-                                  cx, cy, cz,
-                                  &vx, &vy, &vz);
-      // and reassign the vertices
-      MRISsetXYZ(mris,i, (float)vx,(float)vy,(float)vz);
-    }
+    Math::_surfTkrRAS2Vox(threadid, 0, mris->nvertices, mris, tkrRAS2Vox);
+
+    if (Gdiag & DIAG_VERBOSE)
+      fprintf(stderr, "[TIMER] [thread %d] Math::ConvertSurfaceRASToVoxel() nvertices = %d (%2.2f msec)\n", threadid, mris->nvertices, (float)then1.milliseconds());
   }
 
   //! Return the dot product of v1 and v2

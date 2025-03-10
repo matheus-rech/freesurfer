@@ -47,7 +47,6 @@ add_library(utils STATIC
   colortab.cpp
   connectcomp.cpp
   corio.cpp
-  cpputils.cpp
   ctrpoints.cpp
   cvector.cpp
   dct.cpp

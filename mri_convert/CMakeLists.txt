@@ -8,10 +8,11 @@ include_directories(${FS_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/packages/dicom ${CMAK
 add_executable(mri_convert mri_convert.cpp)
 add_help(mri_convert mri_convert.help.xml)
 message(STATUS "CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}")
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
-  # -Wl,-dead_strip already added from top level
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-stack_size -Wl,0x1000000")
-endif()
+# dcm2niix issue867 reduce stack pressure (https://github.com/rordenlab/dcm2niix/commit/d8aacc58446c5dee08ebc8a0b83a264c401e8e88)
+#if(${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
+#  # -Wl,-dead_strip already added from top level
+#  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-stack_size -Wl,0x1000000")
+#endif()
 target_link_libraries(mri_convert utils)
 
 install(TARGETS mri_convert DESTINATION bin)

@@ -59,6 +59,10 @@ option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house buil
 option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/qt" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
 
+if (NOT FREEVIEW_LINEPROF)
+    set(DISABLE_LINEPROF ON)
+endif()
+
 message(STATUS "For HOST_OS=${HOST_OS} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG}")
 if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
   message(STATUS "User defined SAMSEG sandbox ${USER_SAMSEG_PATH}")
@@ -158,10 +162,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 # Use host_os() to get HOST_OS to reference the correct 3rd party package build
 host_os()
 
-if(HOST_OS MATCHES "Rocky9")
-   set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
-endif()
-
 # -------- zlib --------
 find_package(ZLIB REQUIRED)
 add_definitions(-DHAVE_ZLIB -DITK_USE_SYSTEM_ZLIB)
@@ -240,7 +240,12 @@ if(BUILD_DNG)
 endif()
 
 # -------- petsc --------
-find_package(PETSC)
+if (DISABLE_LINEPROF)
+   message(STATUS "For HOST_OS=${HOST_OS} lineprof/petsc disabled")
+   set(CMAKE_DISABLE_FIND_PACKAGE_PETSC OFF)
+else()
+   find_package(PETSC)
+endif()
 
 # -------- ann --------
 # ANN is only used by mris_resample
@@ -624,11 +629,7 @@ add_subdirectory(utils)
 
 # the following utility libraries are required for freeview
 # if(NOT APPLE_ARM64)
-if(APPLE_ARM64)
-   message(STATUS "For HOST_OS=${HOST_OS}skipping lineprof")
-   # elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
-   # message(STATUS "For HOST_OS=${HOST_OS} skipping lineprof")
-else()
+if(NOT (APPLE_ARM64 OR DISABLE_LINEPROF))
    add_subdirectory(lineprof)
 endif()
 add_subdirectory(vtkutils)

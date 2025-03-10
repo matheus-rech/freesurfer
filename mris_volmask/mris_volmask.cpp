@@ -101,7 +101,10 @@ LoadInputFiles(const IoParams& params,
 MRI* ComputeSurfaceDistanceFunction
 (MRIS* mris, //input surface
  MRI* mriInOut, //output MRI structure
- float resolution);
+ float resolution,
+ int indexSurf,
+ bool savedistance,
+ std::string outputPath, std::string outRoot);
 
 MRI* CreateHemiMask(MRI* dpial, MRI* dwhite,
                     const unsigned char lblWhite,
@@ -115,6 +118,12 @@ MRI* CombineMasks(MRI* maskOne,
 //  return a binary mask
 MRI* FilterLabel(MRI* initialMask,
                  const unsigned char lbl);
+
+std::string InitVolmask(const IoParams& params, MRI*& mriTemplate, std::vector<MRI*>& surfDistVector, std::vector<MRIS*>& inSurfVector);
+void Cleanup(std::vector<MRI*>& surfDistVector, std::vector<MRIS*>& inSurfVector);
+void SaveSurfaceDistance2(std::vector<MRI*>& surfDistVector, std::string outputPath, std::string outRoot);
+void SaveSurfaceDistances(MRI *surfDist, int threadid, const char *hemi, const char *surfname, std::string outputPath, std::string outRoot);
+void SaveHemispheresRibbon(const char *hemi, MRI *mriTemplate, MRI *maskHemi, const unsigned char labelRibbon, std::string outputPath, std::string outRoot);
 
 /*
   IO structure
@@ -146,6 +155,7 @@ struct IoParams
   int DoLH, DoRH;
   bool bLHOnly, bRHOnly;
   bool bParallel;
+  bool bVerbose;
 
   float capValue;
 
@@ -180,36 +190,25 @@ main(int ac, char* av[])
     exit(1);
   }
 
+  if (params.bVerbose) Gdiag |= DIAG_VERBOSE;
   if(params.bLHOnly){params.DoLH=1;params.DoRH=0;}
   if(params.bRHOnly){params.DoLH=0;params.DoRH=1;}
   //printf("lhrhonly %d %d %d %d\n",params.bLHOnly,params.bRHOnly,params.DoLH,params.DoRH);
+  int idx_offset = 0, nSurfDists = 2;
+  if (!params.DoLH)
+    idx_offset = 2;
+  if (params.DoLH && params.DoRH)
+    nSurfDists = 4;
+  if (Gdiag & DIAG_VERBOSE)
+    printf("[DEBUG] nSurfDists = %d, vector idx_offset = %d\n", nSurfDists, idx_offset);
 
-  // process input files
-  // will also resolve the paths depending on the mode of the application
-  // (namely if the subject option has been specified or not)
-  MRI* mriTemplate;
-  MRIS* surfLeftWhite = NULL;
-  MRIS* surfLeftPial = NULL;
-  MRIS* surfRightPial = NULL;
-  MRIS* surfRightWhite = NULL;
+  MRI *mriTemplate = NULL;
+  std::vector<MRI*> surfDistVector;  
+  std::vector<MRIS*> inSurfVector;
 
-  std::string outputPath;
-
-  try
-  {
-    outputPath = LoadInputFiles(params,
-                                mriTemplate,
-                                surfLeftWhite,
-                                surfLeftPial,
-                                surfRightWhite,
-                                surfRightPial);
-  }
-  catch (std::exception& e)
-  {
-    std::cerr << " Exception caught while processing input files \n"
-              << e.what() << std::endl;
-    exit(1);
-  }
+  //setenv("FS_MGZIO_USEVOXELBUFREAD", "1", 1);
+  //setenv("FS_MGZIO_USEVOXELBUFWRITE", "1", 1);
+  std::string outputPath = InitVolmask(params, mriTemplate, surfDistVector, inSurfVector);
 
   if (params.bEditAseg)
   {
@@ -221,148 +220,80 @@ main(int ac, char* av[])
     {
       printf("inserting LH into aseg...\n") ;
       insert_ribbon_into_aseg(mriTemplate, mriTemplate,
-			      surfLeftWhite, surfLeftPial, LEFT_HEMISPHERE) ;
+			      inSurfVector[0], inSurfVector[1], LEFT_HEMISPHERE) ;
     }
     if (params.bLHOnly == 0)
     {
       printf("inserting RH into aseg...\n") ;
       insert_ribbon_into_aseg(mriTemplate, mriTemplate,
-			      surfRightWhite, surfRightPial, RIGHT_HEMISPHERE);
+			      inSurfVector[2], inSurfVector[3], RIGHT_HEMISPHERE);
     }
     printf("writing output to %s\n",
            (const_cast<char*>( pathMriOutput.c_str() )));
     mriTemplate->ct = CTABreadDefault();
     MRIwrite(mriTemplate,  (const_cast<char*>( pathMriOutput.c_str() ))) ;
     msec = then.milliseconds() ;
-    fprintf(stderr, "mris_volmask took %2.2f minutes\n", (float)msec/(1000.0f*60.0f));
+    fprintf(stderr, "mris_volmask took %2.2f seconds\n", (float)msec/1000.0f);   ///(1000.0f*60.0f));
     exit(0) ;
   }
 
-  MRI* maskLeftHemi=NULL;
-  MRI* maskRightHemi=NULL;
-
 #ifdef _OPENMP
   if (params.bParallel){
-    printf("Running hemis in parallel\n");
-    omp_set_num_threads(2);
+    int nthreads = nSurfDists;
+    printf("Computing surface distance in parallel (%d threads)\n", nthreads);
+    omp_set_nested(1); // Enable nested parallelism
+    omp_set_num_threads(nthreads);
   }
   else{
-    printf("Running hemis serially\n");
+    printf("Computing surface distance serially\n");
     omp_set_num_threads(1);
   }
 #endif
 
-  int hemi;
+  Timer then1;
+  if (Gdiag & DIAG_VERBOSE)
+    then1.reset();
+
   #ifdef HAVE_OPENMP
   #pragma omp parallel for 
   #endif
-  for(hemi=0; hemi < 2; hemi ++){
-    if(hemi == 0 && params.DoLH){
-      /*  Process LEFT hemisphere */
-      printf("Processing left hemi\n"); fflush(stdout);
-      
-      //---------------------
-      // proces white surface - convert to voxel-space
-      //
-      // allocate distance
-      MRI* dLeftWhite = MRIalloc( mriTemplate->width,
-				  mriTemplate->height,
-				  mriTemplate->depth,
-				  MRI_FLOAT );
-      MRIcopyHeader(mriTemplate, dLeftWhite);
-      
-      // Computes the signed distance to given surface. Sign indicates
-      // whether it is on the inside or outside. params.capValue -
-      // saturation/clip value for distance.
-      std::cout << "computing distance to left white surface \n" ;
-      ComputeSurfaceDistanceFunction(surfLeftWhite,
-				     dLeftWhite,
-				     params.capValue);
-      // if the option is there, output distance
-      if ( params.bSaveDistance )
-	MRIwrite
-	  ( dLeftWhite,
-	    const_cast<char*>( (outputPath / "lh.dwhite." +
-				params.outRoot + ".mgz").c_str() )
-	    );
-      
-      //-----------------------
-      // process pial surface
-      MRI* dLeftPial = MRIalloc( mriTemplate->width,
-				 mriTemplate->height,
-				 mriTemplate->depth,
-				 MRI_FLOAT);
-      MRIcopyHeader(mriTemplate,dLeftPial);
-      std::cout << "computing distance to left pial surface \n" ;
-      ComputeSurfaceDistanceFunction(surfLeftPial,
-				     dLeftPial,
-				     params.capValue);
-      if ( params.bSaveDistance )
-	MRIwrite
-	  ( dLeftPial,
-	    const_cast<char*>( (outputPath / "lh.dpial." +
-				params.outRoot + ".mgz").c_str() )
-	    );
-      
-      // combine them and create a mask for the left hemi. Must be
-      // outside of white and inside pial. Creates labels for WM and Ribbon.
-      maskLeftHemi   = CreateHemiMask(dLeftPial,dLeftWhite,
+  for (int n = 0; n < nSurfDists; n++)
+      ComputeSurfaceDistanceFunction(inSurfVector[n+idx_offset],
+				     surfDistVector[n+idx_offset],
+				     params.capValue,
+				     n+idx_offset,
+                                     params.bSaveDistance,
+                                     outputPath, params.outRoot);
+  if (Gdiag & DIAG_VERBOSE)
+    fprintf(stderr, "[TIMER] %d ComputeSurfaceDistanceFunction() (%2.2f seconds)\n", nSurfDists, (float)then1.milliseconds()/1000.0f);
+
+  MRI *maskLeftHemi = NULL, *maskRightHemi=NULL;
+  #ifdef HAVE_OPENMP
+  #pragma omp parallel for 
+  #endif
+  for (int n = 0; n < nSurfDists/2; n++) {
+    if (n == 0 && params.DoLH) {
+      maskLeftHemi = CreateHemiMask(surfDistVector[1], surfDistVector[0],
 				      params.labelLeftWhite,
 				      params.labelLeftRibbon,
 				      params.labelBackground);
-      // no need for the hemi distances anymore
-      MRIfree(&dLeftWhite);
-      MRIfree(&dLeftPial);
+      if (params.bSaveRibbon)
+        SaveHemispheresRibbon("lh", mriTemplate, maskLeftHemi, params.labelLeftRibbon, outputPath, params.outRoot);
     }
-
-    if(hemi == 1 && params.DoRH){
-      /* Process RIGHT hemi  */
-      printf("Processing right hemi\n"); fflush(stdout);
-      
-      //-------------------
-      // process white
-      MRI* dRightWhite = MRIalloc( mriTemplate->width,
-				   mriTemplate->height,
-				   mriTemplate->depth,
-				   MRI_FLOAT);
-      MRIcopyHeader(mriTemplate, dRightWhite);
-      std::cout << "computing distance to right white surface \n" ;
-      ComputeSurfaceDistanceFunction( surfRightWhite,
-				      dRightWhite,
-				      params.capValue);
-      if ( params.bSaveDistance )
-	MRIwrite
-	  ( dRightWhite,
-	    const_cast<char*>( (outputPath / "rh.dwhite." +
-				params.outRoot + ".mgz").c_str() )
-	    );
-      
-      //--------------------
-      // process pial
-      MRI* dRightPial = MRIalloc( mriTemplate->width,
-				  mriTemplate->height,
-				  mriTemplate->depth,
-				  MRI_FLOAT);
-      MRIcopyHeader(mriTemplate, dRightPial);
-      std::cout << "computing distance to right pial surface \n" ;
-      ComputeSurfaceDistanceFunction(surfRightPial,
-				     dRightPial,
-				     params.capValue);
-      if(params.bSaveDistance )
-	MRIwrite( dRightPial,const_cast<char*>( (outputPath/"rh.dpial."+params.outRoot + ".mgz").c_str() ));
-      // compute hemi mask
-      maskRightHemi = CreateHemiMask(dRightPial, dRightWhite,
-				     params.labelRightWhite,
-				     params.labelRightRibbon,
-				     params.labelBackground);
-      // no need for the hemi distances anymore
-      MRIfree(&dRightWhite);
-      MRIfree(&dRightPial);
+    if (n == 1 && params.DoRH) {
+      maskRightHemi = CreateHemiMask(surfDistVector[3], surfDistVector[2],
+				       params.labelRightWhite,
+				       params.labelRightRibbon,
+                                       params.labelBackground);
+      if (params.bSaveRibbon)
+        SaveHemispheresRibbon("rh", mriTemplate, maskRightHemi, params.labelRightRibbon, outputPath, params.outRoot);	 
     }
   }
-  
+
   /*  finally combine the two created masks -- need to resolve overlap  */
 
+  if (Gdiag & DIAG_VERBOSE)
+    then1.reset();
   MRI* finalMask = NULL;
   if(params.DoLH && params.DoRH)
    finalMask= CombineMasks(maskLeftHemi, maskRightHemi,params.labelBackground);
@@ -370,8 +301,11 @@ main(int ac, char* av[])
   else if(params.DoRH) finalMask = maskRightHemi;
   MRIcopyHeader( mriTemplate, finalMask);
   finalMask->ct = CTABreadDefault();
+  if (Gdiag & DIAG_VERBOSE)
+    fprintf(stderr, "[TIMER] finalMask (%2.2f msec)\n", (float)then1.milliseconds());
+
   // write final mask
-  std::cout << "writing volume " << const_cast<char*>( (outputPath / (params.outRoot +".mgz")).c_str() ) << endl;
+  std::cout << "writing cortical ribbon mask " << const_cast<char*>( (outputPath / (params.outRoot +".mgz")).c_str() ) << endl;
   MRIwrite( finalMask,const_cast<char*>( (outputPath / (params.outRoot +".mgz")).c_str() ));
   // sanity-check: make sure location 0,0,0 is background (not brain)
   if ( MRIgetVoxVal(finalMask,0,0,0,0) != 0 ) {
@@ -379,41 +313,16 @@ main(int ac, char* av[])
     exit(1);
   }
 
-  /*
-    if present, also write the ribbon masks by themselves
-  */
-  if( params.bSaveRibbon ){
-    std::cout << " writing ribbon files\n";
-    // filter the mask of the left hemi
-    MRI* ribbon=NULL;
-    if(params.DoLH){
-      ribbon = FilterLabel(maskLeftHemi,params.labelLeftRibbon);
-      MRIcopyHeader( mriTemplate, ribbon);
-      ribbon->ct = CTABreadDefault();
-      MRIwrite( ribbon,const_cast<char*>( (outputPath / "lh." + params.outRoot + ".mgz").c_str()  ));
-      // sanity-check: make sure location 0,0,0 is background (not brain)
-      if( MRIgetVoxVal(ribbon,0,0,0,0) != 0 )    {
-	cerr << "ERROR: lh ribbon has non-zero value at location 0,0,0"   << endl;
-	exit(1);
-      }
-      MRIfree(&ribbon);
-    }
-    if(params.DoRH){
-      ribbon = FilterLabel(maskRightHemi,params.labelRightRibbon);
-      MRIcopyHeader( mriTemplate, ribbon);
-      ribbon->ct = CTABreadDefault();
-      MRIwrite( ribbon, const_cast<char*>( (outputPath / "rh." + params.outRoot + ".mgz").c_str() ));
-      // sanity-check: make sure location 0,0,0 is background (not brain)
-      if( MRIgetVoxVal(ribbon,0,0,0,0) != 0 ){
-	cerr << "ERROR: rh ribbon has non-zero value at location 0,0,0" << endl;
-	exit(1);
-      }
-      MRIfree(&ribbon);
-    }
-  }
-
+  // cleanup
+  MRIfree(&mriTemplate);
+  Cleanup(surfDistVector, inSurfVector);
+  if (maskLeftHemi != NULL)
+    MRIfree(&maskLeftHemi);
+  if (maskRightHemi != NULL)
+    MRIfree(&maskRightHemi);
+  
   msec = then.milliseconds() ;
-  fprintf(stderr, "mris_volmask took %2.2f minutes\n", (float)msec/(1000.0f*60.0f));
+  fprintf(stderr, "mris_volmask took %2.2f seconds\n", (float)msec/1000.0f);   ///(1000.0f*60.0f));
   return 0;
 }
 
@@ -523,6 +432,7 @@ IoParams::parse(int ac, char* av[])
   interface.AddOptionBool( "lh-only", &bLHOnly,"only analyze the left hemi");
   interface.AddOptionBool( "rh-only", &bRHOnly,"only analyze the right hemi");
   interface.AddOptionBool( "parallel", &bParallel,"run hemis in parallel");
+  interface.AddOptionBool( "verbose",  &bVerbose, "output debug info");
   interface.AddOptionBool
   ( "edit_aseg", &bEditAseg,
     "option to edit the aseg using the ribbons and save to "
@@ -661,25 +571,57 @@ LoadInputFiles(const IoParams& params,
 MRI*
 ComputeSurfaceDistanceFunction(MRIS* mris,
                                MRI* mri_distfield,
-                               float thickness)
+                               float thickness,
+			       int indexSurf,
+			       bool savedistance,
+			       std::string outputPath, std::string outRoot)
 {
-  int res;
-  MRI *mri_visited, *_mridist;
-  _mridist  = MRIclone(mri_distfield, NULL);
-  mri_visited  = MRIcloneDifferentType(mri_distfield, MRI_INT);
+  int tid = 0;
+#ifdef HAVE_OPENMP
+  tid = omp_get_thread_num();
+#endif
+  printf("[thread %d] computing distance to %s %s surface\n", tid, (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial");
 
-  // Convert surface vertices to vox space
-  Math::ConvertSurfaceRASToVoxel(mris, mri_distfield);
+  /******* use mri_distfield directly *******/
+  MRI *mri_visited  = MRIcloneDifferentType(mri_distfield, MRI_INT);
+
+  // Convert surface vertices coordinates from tkrRAS to vox space
+  Math::ConvertSurfaceRASToVoxel(tid, mris, mri_distfield);
+
+  Timer then1, then2, then3, then4;
+  int then3_sum = 0, then4_sum = 0;
+  int res0 = 0, resplusone = 0, resminusone = 0, resall = 0;
+
+  if (Gdiag & DIAG_VERBOSE)
+    then1.reset();
 
   // Find the distance field
-  MRISDistanceField *distfield = new MRISDistanceField(mris, _mridist);
+  MRISDistanceField *distfield = new MRISDistanceField(mris, mri_distfield);
   distfield->SetMaxDistance(thickness);
-  distfield->Generate(); //mri_dist now has the distancefield
+  distfield->Generate(); //mri_distfield now has the distancefield
 
+  if (Gdiag & DIAG_VERBOSE) {
+    fprintf(stderr, "[TIMER] [thread %d] ComputeSurfaceDistanceFunction() MRISDistanceField->Generate() (%2.2f seconds)\n", tid, (float)then1.milliseconds()/1000.0f);
+
+    char distfieldname[256] = {'\0'};
+    sprintf(distfieldname, "/autofs/cluster/scratch_wednesday/yh887/bert.copy/mri/%s.%s.distfield.mgz", (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial");
+    MRIwrite(mri_distfield, distfieldname);
+    printf("[DEBUG] [thread %d] saved %s %s unsigned distance field: %s\n", tid, (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial", distfieldname);
+
+    then2.reset();
+  }
+  
   // Construct the OBB Tree
   MRISOBBTree* OBBTree = new MRISOBBTree(mris);
   OBBTree->ConstructTree();
 
+  if (Gdiag & DIAG_VERBOSE) {
+    fprintf(stderr, "[TIMER] [thread %d] ComputeSurfaceDistanceFunction() MRISOBBTree->ConstructTree() (%2.2f seconds)\n", tid, (float)then2.milliseconds()/1000.0f);
+    OBBTree->PrintSurfBoundingBox(tid, (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial");
+
+    then2.reset();
+  }
+	
   std::queue<Pointd* > ptsqueue;
   // iterate through all the volume points
   // and apply sign
@@ -690,11 +632,26 @@ ComputeSurfaceDistanceFunction(MRIS* mris,
     {
       for(int k=0; k< mri_distfield->depth; k++)
       {
+        if (Gdiag & DIAG_VERBOSE)
+	  then3.reset();
+
         if ( MRIIvox(mri_visited, i, j, k ))
-        {
+        {  
           continue;
         }
-        res = OBBTree->PointInclusionTest(i, j, k);
+	int res = OBBTree->PointInclusionTest(i, j, k);
+	
+	if (Gdiag & DIAG_VERBOSE) {
+	  resall++;
+	  if (res == -1)     resminusone++;
+	  else if (res == 1) resplusone++;
+	  else if (res == 0) res0++;
+	  else printf("[ERROR] ****** res is not -1, 1, or 0\n");
+
+          then3_sum += then3.milliseconds();
+	  then4.reset();
+	}
+
         Pointd *pt = new Pointd;
         pt->v[0] = i;
         pt->v[1] = j;
@@ -711,14 +668,14 @@ ComputeSurfaceDistanceFunction(MRIS* mris,
           const int z = p->v[2];
           delete p;
           ptsqueue.pop();
-
+	  
           if ( MRIIvox(mri_visited, x, y, z) )
           {
             continue;
           }
           MRIIvox(mri_visited, x, y, z) =  res;
-          const float dist = MRIFvox(_mridist, x, y, z);
-          MRIFvox(_mridist, x, y, z) =  dist*res;
+          const float dist = MRIFvox(mri_distfield, x, y, z);
+          MRIFvox(mri_distfield, x, y, z) =  dist*res;
 
           // mark its 6 neighbors if distance > 1 ( triangle inequality )
           if ( dist > 1 )
@@ -779,53 +736,63 @@ ComputeSurfaceDistanceFunction(MRIS* mris,
             }
           }
         }
-      }
-    }
-  }
-  for(int i=0; i< mri_distfield->width; i++)
-  {
-    for(int j=0; j< mri_distfield->height; j++)
-    {
-      for(int k=0; k< mri_distfield->depth; k++)
-      {
-        MRIFvox(mri_distfield, i, j, k) = MRIFvox(_mridist, i, j, k);
+
+	if (Gdiag & DIAG_VERBOSE)
+	  then4_sum += then4.milliseconds();
       }
     }
   }
 
+  if (Gdiag & DIAG_VERBOSE) {
+    fprintf(stderr, "[TIMER] [thread %d] ComputeSurfaceDistanceFunction() (for loops) apply sign to all the volume points (%2.2f seconds)\n",
+                    tid, (float)then2.milliseconds()/1000.0f);
+
+    fprintf(stderr, "[TIMER] [thread %d] ComputeSurfaceDistanceFunction() MRISOBBTree->PointInclusionTest() (%2.2f seconds) "
+                    "points tested: %d, outside: %d, inside: %d, zeors: %d\n",
+                    tid, (float)then3_sum/1000.0f, resall, resminusone, resplusone, res0);
+    fprintf(stderr, "[TIMER] [thread %d] ComputeSurfaceDistanceFunction() (while loop) apply sign to voxels connected with dist > 1 (%2.2f seconds)\n", tid, (float)then4_sum/1000.0f);
+  }
+
+  if (savedistance)
+    SaveSurfaceDistances(mri_distfield, tid, (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial", outputPath, outRoot);
+    
   MRIfree(&mri_visited);
-  MRIfree(&_mridist);
   delete OBBTree;
   delete distfield;
   return(mri_distfield);
 }
 
-MRI*
-CreateHemiMask(MRI* dpial,
-               MRI* dwhite,
-               const unsigned char lblWhite,
-               const unsigned char lblRibbon,
-               const unsigned char lblBackground)
+
+// combine pial and white surface distance to create a mask for the hemi
+// Must be outside of white and inside pial. Creates labels for WM and Ribbon.
+MRI* CreateHemiMask(MRI* dpial,
+                    MRI* dwhite,
+                    const unsigned char lblWhite,
+                    const unsigned char lblRibbon,
+                    const unsigned char lblBackground)
 {
+  int tid = 0;
+#ifdef HAVE_OPENMP
+  tid = omp_get_thread_num();
+#endif
+
+  Timer then1;
+  if (Gdiag & DIAG_VERBOSE)
+    then1.reset();
+  
   // allocate return volume
   MRI* mri = MRIalloc(dpial->width,
                       dpial->height,
                       dpial->depth,
                       MRI_UCHAR);
 
-  for (unsigned int z(0), depth(dpial->depth);
-       z<depth; ++z)
-    for (unsigned int y(0), height(dpial->height);
-         y<height; ++y)
-      for (unsigned int x(0), width(dpial->width);
-           x<width; ++x)
+  #ifdef HAVE_OPENMP
+  #pragma omp parallel for 
+  #endif
+  for (int z = 0; z < dpial->depth; ++z)
+    for (int y = 0; y < dpial->height; ++y)
+      for (int x = 0; x < dpial->width; ++x)
       {
-        if (x == (unsigned int)Gx &&
-            y == (unsigned int)Gy &&
-            z == (unsigned int)Gz)
-        {
-          DiagBreak() ;
-        }
         if ( MRIFvox(dwhite,x,y,z) > 0 )
         {
           MRIsetVoxVal(mri, x,y,z,0, lblWhite);
@@ -840,6 +807,9 @@ CreateHemiMask(MRI* dpial,
         }
       } // next x,y,z
 
+  if (Gdiag & DIAG_VERBOSE)
+    fprintf(stderr, "[TIMER] [thread %d] CreateHemiMask(white=%d, ribbon=%d, background=%d) (%2.2f msec)\n", tid, lblWhite, lblRibbon, lblBackground, (float)then1.milliseconds());
+      
   return mri;
 }
 
@@ -855,18 +825,16 @@ MRI* CombineMasks(MRI* maskOne,
                       maskOne->height,
                       maskOne->depth,
                       MRI_UCHAR);
-  unsigned char voxOne,voxTwo;
-
   unsigned int overlap = 0;
-  for (unsigned int z(0), depth(maskOne->depth);
-       z<depth; ++z)
-    for (unsigned int y(0), height(maskOne->height);
-         y<height; ++y)
-      for (unsigned int x(0), width(maskOne->width);
-           x<width; ++x)
+  #ifdef HAVE_OPENMP
+  #pragma omp parallel for reduction(+ : overlap)
+  #endif  
+  for (int z = 0; z < maskOne->depth; ++z)
+    for (int y = 0; y < maskOne->height; ++y)
+      for (int x = 0; x < maskOne->width; ++x)
       {
-        voxOne = MRIvox(maskOne,x,y,z);
-        voxTwo = MRIvox(maskTwo,x,y,z);
+        unsigned char voxOne = MRIvox(maskOne,x,y,z);
+        unsigned char voxTwo = MRIvox(maskTwo,x,y,z);
         if ( voxOne!=lblBackground && voxTwo!=lblBackground )
         {
           // overlap
@@ -896,12 +864,12 @@ MRI* FilterLabel(MRI* initialMask,
                        initialMask->depth,
                        MRI_UCHAR);
 
-  for (unsigned int z(0), depth(initialMask->depth);
-       z<depth; ++z)
-    for (unsigned int y(0), height(initialMask->height);
-         y<height; ++y)
-      for (unsigned int x(0), width(initialMask->width);
-           x<width; ++x)
+  #ifdef HAVE_OPENMP
+  #pragma omp parallel for
+  #endif   
+  for (int z = 0; z< initialMask->depth; ++z)
+    for (int y = 0; y < initialMask->height; ++y)
+      for (int x = 0; x < initialMask->width; ++x)
       {
         if ( MRIvox(initialMask,x,y,z) == lbl )
         {
@@ -917,3 +885,133 @@ MRI* FilterLabel(MRI* initialMask,
 }
 
 
+std::string InitVolmask(const IoParams& params, MRI*& mriTemplate, std::vector<MRI*>& surfDistVector, std::vector<MRIS*>& inSurfVector)
+{
+  // process input files
+  // will also resolve the paths depending on the mode of the application
+  // (namely if the subject option has been specified or not)
+  std::string outputPath;
+
+  try
+  {
+    MRIS *surfLeftWhite = NULL, *surfLeftPial = NULL, *surfRightPial = NULL, *surfRightWhite = NULL;
+    outputPath = LoadInputFiles(params,
+                                mriTemplate,
+                                surfLeftWhite,
+                                surfLeftPial,
+                                surfRightWhite,
+                                surfRightPial);
+
+    inSurfVector.push_back(surfLeftWhite);
+    inSurfVector.push_back(surfLeftPial);
+    inSurfVector.push_back(surfRightWhite);
+    inSurfVector.push_back(surfRightPial);
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << " Exception caught while processing input files \n"
+              << e.what() << std::endl;
+    exit(1);
+  }
+
+  MRI *dLeftWhite = NULL, *dLeftPial = NULL, *dRightWhite = NULL, *dRightPial = NULL;
+  if (params.DoLH) {
+      // allocate distance
+      dLeftWhite = MRIalloc( mriTemplate->width,
+				  mriTemplate->height,
+				  mriTemplate->depth,
+				  MRI_FLOAT );
+      MRIcopyHeader(mriTemplate, dLeftWhite);
+  
+      dLeftPial = MRIalloc( mriTemplate->width,
+				 mriTemplate->height,
+				 mriTemplate->depth,
+				 MRI_FLOAT);
+      MRIcopyHeader(mriTemplate,dLeftPial);
+  }
+  if (params.DoRH) {
+      // allocate distance
+      dRightWhite = MRIalloc( mriTemplate->width,
+				   mriTemplate->height,
+			 	   mriTemplate->depth,
+				   MRI_FLOAT );
+      MRIcopyHeader(mriTemplate, dRightWhite);
+
+      dRightPial = MRIalloc( mriTemplate->width,
+				  mriTemplate->height,
+				  mriTemplate->depth,
+				  MRI_FLOAT);
+      MRIcopyHeader(mriTemplate, dRightPial);
+  }
+
+  surfDistVector.push_back(dLeftWhite);
+  surfDistVector.push_back(dLeftPial);
+  surfDistVector.push_back(dRightWhite);
+  surfDistVector.push_back(dRightPial);
+
+  return outputPath;
+}
+
+
+void Cleanup(std::vector<MRI*>& surfDistVector, std::vector<MRIS*>& inSurfVector)
+{
+  for (int n = 0; n < surfDistVector.size(); n++) {
+    if (surfDistVector[n] != NULL)
+      MRIfree(&surfDistVector[n]);
+    // ??? MRISfree() fails, why ???
+    //if (inSurfVector[n] != NULL)
+    //  MRISfree(&inSurfVector[n]);
+  }  
+}
+
+
+void SaveSurfaceDistances(std::vector<MRI*>& surfDistVector, std::string outputPath, std::string outRoot)
+{
+  for (int n = 0; n < surfDistVector.size(); n++) {
+    MRI *dist = surfDistVector[n];
+    if (dist != NULL) {
+      const char *hemi = (n < 2) ? "lh" : "rh";
+      const char *surfname = (n%2 == 0) ? "white" : "pial";
+
+      char dist_mgz[256] = {'\0'};
+      sprintf(dist_mgz, "%s/%s.d%s.%s.mgz", outputPath.c_str(), hemi, surfname, outRoot.c_str());
+      MRIwrite(dist, dist_mgz);
+      printf("saved %s %s signed distance field (%s)\n", hemi, surfname, dist_mgz);      
+    }
+  }
+}
+
+
+void SaveSurfaceDistances(MRI *surfDist, int threadid, const char *hemi, const char *surfname, std::string outputPath, std::string outRoot)
+{
+  char dist_mgz[256] = {'\0'};
+  sprintf(dist_mgz, "%s/%s.d%s.%s.mgz", outputPath.c_str(), hemi, surfname, outRoot.c_str());
+  MRIwrite(surfDist, dist_mgz);
+  printf("[thread %d] saved %s %s signed distance field (%s)\n", threadid, hemi, surfname, dist_mgz);      
+}
+
+
+void SaveHemispheresRibbon(const char *hemi, MRI *mriTemplate, MRI *maskHemi, const unsigned char labelRibbon, std::string outputPath, std::string outRoot)
+{
+  int tid = 0;
+#ifdef HAVE_OPENMP
+  tid = omp_get_thread_num();
+#endif
+
+  // filter the mask of the hemi
+  MRI* ribbon = FilterLabel(maskHemi, labelRibbon);
+  MRIcopyHeader( mriTemplate, ribbon);
+  ribbon->ct = CTABreadDefault();
+
+  char ribbon_mgz[256] = {'\0'};
+  sprintf(ribbon_mgz, "%s/%s.%s.mgz", outputPath.c_str(), hemi, outRoot.c_str());
+  MRIwrite( ribbon, ribbon_mgz);   //const_cast<char*>( (outputPath / hemi + "." + outRoot + ".mgz").c_str()  ));
+  printf("[thread %d] saved %s cortical ribbon mask (%s)\n", tid, hemi, ribbon_mgz);  
+
+  // sanity-check: make sure location 0,0,0 is background (not brain)
+  if( MRIgetVoxVal(ribbon,0,0,0,0) != 0 )    {
+    fprintf(stderr, "[ERROR] [thread %d] %s ribbon has non-zero value at location 0,0,0\n", tid, hemi);
+    exit(1);
+  }
+  MRIfree(&ribbon);
+}

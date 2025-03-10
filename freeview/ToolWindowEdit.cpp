@@ -26,6 +26,7 @@
 #include <QTimer>
 #include <QSettings>
 #include <QDebug>
+#include <QFileInfoList>
 #include "LayerPropertyMRI.h"
 #ifdef  SCRIBBLE_PROMPT
 #include "ScribblePromptWorker.h"
@@ -109,6 +110,7 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
   connect(mainwnd->ui->actionCopy, SIGNAL(triggered(bool)), SLOT(UpdateWidgets()), Qt::QueuedConnection);
   connect(mainwnd->ui->actionCopyStructure, SIGNAL(triggered(bool)), SLOT(UpdateWidgets()), Qt::QueuedConnection);
   connect(mainwnd->ui->actionPaste, SIGNAL(triggered(bool)), SLOT(UpdateWidgets()), Qt::QueuedConnection);
+  connect(ui->comboBoxSPModel, SIGNAL(currentIndexChanged(int)), SLOT(OnComboSPModel(int)), Qt::QueuedConnection);
 
   for (int i = 0; i < 3; i++)
   {
@@ -172,7 +174,9 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
                        << ui->checkBoxApplySmoothing
                        << ui->lineEditSmoothingStd;
   m_widgetsScribbleOnly << ui->labelBoxColor
-                        << ui->colorPickerBox;
+                        << ui->colorPickerBox
+                        << ui->labelSPModel
+                        << ui->comboBoxSPModel;
 
   QTimer* timer = new QTimer( this );
   connect( timer, SIGNAL(timeout()), this, SLOT(OnIdle()) );
@@ -194,6 +198,24 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
   m_threadScribble.start();
   connect(m_scribble, SIGNAL(ApplyFinished()), SLOT(OnButtonGeoSegClearFilling()), Qt::UniqueConnection);
   connect(m_scribble, SIGNAL(ComputeFinished(double)), SLOT(OnSegFinished(double)), Qt::UniqueConnection);
+
+  ui->comboBoxSPModel->blockSignals(true);
+  QDir dir(QProcessEnvironment::systemEnvironment().value( "FREESURFER_HOME" ) + "/pytorch_models");
+  QFileInfoList list = dir.entryInfoList(QDir::Files);
+  foreach (QFileInfo fi, list)
+  {
+    if (fi.exists())
+    {
+      ui->comboBoxSPModel->addItem(fi.completeBaseName(), fi.absoluteFilePath());
+    }
+  }
+  if (list.isEmpty())
+    ui->comboBoxSPModel->addItem("None", "");
+  else
+    m_scribble->LoadModel(ui->comboBoxSPModel->itemData(0).toString());
+  ui->comboBoxSPModel->addItem("Add...");
+  ui->comboBoxSPModel->blockSignals(false);
+  ui->comboBoxSPModel->setCurrentIndex(0);
 #endif
   m_bToUpdateWidgets = true;
 }
@@ -793,4 +815,51 @@ void ToolWindowEdit::OnSliderGeoOpacity(int nVal)
 
   BrushProperty* bp = MainWindow::GetMainWindow()->GetBrushProperty();
   bp->SetGeosSettings("Opacity", nVal/100.0);
+}
+
+void ToolWindowEdit::OnComboSPModel(int nSel)
+{
+  static int pre_ind = 0;
+#ifdef SCRIBBLE_PROMPT
+  if (nSel == ui->comboBoxSPModel->count()-1)
+  {
+    QString fn = QFileDialog::getOpenFileName(this, "Select Model File",
+                                              "",
+                                              "Model Files (*.pt)");
+    if (!fn.isEmpty())
+    {
+      ui->comboBoxSPModel->blockSignals(true);
+      QStringList files;
+      for (int i = 0; i < ui->comboBoxSPModel->count(); i++)
+      {
+        if (!ui->comboBoxSPModel->itemData(i).toString().isEmpty())
+        {
+          files << ui->comboBoxSPModel->itemData(i).toString();
+        }
+      }
+      ui->comboBoxSPModel->clear();
+      foreach (QString afn, files)
+      {
+        ui->comboBoxSPModel->addItem(QFileInfo(afn).completeBaseName(), afn);
+      }
+      ui->comboBoxSPModel->addItem(QFileInfo(fn).completeBaseName(), fn);
+      ui->comboBoxSPModel->addItem("Add...");
+      ui->comboBoxSPModel->setCurrentIndex(ui->comboBoxSPModel->count()-2);
+      ui->comboBoxSPModel->blockSignals(false);
+      m_scribble->LoadModel(fn);
+      pre_ind = ui->comboBoxSPModel->currentIndex();
+    }
+    else
+    {
+      ui->comboBoxSPModel->blockSignals(true);
+      ui->comboBoxSPModel->setCurrentIndex(pre_ind);
+      ui->comboBoxSPModel->blockSignals(false);
+    }
+  }
+  else if (!ui->comboBoxSPModel->itemData(nSel).toString().isEmpty())
+  {
+    m_scribble->LoadModel(ui->comboBoxSPModel->itemData(nSel).toString());
+    pre_ind = nSel;
+  }
+#endif
 }

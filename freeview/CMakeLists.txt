@@ -7,11 +7,14 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${FS_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/vtkutils
-    ${CMAKE_SOURCE_DIR}/lineprof
     SYSTEM
     ${ITK_INCLUDE_DIRS}
     ${VTK_INCLUDE_DIRS}
   )
+
+if (NOT DISABLE_LINEPROF)
+   include_directories(${CMAKE_SOURCE_DIR}/lineprof)
+endif()
 
   include(${VTK_USE_FILE})
   set(CMAKE_AUTOUIC ON)
@@ -214,12 +217,13 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   host_os()
 
   # turn off compile of profiling for some platforms
-  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9"))
+  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT DISABLE_LINEPROF))
      set(SOURCES ${SOURCES} DialogLineProfile.cpp LayerLineProfile.cpp)
   endif()
 
   if(BUILD_SCRIBBLE)
      set(SOURCES ${SOURCES} TorchScriptModule.cpp ScribblePromptWorker.cpp)
+     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/space/freesurfer/packages/libtorch/2.3.0.dev20240124+cpu/lib")
   endif()
 
   # build the QVTKWidget utilities
@@ -264,8 +268,10 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   add_compile_options(-Wno-deprecated -Wno-reorder -Wno-uninitialized -Wno-unused-variable -Wno-sign-compare
                       -Wno-overloaded-virtual -Wno-inconsistent-missing-override -Wno-deprecated-declarations)
 
-  if(NOT FREEVIEW_LINEPROF)
-    add_definitions(-DDISABLE_LINEPROF)
+  if (DISABLE_LINEPROF)
+    # add_definitions(-DDISABLE_LINEPROF)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISABLE_LINEPROF")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDISABLE_LINEPROF")
   endif()
 
   if(Qt6_DIR)
@@ -283,7 +289,8 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   add_executable(freeview ${SOURCES})
 
   # turn off compile of profiling for some platforms
-  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9"))
+  # if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9"))
+  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT DISABLE_LINEPROF))
      target_link_libraries(freeview
        nifti
        vtkutils
@@ -351,11 +358,11 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
         SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
         SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++1z")
 
-        add_custom_command(TARGET freeview POST_BUILD COMMAND
-           ./custom_rpath.sh ${CMAKE_CURRENT_SOURCE_DIR} ${Qt5_DIR} ${VTK_DIR} ${TORCH_DIR} ${CMAKE_INSTALL_PREFIX}
-           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-           COMMENT "Set RPATH and install as ${CMAKE_INSTALL_PREFIX}/freeview --> freeview_scribble_prompt."
-        )
+        # add_custom_command(TARGET freeview POST_BUILD COMMAND
+        #   ./custom_rpath.sh ${CMAKE_CURRENT_SOURCE_DIR} ${Qt5_DIR} ${VTK_DIR} ${TORCH_DIR} ${CMAKE_INSTALL_PREFIX}
+        #   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        #   COMMENT "Set RPATH and install as ${CMAKE_INSTALL_PREFIX}/freeview --> freeview_scribble_prompt."
+        # )
      endif()
   endif()
 
