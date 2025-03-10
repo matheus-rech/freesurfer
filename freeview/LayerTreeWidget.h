@@ -21,6 +21,7 @@
 
 class Layer;
 class LayerMRI;
+class LayerSurface;
 class QDropEvent;
 
 class MyItemDelegate : public QItemDelegate
@@ -51,7 +52,12 @@ public:
 
   QList<LayerMRI*> GetLinkedVolumes()
   {
-      return m_linkedVolumes;
+    return m_linkedVolumes;
+  }
+
+  QList<LayerSurface*> GetLinkedSurfaces()
+  {
+    return m_linkedSurfaces;
   }
 
 signals:
@@ -81,6 +87,9 @@ public slots:
   void OnLinkVolumes();
   void OnUnlinkVolumes();
   void LinkVolume(LayerMRI* vol);
+  void OnLinkSurfaces();
+  void OnUnlinkSurfaces();
+  void LinkSurface(LayerSurface* surf);
 
 protected:
   bool event(QEvent* e);
@@ -91,6 +100,7 @@ protected:
   QRect         rectCheckbox;
   bool          m_bCheckBoxClicked;
   QList<LayerMRI*>  m_linkedVolumes;
+  QList<LayerSurface*> m_linkedSurfaces;
 };
 
 

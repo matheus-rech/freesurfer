@@ -719,3 +719,14 @@ void SurfaceOverlay::SetColorTable(COLOR_TABLE *ctab)
   if (ctab)
     m_ctab = ::CTABdeepCopy(ctab);
 }
+
+void SurfaceOverlay::CopyKeySettings(SurfaceOverlay *so)
+{
+  if (!so)
+    return;
+
+  if (so->GetActiveFrame() < GetNumberOfFrames())
+    SetActiveFrame(so->GetActiveFrame());
+
+  GetProperty()->Copy(so->GetProperty());
+}

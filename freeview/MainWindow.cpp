@@ -2206,6 +2206,10 @@ void MainWindow::RunScript()
   {
     CommandLinkVolume( sa );
   }
+  else if (cmd == "linksurface")
+  {
+    CommandLinkSurface( sa );
+  }
   else if ( cmd == "gotolabel" || cmd == "gotostructure")
   {
     CommandGoToLabel( sa );
@@ -3692,6 +3696,7 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
                         << "overlay_rh" << "overlay_opacity" << "overlay_frame" << "overlay_smooth" << "overlay_custom"
                         << "overlay_mask" << "overlay_offset";
   bool bNoAutoLoad = m_defaultSettings["no_autoload"].toBool();
+  bool bLinked = false;
   for (int nOverlay = 0; nOverlay < overlay_list.size(); nOverlay++)
   {
     QStringList sa_fn = overlay_list[nOverlay].split(":");
@@ -4069,6 +4074,10 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
             sup_options["no_shading"] = true;
           }
         }
+        else if ( subOption == "link" || subOption == "linked")
+        {
+          bLinked = true;
+        }
         else if ( !valid_overlay_options.contains(subOption) )
         {
           cerr << "Unrecognized sub-option flag '" << subOption.toLatin1().constData() << "'.\n";
@@ -4083,6 +4092,9 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
   }
   if (bNoAutoLoad)
     sup_options["no_autoload"] = true;
+
+  if (bLinked)
+    m_scripts.insert(0, QStringList("linksurface") << "1" );
 
   LoadSurfaceFile( surface_fn, fn_patch, fn_target, sup_files, sup_options );
 }
@@ -9768,6 +9780,27 @@ void MainWindow::CommandLinkVolume(const QStringList &cmd)
           mri->GetProperty()->CopyWindowLevelSettings(linked_vols[0]->GetProperty());
         }
         emit LinkVolumeRequested(mri);
+      }
+    }
+  }
+}
+
+void MainWindow::CommandLinkSurface(const QStringList &cmd)
+{
+  if ( cmd.size() > 1 )
+  {
+    LayerSurface* surf = qobject_cast<LayerSurface*>(GetActiveLayer("Surface"));
+    if ( surf )
+    {
+      if ( cmd[1] == "1" || cmd[1].toLower() == "true" )
+      {
+        QList<LayerSurface*> linked_surfs = ui->widgetAllLayers->GetLinkedSurfaces();
+        if (!linked_surfs.isEmpty() && linked_surfs[0] != surf && surf->GetActiveOverlay())
+        {
+          qDebug() << "to link overlay";
+          surf->GetActiveOverlay()->CopyKeySettings(linked_surfs[0]->GetActiveOverlay());
+        }
+        emit LinkSurfaceRequested(surf);
       }
     }
   }

@@ -47,6 +47,7 @@ signals:
   void ActiveFrameChanged(int nframe);
   void MaskLoadRequested(const QString& filename);
   void OverlayChanged();
+  void OverlaySettingsChanged(LayerSurface*);
 
 public slots:
   void UpdateGraph(bool bApply = false);

@@ -32,6 +32,7 @@ class QActionGroup;
 class DialogCustomFill;
 class DialogSurfaceLabelOperations;
 class WindowEditAnnotation;
+class LayerSurface;
 
 class PanelSurface : public PanelLayer
 {
@@ -42,6 +43,8 @@ public:
   ~PanelSurface();
 
   bool eventFilter(QObject *watched, QEvent *event);
+
+  QList<LayerSurface*> GetLinkedSurfaces();
 
 protected:
   void DoUpdateWidgets();
@@ -119,6 +122,7 @@ protected slots:
   void OnButtonSaveAnnotation();
   void OnCycleAnnotation();
   void OnSpinBoxOverlayFrame(int n);
+  void OnOverlaySettingChanged(LayerSurface* surf);
 
 private:
   QList<SurfaceLabel*> GetSelectedLabels();

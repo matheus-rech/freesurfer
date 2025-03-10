@@ -313,6 +313,19 @@ void LayerTreeWidget::contextMenuEvent(QContextMenuEvent *e)
         connect(act, SIGNAL(triggered()), this, SLOT(OnUnlinkVolumes()));
         menu->addAction(act);
     }
+    else if (layers[0]->IsTypeOf("Surface"))
+    {
+        menu->addSeparator();
+        if (layers.size() > 1)
+        {
+            act = new QAction("Link Surfaces", this );
+            connect(act, SIGNAL(triggered()), this, SLOT(OnLinkSurfaces()));
+            menu->addAction(act);
+        }
+        act = new QAction("Unlink Surfaces", this );
+        connect(act, SIGNAL(triggered()), this, SLOT(OnUnlinkSurfaces()));
+        menu->addAction(act);
+    }
 
     if (layers[0]->IsTypeOf("MRI") || layers[0]->IsTypeOf("Surface"))
     {
@@ -745,3 +758,28 @@ void LayerTreeWidget::OnUnlinkVolumes()
 {
     m_linkedVolumes.clear();
 }
+
+void LayerTreeWidget::OnLinkSurfaces()
+{
+  QList<QTreeWidgetItem*> items = this->selectedItems();
+  m_linkedSurfaces.clear();
+  foreach (QTreeWidgetItem* item, items)
+  {
+    Layer* layer = reinterpret_cast<Layer*>( item->data(0, Qt::UserRole ).value<quintptr>() );
+    LayerSurface* surf = qobject_cast<LayerSurface*>(layer);
+    if (surf)
+      m_linkedSurfaces << surf;
+  }
+}
+
+void LayerTreeWidget::LinkSurface(LayerSurface *surf)
+{
+  if (!m_linkedSurfaces.contains(surf))
+    m_linkedSurfaces << surf;
+}
+
+void LayerTreeWidget::OnUnlinkSurfaces()
+{
+    m_linkedSurfaces.clear();
+}
+

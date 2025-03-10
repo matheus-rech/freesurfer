@@ -366,6 +366,7 @@ void WindowConfigureOverlay::OnApply()
       }
     }
   }
+  emit OverlaySettingsChanged(m_layerSurface);
 }
 
 void WindowConfigureOverlay::CheckApply(bool bChecked)
@@ -833,6 +834,7 @@ void WindowConfigureOverlay::OnFrameChanged(int nFrame)
     m_fDataCache = NULL;
     UpdateGraph(true);
     emit ActiveFrameChanged(nFrame);
+    emit OverlaySettingsChanged(m_layerSurface);
   }
 }
 

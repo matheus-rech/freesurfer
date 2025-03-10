@@ -39,6 +39,7 @@
 #include "WindowEditAnnotation.h"
 #include "DialogNewAnnotation.h"
 #include "MigrationDefs.h"
+#include "LayerTreeWidget.h"
 #ifdef Q_OS_MAC
 #include "MacHelper.h"
 #endif
@@ -178,6 +179,7 @@ PanelSurface::PanelSurface(QWidget *parent) :
   connect(m_wndConfigureOverlay, SIGNAL(OverlayChanged()), SLOT(UpdateWidgets()));
   connect(mainwnd, SIGNAL(OverlayMaskRequested(QString)), m_wndConfigureOverlay, SLOT(LoadLabelMask(QString)));
   connect(mainwnd, SIGNAL(CycleAnnotationRequested()), this, SLOT(OnCycleAnnotation()));
+  connect(m_wndConfigureOverlay, SIGNAL(OverlaySettingsChanged(LayerSurface*)), this, SLOT(OnOverlaySettingChanged(LayerSurface*)));
 
   m_wndEditAnnotation = new WindowEditAnnotation(this);
   m_wndEditAnnotation->hide();
@@ -1642,4 +1644,26 @@ void PanelSurface::OnButtonSaveAnnotation()
 void PanelSurface::OnSpinBoxOverlayFrame(int n)
 {
   m_wndConfigureOverlay->OnFrameChanged(n);
+}
+
+QList<LayerSurface*> PanelSurface::GetLinkedSurfaces()
+{
+  QList<LayerSurface*> linked = qobject_cast<LayerTreeWidget*>(treeWidgetLayers)->GetLinkedSurfaces();
+  return linked;
+}
+
+void PanelSurface::OnOverlaySettingChanged(LayerSurface *surf)
+{
+  QList<LayerSurface*> linked_surf = qobject_cast<LayerTreeWidget*>(treeWidgetLayers)->GetLinkedSurfaces();
+  if (surf && linked_surf.contains(surf))
+  {
+    foreach (LayerSurface* s, linked_surf)
+    {
+      if (s != surf && s->GetActiveOverlay())
+      {
+        s->GetActiveOverlay()->CopyKeySettings(surf->GetActiveOverlay());
+        s->UpdateOverlay();
+      }
+    }
+  }
 }

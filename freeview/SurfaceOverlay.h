@@ -186,6 +186,8 @@ public:
     return m_ctab;
   }
 
+  void CopyKeySettings(SurfaceOverlay* so);
+
 signals:
   void DataUpdated();
 

@@ -254,6 +254,7 @@ Q_SIGNALS:
   void OverlayMaskRequested(const QString& fn);
   void RefreshLookUpTableRequested();
   void LinkVolumeRequested(LayerMRI* mri);
+  void LinkSurfaceRequested(LayerSurface* surf);
 
 public slots:
   void SetMode( int nMode );
@@ -463,6 +464,7 @@ protected:
   void CommandExportLineProfileThickness  (const QStringList& cmd);
   void CommandSetVolumeTrackFrame   ( const QStringList& cmd );
   void CommandLinkVolume        ( const QStringList& cmd );
+  void CommandLinkSurface       ( const QStringList& cmd );
 
 public:
   void CommandSetCamera         ( const QStringList& cmd );

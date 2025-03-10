@@ -36,6 +36,7 @@ PanelAllLayers::PanelAllLayers(QWidget *parent) :
   ui->stackedWidget->hide();
   connect(ui->treeWidgetLayers, SIGNAL(ToReorderLayers(QList<Layer*>)), this, SIGNAL(ToReorderLayers(QList<Layer*>)));
   connect(wnd, SIGNAL(LinkVolumeRequested(LayerMRI*)), ui->treeWidgetLayers, SLOT(LinkVolume(LayerMRI*)));
+  connect(wnd, SIGNAL(LinkSurfaceRequested(LayerSurface*)), ui->treeWidgetLayers, SLOT(LinkSurface(LayerSurface*)));
   connect(wnd->ui->actionLockOthers, SIGNAL(triggered()), ui->treeWidgetLayers, SLOT(OnLockOthers()));
   connect(ui->treeWidgetLayers, SIGNAL(itemSelectionChanged()), SIGNAL(LayerSelectionChanged()));
 
@@ -485,4 +486,9 @@ PanelLayer* PanelAllLayers::GetPanel(const QString &layer_type)
 QList<LayerMRI*> PanelAllLayers::GetLinkedVolumes()
 {
   return ui->pageVolume->GetLinkedVolumes();
+}
+
+QList<LayerSurface*> PanelAllLayers::GetLinkedSurfaces()
+{
+  return ui->pageSurface->GetLinkedSurfaces();
 }

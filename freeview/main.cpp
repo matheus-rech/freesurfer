@@ -228,6 +228,7 @@ int main(int argc, char *argv[])
     "':annot_zorder=number' Set z-order for rendering annotation.\n\n"
     "':name=display_name' Set the display name of the surface.\n\n"
     "':offset=x,y,z' Set the position offset of the surface. Useful for connectivity display.\n\n"
+    "':linked=flag' Link the surface with other linked surfaces. Flag can be '1' or 'true'.\n\n"
     "':visible=visibility' Set the initial visibility of the surface. Visibility can be '1' or '0' or 'true' or 'false'.\n\n':vector=filename' Load a vector file for display.\n\n"
     "':target_surf=filename' Load a target surface file for vectors to project on for 2D display.\n\n"
     "':label=filename' Load a surface label file.\n\n"
