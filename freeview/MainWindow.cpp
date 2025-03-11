@@ -6968,7 +6968,7 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
     {
       //  ShowNonModalMessage("Warning",
       //                      "Either this surface does not contain valid volume geometry information, or freeview failed to read the information. This surface may not align with volumes and other surfaces.");
-      cout << "Did not find any volume info" << endl;
+      cout << "Did not find any volume info\n";
     }
 
     m_strLastDir = QFileInfo( layer->GetFileName() ).canonicalPath();
