@@ -710,7 +710,12 @@ void MyVTKUtils::GetLivewirePoints( vtkImageData* image_in,
   m_path->Update();
 
   vtkPolyData *pd = m_path->GetOutput();
-  vtkIdType npts = 0, *pts = NULL;
+  vtkIdType npts = 0;
+#ifdef VTK_CELL_ARRAY_V2
+  const vtkIdType *pts = NULL;
+#else
+  vtkIdType *pts = NULL;
+#endif
   pd->GetLines()->InitTraversal();
   pd->GetLines()->GetNextCell( npts, pts );
   //  cout << npts << endl;

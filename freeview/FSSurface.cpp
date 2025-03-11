@@ -1316,7 +1316,12 @@ bool FSSurface::ProjectVectorPoint2D( double* pt_in,
   double cpt1[3], cpt2[3], t1, t2, p0[3], p1[3], p2[3];
   int n1 = -1, n2 = -1;
   contour_lines->InitTraversal();
-  vtkIdType npts = 0, *cellpts;
+  vtkIdType npts = 0;
+#ifdef VTK_CELL_ARRAY_V2
+  const vtkIdType *cellpts;
+#else
+  vtkIdType *cellpts;
+#endif
   while ( contour_lines->GetNextCell( npts, cellpts ) )
   {
     if ( cellpts[0] == n0 )

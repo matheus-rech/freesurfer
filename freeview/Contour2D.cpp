@@ -17,6 +17,7 @@
  *
  *
  */
+#include <math.h>
 
 #include "Contour2D.h"
 #include "RenderView2D.h"

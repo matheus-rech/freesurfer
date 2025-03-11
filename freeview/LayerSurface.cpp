@@ -330,7 +330,12 @@ bool LayerSurface::WriteIntersection(const QString &filename, int nPlane, LayerM
   }
 
   vtkCellArray* lines = polydata->GetLines();
-  vtkIdType nPts, *pts;
+  vtkIdType nPts; 
+#ifdef VTK_CELL_ARRAY_V2
+  const vtkIdType *pts;
+#else
+  vtkIdType *pts;
+#endif
   vtkPoints* points = polydata->GetPoints();
 
   if (lines && points)
@@ -1091,7 +1096,11 @@ void LayerSurface::DoSlicePositionChanged( int nPlane, bool bUpdatePosOnly )
     vtkSmartPointer<vtkPoints> pts = vtkSmartPointer<vtkPoints>::New();
     double pt[3];
     vtkIdType npt;
+#ifdef VTK_CELL_ARRAY_V2
+    const vtkIdType* pn;
+#else
     vtkIdType* pn;
+#endif
     all_verts->InitTraversal();
     while (all_verts->GetNextCell(npt, pn))
     {

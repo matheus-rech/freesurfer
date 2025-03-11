@@ -130,7 +130,12 @@ void LivewireTool::GetLivewirePoints( double* pt1_in, double* pt2_in, vtkPoints*
   // cout << pt[0] << " " << pt[1] << " " << pt[2] << endl;
 
   vtkPolyData *pd = m_path->GetOutput();
-  vtkIdType npts = 0, *pts = NULL;
+  vtkIdType npts = 0;
+#ifdef VTK_CELL_ARRAY_V2
+  const vtkIdType *pts = NULL;
+#else
+  vtkIdType *pts = NULL;
+#endif
   pd->GetLines()->InitTraversal();
   pd->GetLines()->GetNextCell( npts, pts );
   // cout << npts << endl;

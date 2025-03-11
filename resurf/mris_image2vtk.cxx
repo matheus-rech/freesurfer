@@ -418,7 +418,11 @@ int main( int argc, char* argv[] )
 
 	// Copy in the faces.
 	vtkIdType cPointIDs = 0;
+#ifdef VTK_CELL_ARRAY_V2
+	const vtkIdType* pPointIDs = NULL;
+#else
 	vtkIdType* pPointIDs = NULL;
+#endif
 	vtkCellArray* polys = vtkSurface->GetPolys();
 	assert( polys );
 	vtkIdType nFace = 0;
