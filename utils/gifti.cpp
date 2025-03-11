@@ -1348,6 +1348,11 @@ MRI *MRISreadGiftiAsMRI(const char *fname, int read_volume)
     intent = MGZ_INTENT_SHAPE;
     version = ((intent & 0xffff ) << 8) | MGH_VERSION;
   }
+  else if (intent_code[intent_code_idx] == NIFTI_INTENT_TIME_SERIES)
+  {
+    intent = MGZ_INTENT_TIME_SERIES;
+    version = ((intent & 0xffff ) << 8) | MGH_VERSION;    
+  }
       
   printf("INFO: Found %d %s DataArray\n", frame_count, gifti_intent_to_string(intent_code[intent_code_idx]));
   

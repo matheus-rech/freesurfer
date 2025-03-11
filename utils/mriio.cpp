@@ -7663,12 +7663,15 @@ MRI *MRISreadCurvAsMRI(const char *curvfile, int read_volume)
 
   if (!read_volume) {
     curvmri = MRIallocHeader(vnum, 1, 1, MRI_FLOAT, 1);
+    curvmri->intent  = MGZ_INTENT_SHAPE;    
+    curvmri->version = ((MGZ_INTENT_SHAPE & 0xffff ) << 8) | MGH_VERSION;
     curvmri->nframes = 1;
     fclose(fp);
     return (curvmri);
   }
 
   curvmri = MRIalloc(vnum, 1, 1, MRI_FLOAT);
+  curvmri->intent  = MGZ_INTENT_SHAPE;  
   curvmri->version = ((MGZ_INTENT_SHAPE & 0xffff ) << 8) | MGH_VERSION;
   for (k = 0; k < vnum; k++) {
     curv = freadFloat(fp);
