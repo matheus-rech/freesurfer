@@ -12,11 +12,15 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     ${VTK_INCLUDE_DIRS}
   )
 
-if (NOT DISABLE_LINEPROF)
-   include_directories(${CMAKE_SOURCE_DIR}/lineprof)
-endif()
+  if (NOT DISABLE_LINEPROF)
+     include_directories(${CMAKE_SOURCE_DIR}/lineprof)
+  endif()
 
-  include(${VTK_USE_FILE})
+  if(HOST_OS MATCHES "Rocky9")
+     include_directories(${VTK_INCLUDE_DIRS})
+  else()
+     include(${VTK_USE_FILE})
+  endif()
   set(CMAKE_AUTOUIC ON)
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_AUTORCC ON)
@@ -217,7 +221,7 @@ endif()
   host_os()
 
   # turn off compile of profiling for some platforms
-  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT DISABLE_LINEPROF))
+  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT DISABLE_LINEPROF OR NOT HOST_OS MATCHES "Rocky9"))
      set(SOURCES ${SOURCES} DialogLineProfile.cpp LayerLineProfile.cpp)
   endif()
 

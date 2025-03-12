@@ -12,7 +12,11 @@ if(VTK_FOUND)
   )
 
   include(${ITK_USE_FILE})  
-  include(${VTK_USE_FILE})
+  if(HOST_OS MATCHES "Rocky9")
+     include_directories(${VTK_INCLUDE_DIRS})
+  else()
+     include(${VTK_USE_FILE})
+  endif()
 
   if(NOT APPLE)
     add_compile_options(-Wno-deprecated -Wno-overloaded-virtual -Wno-unused-variable -Wno-unused-local-typedefs  -Wno-maybe-uninitialized )

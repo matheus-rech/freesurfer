@@ -1,9 +1,12 @@
 project(resurf)
 
 if(ITK_FOUND AND VTK_FOUND)
-
   include(${ITK_USE_FILE})
-  include(${VTK_USE_FILE})
+  if(HOST_OS MATCHES "Rocky9")
+     include_directories(${VTK_INCLUDE_DIRS})
+  else()
+     include(${VTK_USE_FILE})
+  endif()
 
   add_compile_options(-Wno-deprecated -Wno-overloaded-virtual -Wno-inconsistent-missing-override -Wno-unused-variable -Wno-unused-local-typedefs -Wno-reorder)
   include_directories(

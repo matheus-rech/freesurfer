@@ -60,7 +60,7 @@ option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw
 option(APPLE_ARM64 "Mac arm64 build" OFF)
 
 if (NOT FREEVIEW_LINEPROF)
-    set(DISABLE_LINEPROF ON)
+   set(DISABLE_LINEPROF ON)
 endif()
 
 message(STATUS "For HOST_OS=${HOST_OS} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG}")
@@ -161,6 +161,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # Use host_os() to get HOST_OS to reference the correct 3rd party package build
 host_os()
+
+if(HOST_OS MATCHES "Rocky9")
+   set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
+   set(QT_SYSLIBS ON)
+endif()
+if(HOST_OS MATCHES "Rocky8")
+   set(QT_SYSLIBS ON)
+endif()
 
 # -------- zlib --------
 find_package(ZLIB REQUIRED)
@@ -295,6 +303,8 @@ find_package(OpenSSL REQUIRED)
 
 # -------- X11 ---------
 find_package(X11)
+message(STATUS "For HOST_OS=${HOST_OS} X11_LIBRARIES=${X11_LIBRARIES}")
+message(STATUS "For HOST_OS=${HOST_OS} X11_INCLUDE_DIR=${X11_INCLUDE_DIR}")
 
 # search for GUI libraries
 if(BUILD_GUIS)
@@ -389,7 +399,11 @@ endif()
 # -------- vtk --------
 
 if(NOT VTK_DIR)
-   if(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9")
+   if(HOST_OS MATCHES "Rocky9")
+      set(VTK_DIR /usr/pubsw/packages/vtk/9.1.0_native_rocky9/lib64/cmake/vtk CACHE PATH "VTK install directory")
+      set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/9.1.0_native_rocky9/lib64 CACHE PATH "VTK library directory")
+      set(VTK_INCLUDE_DIRS ${FS_PACKAGES_DIR}/vtk/9.1.0_native_rocky9/include CACHE PATH "VTK include directory")
+   elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
       set(VTK_DIR ${FS_PACKAGES_DIR}/vtk/8.2_centos9/lib64/cmake/vtk-8.2 CACHE PATH "VTK install directory")
       set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/8.2_centos9/lib64 CACHE PATH "VTK library directory")
    elseif(HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "11")
@@ -405,8 +419,14 @@ if(NOT VTK_DIR)
    endif()
 endif()
 
-find_package(VTK HINTS ${VTK_DIR})
+if(HOST_OS MATCHES "Rocky9")
+   find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonCore CommonDataModel CommonMath CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersSources IOExport IOGeometry IOImage IOLegacy IOXML ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil RenderingCore RenderingFreeType RenderingLOD RenderingVolume)
+else()
+   find_package(VTK HINTS ${VTK_DIR})
+endif()
+
 message(STATUS "For HOST_OS=${HOST_OS} VTK_DIR=${VTK_DIR}")
+# message(STATUS "For HOST_OS=${HOST_OS} VTK_LIBRARIES=${VTK_LIBRARIES}")
 
 if(VTK_FOUND AND VTK_BUILD_SHARED_LIBS)
   # locate all shared vtk libraries
@@ -766,7 +786,6 @@ endif()
 if(NOT MINIMAL)
   add_subdirectories(
     AANsegment
-    anatomicuts
     attic
     BrainstemSS
     diffusion_tool
@@ -978,6 +997,12 @@ if(NOT MINIMAL)
     mri_segment_thalamic_nuclei_dti_cnn
     mris_register_josa
   )
+endif()
+
+if(NOT MINIMAL AND NOT HOST_OS MATCHES "Rocky9")
+   add_subdirectories(anatomicuts)
+else()
+   message(STATUS "For HOST_OS=${HOST_OS} not building anatomicuts")
 endif()
 
 # # Only build some old subdirectories if they exist

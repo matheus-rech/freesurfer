@@ -4,8 +4,13 @@ include_directories(${FLTK_INCLUDE_DIR})
 
 # VTK as well
 if(NOT VTK_FOUND)
-  find_package(VTK REQUIRED)
-  include(${VTK_USE_FILE})
+  if(HOST_OS MATCHES "Rocky9")
+     find_package(VTK REQUIRED COMPONENTS CommonCore)
+     include_directories(${VTK_INCLUDE_DIRS})
+  else()
+     find_package(VTK REQUIRED)
+     include(${VTK_USE_FILE})
+  endif()
 endif()
 
 # FLTK's fluid generates C++ files in the build directory
