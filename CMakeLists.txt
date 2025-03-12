@@ -420,7 +420,7 @@ if(NOT VTK_DIR)
 endif()
 
 if(HOST_OS MATCHES "Rocky9")
-   find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersSources IOExport IOGeometry IOImage IOLegacy IOXML ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil RenderingCore RenderingFreeType RenderingLOD RenderingVolume)
+   find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources IOExport IOGeometry IOImage IOLegacy IOXML ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil RenderingCore RenderingFreeType RenderingLOD RenderingVolume)
 else()
    find_package(VTK HINTS ${VTK_DIR})
 endif()
