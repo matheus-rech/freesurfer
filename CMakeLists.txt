@@ -420,7 +420,7 @@ if(NOT VTK_DIR)
 endif()
 
 if(HOST_OS MATCHES "Rocky9")
-   find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonCore CommonDataModel CommonMath CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersSources IOExport IOGeometry IOImage IOLegacy IOXML ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil RenderingCore RenderingFreeType RenderingLOD RenderingVolume)
+   find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersSources IOExport IOGeometry IOImage IOLegacy IOXML ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil RenderingCore RenderingFreeType RenderingLOD RenderingVolume)
 else()
    find_package(VTK HINTS ${VTK_DIR})
 endif()
@@ -786,6 +786,7 @@ endif()
 if(NOT MINIMAL)
   add_subdirectories(
     AANsegment
+    anatomicuts
     attic
     BrainstemSS
     diffusion_tool
@@ -997,12 +998,6 @@ if(NOT MINIMAL)
     mri_segment_thalamic_nuclei_dti_cnn
     mris_register_josa
   )
-endif()
-
-if(NOT MINIMAL AND NOT HOST_OS MATCHES "Rocky9")
-   add_subdirectories(anatomicuts)
-else()
-   message(STATUS "For HOST_OS=${HOST_OS} not building anatomicuts")
 endif()
 
 # # Only build some old subdirectories if they exist
