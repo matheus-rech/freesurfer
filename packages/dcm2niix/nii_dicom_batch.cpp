@@ -10584,24 +10584,22 @@ void saveIniFile(struct TDCMopts opts) {
 // the following fields from struct TDICOMdata are printed:
 //   patientName  seriesNum  studyDate  studyTime  TE  TR  flipAngle  xyzMM[1]\xyzMM[2]  phaseEncodingRC  pixelBandwidth  dicom-file  imageType
 void dcmListDump(int nConvert, struct TDCMsort dcmSort[], struct TDICOMdata dcmList[], struct TSearchList *nameList, struct TDCMopts opts) {
+	FILE *fp = stdout;
+	const char *imagelist = getenv("MGH_DCMUNPACK_IMAGELIST");
+	if (imagelist != NULL)
+		fp = fopen(imagelist, "a");
 	for (int i = 0; i < nConvert; i++) {
 		int indx = dcmSort[i].indx;
 		mrifsStruct.dicomlst[i] = new char[strlen(nameList->str[indx]) + 1];
 		memset(mrifsStruct.dicomlst[i], 0, strlen(nameList->str[indx]) + 1);
 		memcpy(mrifsStruct.dicomlst[i], nameList->str[indx], strlen(nameList->str[indx]));
 
-	        FILE *fp = stdout;
-	        const char *imagelist = getenv("MGH_DCMUNPACK_IMAGELIST");
-	        if (imagelist != NULL)
-			fp = fopen(imagelist, "a");
-
 		fprintf(fp, "%s %ld %s %s %f %f %f %f\\%f %c %f %s %s\n",
 				dcmList[indx].patientName, dcmList[indx].seriesNum, dcmList[indx].studyDate, dcmList[indx].studyTime,
 				dcmList[indx].TE, dcmList[indx].TR, dcmList[indx].flipAngle, dcmList[indx].xyzMM[1], dcmList[indx].xyzMM[2],
 				dcmList[indx].phaseEncodingRC, dcmList[indx].pixelBandwidth, nameList->str[indx], dcmList[indx].imageType);
-
-	        if (fp != stdout)
-			fclose(fp);		
 	}
+        if (fp != stdout)
+		fclose(fp);		
 }
 #endif
