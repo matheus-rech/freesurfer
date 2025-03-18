@@ -92,6 +92,9 @@ public:
   explicit TermWidget(QWidget *parent = 0);
   ~TermWidget();
 
+  void showEvent(QShowEvent*);
+  void hideEvent(QHideEvent*);
+
   bool GetDarkTheme();
 
   bool GetRedirectStdOutput()

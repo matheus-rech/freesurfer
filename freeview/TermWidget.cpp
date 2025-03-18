@@ -68,8 +68,6 @@ TermWidget::TermWidget(QWidget *parent) :
   QSettings settings;
   this->restoreGeometry(settings.value("/CommandConsole/Geometry").toByteArray());
 
-  SetRedirectStdOutput(true);
-  SetDuplicateStdOutput(true);
 
   Known_Shell_Cmds << "ls" << "pwd" << "cd" << "cp" << "dir" << "copy";
 
@@ -85,6 +83,20 @@ TermWidget::~TermWidget()
 
   SetRedirectStdOutput(false);
   delete ui;
+}
+
+void TermWidget::showEvent(QShowEvent * e)
+{
+  SetRedirectStdOutput(true);
+  SetDuplicateStdOutput(true);
+  QWidget::showEvent(e);
+}
+
+void TermWidget::hideEvent(QHideEvent * e)
+{
+  SetRedirectStdOutput(false);
+  SetDuplicateStdOutput(false);
+  QWidget::hideEvent(e);
 }
 
 void TermWidget::EnableListeningStdin()
