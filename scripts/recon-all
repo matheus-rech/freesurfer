@@ -4884,10 +4884,8 @@ if($DoCortRibbonVolMask) then
     --save_ribbon --parallel)
   if($LHonly) set cmd = ($cmd --lh-only )
   if($RHonly) set cmd = ($cmd --rh-only )
-  # ATH: Disabling --parallel here as it sometimes causes a race-condition bug
-  # resulting in the error: `MatrixMultiply: m1 is null`. I'm leaving the flag in mris_volmask
-  # since the bug rarely occurs, but it's enough to cause problems in large recon batches.
-  # if($OMP_NUM_THREADS > 1 && ! $LHonly && ! $RHonly) set cmd = ($cmd --parallel) # just hemis
+  # the 'mris_volmask --parallel' race-condition bug is fixed in this commit:
+  # https://github.com/freesurfer/freesurfer/commit/ad53c019a98f3c8132b2a13e062f63baf4efe388
   set xopts = `fsr-getxopts mris_volmask $V8XoptsFile $GlobXOptsFile $XOptsFile `;
   set cmd = ($cmd $xopts)
   set cmd = ($cmd $subjid)
@@ -8348,11 +8346,16 @@ check_params:
       exit 1
     endif
 
+    # This is a bit of a hack as we want these to run regardless of
+    # whether CALabel or SynthSeg or Samseg is run.
+    if($DoCALabel) then
+      set DoCCSeg = 1;
+      set DoASegMerge = 1;
+    endif
+
     if($UseSamseg || $UseSynthSeg) then
       set DoCALabel        = 0;
-      set DoASegMerge      = 1;
       set UseSynthMorph    = 1
-      set DoCCSeg          = 1; 
       set DoSamsegReg      = 0;
     endif
 
