@@ -191,7 +191,8 @@ endfunction()
 function(integrate_samseg)
   # pip install samseg
   set(PIP_INSTALL_FLAGS "${PIP_NODEP_ARG} ${PIP_NOVER_ARG} --upgrade")
-  set(STANDALONE_SAMSEG_PATH "${CMAKE_CURRENT_BINARY_DIR}/git-samseg.standalone")
+  set(STANDALONE_SAMSEG_URL  "git+https://github.com/freesurfer/samseg.git")
+  set(STANDALONE_SAMSEG_PATH "${STANDALONE_SAMSEG_URL}")
   if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
     set(STANDALONE_SAMSEG_PATH "${USER_SAMSEG_PATH}")
     # editable samseg install doesn't work in the following build environments:
@@ -201,7 +202,6 @@ function(integrate_samseg)
     #       samseg dependencies modules cannot be found
     set(PIP_INSTALL_FLAGS "${PIP_INSTALL_FLAGS} --editable")
   endif()
-  set(STANDALONE_SAMSEG_URL  "https://github.com/freesurfer/samseg.git")
   
   set(pybind11_DIR           "${CMAKE_SOURCE_DIR}/packages/pybind11")
 
@@ -214,15 +214,6 @@ function(integrate_samseg)
     message(STATUS \" for HOST_OS=${HOST_OS} \")
     message(STATUS \" ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} \")
     message(STATUS \" PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} PYTHON_INSTALL=${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 PKG_TARGET=${PKG_TARGET} \")
-
-    if(\"${USER_SAMSEG_PATH}\" STREQUAL \"\")
-      message(STATUS \" git clone ${STANDALONE_SAMSEG_URL} ${STANDALONE_SAMSEG_PATH} \")
-      execute_process(COMMAND bash -c \"rm -rf ${STANDALONE_SAMSEG_PATH}\")
-      execute_process(COMMAND bash -c \"git clone --quiet ${STANDALONE_SAMSEG_URL} ${STANDALONE_SAMSEG_PATH}\" result_variable retcode)
-      if(NOT ${retcode} STREQUAL 0)
-        message(FATAL_ERROR \"could not git clone standalone samseg\")
-      endif()
-    endif()
 
     # no check/install samseg dependencies, all dependencies will be handled in requirement files
     message(STATUS \" installing standalone samseg from ${STANDALONE_SAMSEG_PATH} \") 
