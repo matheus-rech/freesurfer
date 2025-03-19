@@ -4896,7 +4896,7 @@ int __mrisreadcurvmri(MRIS *mris, const char *fname, int type, int read_volume, 
   int vno = 0;
   float curvmin = 10000.0f;
   float curvmax = -10000.0f; /* for compiler warnings */
-  for (int f = 0; f < TempMRI->nframes; f++) {
+  for (int f = 0; f < 1 /*TempMRI->nframes*/; f++) {
     for (int s = 0; s < TempMRI->depth; s++) {
       for (int r = 0; r < TempMRI->height; r++) {
         for (int c = 0; c < TempMRI->width; c++) {
