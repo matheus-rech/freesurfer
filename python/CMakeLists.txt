@@ -204,6 +204,11 @@ function(integrate_samseg)
   set(STANDALONE_SAMSEG_URL  "https://github.com/freesurfer/samseg.git")
   
   set(pybind11_DIR           "${CMAKE_SOURCE_DIR}/packages/pybind11")
+
+  if(APPLE)
+    set(APPLE_BUILD_SETTING "APPLE=ON APPLE_ARM64=${APPLE_ARM64}")
+  endif()
+  set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${PKG_TARGET} ${PIP_LAST_ARG}")
         
   install(CODE "
     message(STATUS \" for HOST_OS=${HOST_OS} \")
@@ -212,6 +217,7 @@ function(integrate_samseg)
 
     if(\"${USER_SAMSEG_PATH}\" STREQUAL \"\")
       message(STATUS \" git clone ${STANDALONE_SAMSEG_URL} ${STANDALONE_SAMSEG_PATH} \")
+      execute_process(COMMAND bash -c \"rm -rf ${STANDALONE_SAMSEG_PATH}\")
       execute_process(COMMAND bash -c \"git clone --quiet ${STANDALONE_SAMSEG_URL} ${STANDALONE_SAMSEG_PATH}\" result_variable retcode)
       if(NOT ${retcode} STREQUAL 0)
         message(FATAL_ERROR \"could not git clone standalone samseg\")
@@ -220,8 +226,8 @@ function(integrate_samseg)
 
     # no check/install samseg dependencies, all dependencies will be handled in requirement files
     message(STATUS \" installing standalone samseg from ${STANDALONE_SAMSEG_PATH} \") 
-    message(STATUS \" ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} CMAKE_C_COMPILER=${CMAKE_C_COMPILER} CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} APPLE_ARM64=${APPLE_ARM64} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${PKG_TARGET} ${PIP_LAST_ARG}\")
-    execute_process(COMMAND bash -c \"ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} CMAKE_C_COMPILER=${CMAKE_C_COMPILER} CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} APPLE_ARM64=${APPLE_ARM64} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
+    message(STATUS \" ${INTEGRATE_SAMSEG_COMMAND} \")
+    execute_process(COMMAND bash -c \"${INTEGRATE_SAMSEG_COMMAND}\" RESULT_VARIABLE retcode)
     if(NOT \${retcode} STREQUAL 0)
       message(FATAL_ERROR \"Could not install Standalone Samseg\")
     endif()"

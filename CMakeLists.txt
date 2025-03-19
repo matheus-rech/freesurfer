@@ -63,6 +63,12 @@ if (NOT FREEVIEW_LINEPROF)
    set(DISABLE_LINEPROF ON)
 endif()
 
+# on Mac ARM64, the wheel is not built with correct platform tag
+# turn INTEGRATE_SAMSEG OFF to investigate further
+if(APPLE_ARM64)
+  set(INTEGRATE_SAMSEG OFF)
+endif()
+
 message(STATUS "For HOST_OS=${HOST_OS} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG}")
 if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
   message(STATUS "User defined SAMSEG sandbox ${USER_SAMSEG_PATH}")
