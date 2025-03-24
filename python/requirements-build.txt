@@ -5,7 +5,7 @@ PyWavelets==1.4.1
 PyYAML==6.0.2
 SimpleITK==2.4.1
 Werkzeug==3.0.6
-absl-py==2.1.0
+absl-py==2.2.0
 astunparse==1.6.3
 cachetools==5.5.2
 certifi==2025.1.31
@@ -76,9 +76,9 @@ tifffile==2023.7.10
 torch==2.1.2+cpu
 tqdm==4.67.1
 transforms3d==0.4.2
-trimesh==4.6.4
+trimesh==4.6.5
 typing_extensions==4.5.0
-tzdata==2025.1
+tzdata==2025.2
 urllib3==1.26.15
 uv==0.1.42
 voxelmorph@git+https://github.com/voxelmorph/voxelmorph.git@feb74e0541b8a390ccd2ea57b745aa8808703ca4
