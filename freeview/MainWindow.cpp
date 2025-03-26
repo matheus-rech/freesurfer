@@ -10245,3 +10245,8 @@ void MainWindow::SetEditRefPoint(LayerMRI *mri, double *pos_in)
     ref->SetEndPosition(pos);
   }
 }
+
+bool MainWindow::IsWSL()
+{
+  return QFile::exists("/proc/sys/fs/binfmt_misc/WSLInterop");
+}

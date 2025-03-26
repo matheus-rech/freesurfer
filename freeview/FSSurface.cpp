@@ -482,10 +482,7 @@ bool FSSurface::LoadCurvature( const QString& filename )
         curvs->SetValue(vno, m_MRIS->vertices[vno].curv);
       }
     }
-
-
     m_bCurvatureLoaded = true;
-
     return true;
   }
 }

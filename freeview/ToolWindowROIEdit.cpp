@@ -29,7 +29,11 @@ ToolWindowROIEdit::ToolWindowROIEdit(QWidget *parent) :
   ui(new Ui::ToolWindowROIEdit)
 {
   ui->setupUi(this);
-  this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
+  if (MainWindow::IsWSL())
+    this->setWindowFlags( Qt::Window | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint | Qt::CustomizeWindowHint );
+  else
+    this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
+
   QActionGroup* ag = new QActionGroup(this);
   ag->addAction( ui->actionFill );
   ag->addAction( ui->actionFreeHand );

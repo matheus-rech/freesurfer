@@ -244,7 +244,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
       QVTK7/QVTKWidget.cxx
       QVTK7/QVTKPaintEngine.cxx
     )
-  else()
+  elseif(${VTK_MAJOR_VERSION} LESS 9)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/QVTK8)
     set(SOURCES ${SOURCES}
       QVTK8/vtkEventQtSlotConnect.cxx
@@ -256,6 +256,15 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
       QVTK8/QVTKOpenGLNativeWidget.cxx
       QVTK8/QVTKOpenGLWidget.cxx
       QVTK8/QVTKOpenGLWindow.cxx
+    )
+  else()
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/QVTK9)
+    set(SOURCES ${SOURCES}
+      QVTK9/vtkEventQtSlotConnect.cxx
+      QVTK9/vtkQtConnection.cxx
+      QVTK9/QVTKInteractor.cxx
+      QVTK9/QVTKInteractorAdapter.cxx
+      QVTK9/QVTKOpenGLNativeWidget.cxx
     )
   endif()
 
@@ -270,7 +279,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   endif()
 
   add_compile_options(-Wno-deprecated -Wno-reorder -Wno-uninitialized -Wno-unused-variable -Wno-sign-compare
-                      -Wno-overloaded-virtual -Wno-inconsistent-missing-override -Wno-deprecated-declarations)
+                      -Wno-overloaded-virtual -Wno-inconsistent-missing-override -Wno-deprecated-declarations -nostartfiles)
 
   if (DISABLE_LINEPROF)
     # add_definitions(-DDISABLE_LINEPROF)
