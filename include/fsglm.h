@@ -24,6 +24,7 @@
 
 #define GLMMAT_NCONTRASTS_MAX 100
 typedef struct {
+  // make sure to change GLMdeepCopy() if items are added to the structure
   MATRIX *y;   // input: nframes-by-1 (can only be 1)
   MATRIX *X;   // Design matrix: nframes-by-ncols
   // Note: weighted GLM not included here. To do weighted,
@@ -110,6 +111,7 @@ int GLMdump(const char *dumpdir, GLMMAT *glm);
 int GLMresynthTest(int niters, double *prvar);
 MATRIX *GLMpmfMatrix(MATRIX *C, double *cond, MATRIX *P);
 int GLMdof(GLMMAT *glm);
+GLMMAT *GLMdeepCopy(GLMMAT *glmmat);
 
 
 

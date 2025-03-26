@@ -3208,3 +3208,47 @@ MRI *fMRIspatialARN(MRI *src, MRI *mask, int N, MRI *arN)
   if (freetmp) MRIfree(&srctmp);
   return (arN);
 }
+
+MRIGLM *MRIglmDeepCopy(MRIGLM *mg)
+{
+  // make sure to edit this if items are added to the structure
+  MRIGLM *cp = (MRIGLM *) calloc(sizeof(MRIGLM),1);
+  cp->glm = GLMdeepCopy(mg->glm);
+  if(mg->y) {
+    cp->y = MRIcopy(mg->y,NULL);
+    MRIcopyPulseParameters(mg->y,cp->y);
+  }
+  if(mg->Xg) cp->Xg = MatrixCopy(mg->Xg,NULL);
+  cp->npvr = mg->npvr;
+  for(int n=0; n < mg->npvr; n++) if(mg->pvr[n]) cp->pvr[n] = MRIcopy(mg->pvr[n],NULL);
+  cp->nregtot = mg->nregtot;
+  cp->pervoxflag = mg->pervoxflag;
+  cp->XgLoaded = mg->XgLoaded;
+  if(mg->w) cp->w = MRIcopy(mg->w,NULL);
+  if(mg->wg) cp->wg = MatrixCopy(mg->wg,NULL);
+  cp->skipweight = mg->skipweight;
+  if(mg->mask) cp->mask = MRIcopy(mg->mask,NULL);
+  cp->n_ill_cond = mg->n_ill_cond;
+  if(mg->yffxvar) cp->yffxvar = MRIcopy(mg->yffxvar,NULL);
+  cp->ffxdof = mg->ffxdof;
+  if(mg->cond) cp->cond = MRIcopy(mg->cond,NULL);
+  cp->condsave = mg->condsave;
+  if(mg->beta) cp->beta = MRIcopy(mg->beta,NULL);
+  if(mg->yhat) cp->yhat = MRIcopy(mg->yhat,NULL);
+  cp->yhatsave = mg->yhatsave;
+  if(mg->eres) cp->eres = MRIcopy(mg->eres,NULL);
+  if(mg->rvar) cp->rvar = MRIcopy(mg->rvar,NULL);
+  for(int n=0; n < mg->glm->ncontrasts; n++){
+    if(mg->gamma[n]) cp->gamma[n] = MRIcopy(mg->gamma[n],NULL);
+    if(mg->gammaVar[n]) cp->gammaVar[n] = MRIcopy(mg->gammaVar[n],NULL);
+    if(mg->F[n]) cp->F[n] = MRIcopy(mg->F[n],NULL);
+    if(mg->p[n]) cp->p[n] = MRIcopy(mg->p[n],NULL);
+    if(mg->sig[n]) cp->sig[n] = MRIcopy(mg->sig[n],NULL);
+    if(mg->z[n]) cp->z[n] = MRIcopy(mg->z[n],NULL);
+    if(mg->pcc[n]) cp->pcc[n] = MRIcopy(mg->pcc[n],NULL);
+    if(mg->ypmf[n]) cp->ypmf[n] = MRIcopy(mg->ypmf[n],NULL);
+  }
+  if(mg->FrameMask) cp->FrameMask = MRIcopy(mg->FrameMask,NULL);
+
+  return(cp);
+}

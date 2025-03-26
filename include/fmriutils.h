@@ -28,6 +28,7 @@
 /*---------------------------------------------------------*/
 typedef struct
 {
+  // make sure to edit MRIglmDeepCopy() if items are added to the structure
   GLMMAT *glm;       // Holds all the glm stuff
   MRI *y;            // Input data
   MATRIX *Xg;        // Global regressor matrix
@@ -68,6 +69,7 @@ typedef struct
 MRIGLM;
 /*---------------------------------------------------------*/
 
+MRIGLM *MRIglmDeepCopy(MRIGLM *mg);
 MRI *fMRImatrixMultiply(MRI *inmri, MATRIX *M, MRI *outmri);
 MRI *fMRIcovariance(MRI *fmri, int Lag, float DOFAdjust, MRI *mask, MRI *covar);
 

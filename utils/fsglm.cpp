@@ -221,6 +221,69 @@ GLMMAT *GLMalloc(void)
   return (glm);
 }
 
+
+GLMMAT *GLMdeepCopy(GLMMAT *gm)
+{
+  // make sure to change this if items are added to the structure
+  GLMMAT *cp = GLMalloc();
+  if(gm->y) cp->y = MatrixCopy(gm->y,NULL);
+  if(gm->X) cp->X = MatrixCopy(gm->X,NULL);
+
+  if(gm->Xt)   cp->Xt = MatrixCopy(gm->Xt,NULL);
+  if(gm->XtX)  cp->XtX = MatrixCopy(gm->XtX,NULL);
+  if(gm->iXtX) cp->iXtX = MatrixCopy(gm->iXtX,NULL);
+  if(gm->Xty)  cp->Xty = MatrixCopy(gm->Xty,NULL);
+  cp->dof = gm->dof;
+  cp->AllowZeroDOF = gm->AllowZeroDOF;
+  cp->ill_cond_flag = gm->ill_cond_flag;
+  cp->DoPCC = gm->DoPCC;
+  cp->debug = gm->debug;
+  if(gm->beta) cp->beta = MatrixCopy(gm->beta,NULL);
+  if(gm->yhat) cp->yhat = MatrixCopy(gm->yhat,NULL);
+  if(gm->eres) cp->eres = MatrixCopy(gm->eres,NULL);
+  cp->rvar = gm->rvar;
+  if(gm->yffxvar) cp->yffxvar = MatrixCopy(gm->yffxvar,NULL);
+  cp->ffxdof = gm->ffxdof;
+  cp->ReScaleX = gm->ReScaleX;
+  cp->ncontrasts = gm->ncontrasts;
+  for(int n=0; n < gm->ncontrasts; n++){
+    if(gm->C[n]) cp->C[n] = MatrixCopy(gm->C[n],NULL);
+    //if(gm->Cname[n]) strcpy(cp->Cname[n],gm->Cname[n]);// does not work cause const *char
+    cp->Cname[n] = gm->Cname[n]; // this is const char* so just copying the pointer should be ok
+    cp->Ccond[n] = gm->Ccond[n];
+    cp->UseGamma0[n] = gm->UseGamma0[n];
+    if(gm->gamma0[n]) cp->gamma0[n] = MatrixCopy(gm->gamma0[n],NULL);
+    cp->ypmfflag[n] = gm->ypmfflag[n];
+    if(gm->Mpmf[n]) cp->Mpmf[n] = MatrixCopy(gm->Mpmf[n],NULL);
+    if(gm->ypmf[n]) cp->ypmf[n] = MatrixCopy(gm->ypmf[n],NULL);
+    if(gm->gamma[n]) cp->gamma[n] = MatrixCopy(gm->gamma[n],NULL);
+    cp->F[n] = gm->F[n];
+    cp->p[n] = gm->p[n];
+    cp->z[n] = gm->z[n];
+    cp->pcc[n] = gm->pcc[n];
+    if(gm->Ct[n]) cp->Ct[n] = MatrixCopy(gm->Ct[n],NULL);
+    if(gm->CiXtX[n]) cp->CiXtX[n] = MatrixCopy(gm->CiXtX[n],NULL);
+    if(gm->CiXtXCt[n]) cp->CiXtXCt[n] = MatrixCopy(gm->CiXtXCt[n],NULL);
+    if(gm->gammat[n]) cp->gammat[n] = MatrixCopy(gm->gammat[n],NULL);
+    if(gm->gCVM[n]) cp->gCVM[n] = MatrixCopy(gm->gCVM[n],NULL);
+    if(gm->igCVM[n]) cp->igCVM[n] = MatrixCopy(gm->igCVM[n],NULL);
+    if(gm->gtigCVM[n]) cp->gtigCVM[n] = MatrixCopy(gm->gtigCVM[n],NULL);
+    if(gm->XCt[n]) cp->XCt[n] = MatrixCopy(gm->XCt[n],NULL);
+    if(gm->Dt[n]) cp->Dt[n] = MatrixCopy(gm->Dt[n],NULL);
+    if(gm->XDt[n]) cp->XDt[n] = MatrixCopy(gm->XDt[n],NULL);
+    if(gm->RD[n]) cp->RD[n] = MatrixCopy(gm->RD[n],NULL);
+    if(gm->Xcd[n]) cp->Xcd[n] = MatrixCopy(gm->Xcd[n],NULL);
+    if(gm->Xcdt[n]) cp->Xcdt[n] = MatrixCopy(gm->Xcdt[n],NULL);
+    if(gm->sumXcd[n]) cp->sumXcd[n] = MatrixCopy(gm->sumXcd[n],NULL);
+    if(gm->sumXcd2[n]) cp->sumXcd2[n] = MatrixCopy(gm->sumXcd2[n],NULL);
+    if(gm->yhatd[n]) cp->yhatd[n] = MatrixCopy(gm->yhatd[n],NULL);
+    if(gm->Xcdyhatd[n]) cp->Xcdyhatd[n] = MatrixCopy(gm->Xcdyhatd[n],NULL);
+    if(gm->sumyhatd[n]) cp->sumyhatd[n] = MatrixCopy(gm->sumyhatd[n],NULL);
+    if(gm->sumyhatd2[n]) cp->sumyhatd2[n] = MatrixCopy(gm->sumyhatd2[n],NULL);
+  }
+
+  return(cp);
+}
 /*--------------------------------------------------------------------
   GLMdof() - computes DOF = #Xrows - #Xcols
   ------------------------------------------------------------------*/
