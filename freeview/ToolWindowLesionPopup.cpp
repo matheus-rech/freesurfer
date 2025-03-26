@@ -2,13 +2,17 @@
 #include "ui_ToolWindowLesionPopup.h"
 #include "LayerPointSet.h"
 #include "LayerPropertyPointSet.h"
+#include "MainWindow.h"
 
 ToolWindowLesionPopup::ToolWindowLesionPopup(QWidget *parent) :
     QWidget(parent), UIUpdateHelper(), m_curLayer(NULL),
     ui(new Ui::ToolWindowLesionPopup)
 {
   ui->setupUi(this);
-  this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
+  if (MainWindow::IsWSL())
+    this->setWindowFlags( Qt::Window | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint | Qt::CustomizeWindowHint );
+  else
+    this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
 
   connect(ui->spinBoxGoToPoint, SIGNAL(valueChanged(int)), SLOT(OnSpinBoxGoToPoint(int)));
   connect(ui->pushButtonGoToPoint, SIGNAL(clicked()), SIGNAL(GoToPointTriggered()));

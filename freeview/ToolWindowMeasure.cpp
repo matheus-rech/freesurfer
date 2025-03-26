@@ -46,8 +46,10 @@ ToolWindowMeasure::ToolWindowMeasure(QWidget *parent) :
   ui(new Ui::ToolWindowMeasure)
 {
   ui->setupUi(this);
-  this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
-
+  if (MainWindow::IsWSL())
+    this->setWindowFlags( Qt::Window | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint | Qt::CustomizeWindowHint );
+  else
+    this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
   QActionGroup* actGroup = new QActionGroup( this );
   actGroup->addAction( ui->actionContour );
   actGroup->addAction( ui->actionLabel );

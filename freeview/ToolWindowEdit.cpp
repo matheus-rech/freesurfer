@@ -41,7 +41,10 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
   ui(new Ui::ToolWindowEdit)
 {
   ui->setupUi(this);
-  this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
+  if (MainWindow::IsWSL())
+    this->setWindowFlags( Qt::Window | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint | Qt::CustomizeWindowHint );
+  else
+    this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
 #ifndef Q_OS_MAC
   ui->line->hide();
 #endif
@@ -184,11 +187,11 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
 
 #ifdef Q_OS_MAC
   ui->labelTips->setText(ui->labelTips->text().replace("Ctrl +", "Cmd +"));
-//  ui->labelTipsContour->setText(ui->labelTipsContour->text().replace("Ctrl +", "Cmd +"));
+  //  ui->labelTipsContour->setText(ui->labelTipsContour->text().replace("Ctrl +", "Cmd +"));
   if (MacHelper::IsDarkMode())
   {
-      ui->actionFreeHand->setIcon(MacHelper::InvertIcon(ui->actionFreeHand->icon(), QSize(), true));
-      ui->actionPolyLine->setIcon(MacHelper::InvertIcon(ui->actionPolyLine->icon(), QSize(), true));
+    ui->actionFreeHand->setIcon(MacHelper::InvertIcon(ui->actionFreeHand->icon(), QSize(), true));
+    ui->actionPolyLine->setIcon(MacHelper::InvertIcon(ui->actionPolyLine->icon(), QSize(), true));
   }
 #endif
 
@@ -365,7 +368,7 @@ void ToolWindowEdit::OnIdle()
   ShowWidgets( m_widgetsSeg, nAction == Interactor2DVoxelEdit::EM_GeoSeg || nAction == Interactor2DVoxelEdit::EM_ScribblePrompt);
   ShowWidgets( m_widgetsGeoSegOnly, nAction == Interactor2DVoxelEdit::EM_GeoSeg);
   ShowWidgets( m_widgetsScribbleOnly, nAction == Interactor2DVoxelEdit::EM_ScribblePrompt);
-//  ui->widgetBusyIndicator->setVisible(ui->pushButtonGeoGo->isVisible() && !ui->pushButtonGeoGo->isEnabled());
+  //  ui->widgetBusyIndicator->setVisible(ui->pushButtonGeoGo->isVisible() && !ui->pushButtonGeoGo->isEnabled());
   ui->widgetBusyIndicator->hide();
 
   ui->labelGeoLambda->hide();
@@ -376,7 +379,7 @@ void ToolWindowEdit::OnIdle()
   ui->widgetClone->setVisible(nAction == Interactor2DVoxelEdit::EM_Clone);
 
   ui->checkBoxFill3D->setVisible(nAction != Interactor2DVoxelEdit::EM_GeoSeg && nAction != Interactor2DVoxelEdit::EM_Contour &&
-                                 nAction != Interactor2DVoxelEdit::EM_ScribblePrompt);
+      nAction != Interactor2DVoxelEdit::EM_ScribblePrompt);
 
   for ( int i = 0; i < allwidgets.size(); i++ )
   {
@@ -396,15 +399,15 @@ void ToolWindowEdit::OnIdle()
     ui->lineEditExcludeRangeHigh->setEnabled(false);
   }
 
-//  LayerMRI* mri_draw = qobject_cast<LayerMRI*>(MainWindow::GetMainWindow()->FindSupplementLayer("GEOS_DRAW"));
-//  ui->pushButtonGeoUndo->setEnabled(mri_draw && mri_draw->HasUndo());
+  //  LayerMRI* mri_draw = qobject_cast<LayerMRI*>(MainWindow::GetMainWindow()->FindSupplementLayer("GEOS_DRAW"));
+  //  ui->pushButtonGeoUndo->setEnabled(mri_draw && mri_draw->HasUndo());
 
   LayerMRI* mri = ( LayerMRI* )mainwnd->GetActiveLayer("MRI");
   int nWnd = mainwnd->GetActiveViewId();
   ui->pushButtonCloneCopy->setEnabled( mri && mri->IsVisible() && nWnd >= 0 && nWnd < 3 );
   ui->pushButtonCloneCopyStructure->setEnabled(mri && mri->IsVisible() && nWnd >= 0 && nWnd < 3);
   ui->pushButtonClonePaste->setEnabled( mri && mri->IsVisible() && mri->IsEditable() &&
-                               nWnd >= 0 && nWnd < 3 && mri->IsValidToPaste( nWnd ) );
+                                        nWnd >= 0 && nWnd < 3 && mri->IsValidToPaste( nWnd ) );
 
 #ifndef SCRIBBLE_PROMPT
   ui->actionScribblePrompt->setVisible(false);
@@ -609,17 +612,17 @@ void ToolWindowEdit::OnCheckReconEditing(bool bRecon)
   if (bRecon)
   {
     /*
-        QList<Layer*> layers = MainWindow::GetMainWindow()->GetLayers("MRI");
-        foreach (Layer* layer, layers)
-        {
-            LayerMRI* mri = qobject_cast<LayerMRI*>(layer);
-            if (mri)
+            QList<Layer*> layers = MainWindow::GetMainWindow()->GetLayers("MRI");
+            foreach (Layer* layer, layers)
             {
-                mri->SetFillValue(255);
-                mri->SetBlankValue(1.0);
+                LayerMRI* mri = qobject_cast<LayerMRI*>(layer);
+                if (mri)
+                {
+                    mri->SetFillValue(255);
+                    mri->SetBlankValue(1.0);
+                }
             }
-        }
-        */
+            */
     old_erase_value = bp->GetEraseValue();
     double* r = bp->GetExcludeRange();
     exclude_range[0] = r[0];
@@ -718,7 +721,7 @@ void ToolWindowEdit::OnButtonGeoSegGo()
       }
       ui->pushButtonGeoGo->setEnabled(false);
       ui->pushButtonGeoApply->setEnabled(false);
-//      ui->widgetBusyIndicator->show();
+      //      ui->widgetBusyIndicator->show();
       ui->pushButtonAbort->setEnabled(true);
     }
     else

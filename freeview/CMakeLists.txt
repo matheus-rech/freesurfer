@@ -264,11 +264,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
       QVTK9/vtkQtConnection.cxx
       QVTK9/QVTKInteractor.cxx
       QVTK9/QVTKInteractorAdapter.cxx
-#      QVTK9/QVTKWidget.cxx
-#      QVTK9/QVTKPaintEngine.cxx
       QVTK9/QVTKOpenGLNativeWidget.cxx
-#      QVTK9/QVTKOpenGLWidget.cxx
-#      QVTK9/QVTKOpenGLWindow.cxx
     )
   endif()
 
