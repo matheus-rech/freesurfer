@@ -2410,33 +2410,36 @@ int CountEdits(char *subject, char *outfile)
   }
   MRIfree(&mri);
 
-  req = snprintf(tmpstr,STRLEN,"%s/mri/brainmask.mgz",sd);  
-  if( req >= STRLEN ) {
-    std::cerr << __FUNCTION__ << ": Truncation on line " << __LINE__ << std::endl;
-  }
-  mri = MRIread(tmpstr);
-  if(mri == NULL) return(1);
-  req = snprintf(tmpstr,STRLEN,"%s/mri/brainmask.auto.mgz",sd);  
-  if( req >= STRLEN ) {
-    std::cerr << __FUNCTION__ << ": Truncation on line " << __LINE__ << std::endl;
-  }
-  mri2 = MRIread(tmpstr);
-  if(mri2 == NULL) return(1);
+  // In 8.0, brainmask.auto.mgz is no longer produced. If it is not
+  // there, then just ignore it and report 0 for BM edits.
   nBMErase = 0;
   nBMClone = 0;
-  for(c=0; c < mri->width; c++){
-    for(r=0; r < mri->height; r++){
-      for(s=0; s < mri->depth; s++){
-	v1 = MRIgetVoxVal(mri,c,r,s,0);
-	v2 = MRIgetVoxVal(mri2,c,r,s,0);
-	if(v1 == v2) continue;
-	if(v1 == 1) nBMErase++;
-	else        nBMClone++;
+  req = snprintf(tmpstr,STRLEN,"%s/mri/brainmask.auto.mgz",sd);  
+  if(req >= STRLEN ) std::cerr << __FUNCTION__ << ": Truncation on line " << __LINE__ << std::endl;
+  if(fio_FileExistsReadable(tmpstr)){
+    mri2 = MRIread(tmpstr);
+    if(mri2 == NULL)  return(1);
+    req = snprintf(tmpstr,STRLEN,"%s/mri/brainmask.mgz",sd);  
+    if( req >= STRLEN ) {
+      std::cerr << __FUNCTION__ << ": Truncation on line " << __LINE__ << std::endl;
+    }
+    mri = MRIread(tmpstr);
+    if(mri == NULL) return(1);
+
+    for(c=0; c < mri->width; c++){
+      for(r=0; r < mri->height; r++){
+	for(s=0; s < mri->depth; s++){
+	  v1 = MRIgetVoxVal(mri,c,r,s,0);
+	  v2 = MRIgetVoxVal(mri2,c,r,s,0);
+	  if(v1 == v2) continue;
+	  if(v1 == 1) nBMErase++;
+	  else        nBMClone++;
+	}
       }
     }
+    MRIfree(&mri);
+    MRIfree(&mri2);
   }
-  MRIfree(&mri);
-  MRIfree(&mri2);
 
   req = snprintf(tmpstr,STRLEN,"%s/mri/aseg.mgz",sd);  
   if( req >= STRLEN ) {
@@ -2473,7 +2476,7 @@ int CountEdits(char *subject, char *outfile)
   MRIS *mris_lh_orig_nofix = MRISread(tmpstr);
   if (mris_lh_orig_nofix != NULL)
   {
-    lheno = MRIScomputeEulerNumber(mris, &nvertices, &nfaces, &nedges) ;
+    lheno = MRIScomputeEulerNumber(mris_lh_orig_nofix, &nvertices, &nfaces, &nedges) ;
     MRISfree(&mris_lh_orig_nofix);
     lhholes = 1-lheno/2;
   }
@@ -2484,7 +2487,7 @@ int CountEdits(char *subject, char *outfile)
   MRIS *mris_rh_orig_nofix = MRISread(tmpstr);
   if (mris_rh_orig_nofix != NULL)
   {
-    rheno = MRIScomputeEulerNumber(mris, &nvertices, &nfaces, &nedges) ;
+    rheno = MRIScomputeEulerNumber(mris_rh_orig_nofix, &nvertices, &nfaces, &nedges) ;
     MRISfree(&mris_rh_orig_nofix);
     rhholes = 1-rheno/2;
   } else
