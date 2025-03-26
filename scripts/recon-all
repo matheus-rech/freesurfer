@@ -211,6 +211,7 @@ set nsigma_below = 5;
 set DoFLAIRpial = 0; # if 1, mris_make_surfaces refines pial using FLAIR
 set EMRegMaskArg = () ; # MOD: HCP: mask passed when running mri_em_reg, default is 
 set EMRegMask = brainmask.mgz ; # MOD: HCP: mask when running mri_em_reg, default is 
+set xhemi = 0
 
 
 # Desired average face area of orig.nofix after decimation. This is
@@ -6118,6 +6119,7 @@ while( $#argv != 0 )
       # as a subject as with xhemi
       if( $#argv < 1) goto arg1err;
       set subjid = $argv[1]; shift;
+      set xhemi = 1
       breaksw
 
     case "-sd":
@@ -8344,6 +8346,19 @@ check_params:
     if($UseSamseg && $UseSynthSeg) then
       echo "ERROR: cannot specify -samseg AND -synthseg"
       exit 1
+    endif
+
+    if($xhemi) then
+      set DoASegMerge    = 0
+      set UseSynthStrip  = 0
+      set UseSynthMorph  = 0
+      set UseSynthSeg    = 0
+      set CblumFromSynthSeg = 0
+      set SynthSegForSurf = 0
+      set FixVSinus = 0
+      set FixEntoWM = 0
+      set FixGA = 0
+      set FixMCADura = 0
     endif
 
     # This is a bit of a hack as we want these to run regardless of

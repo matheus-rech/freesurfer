@@ -212,7 +212,6 @@ foreach srchemi ($srchemilist)
       # it.  This saves time, but it also better than recomputing it
       # when a non-recon-all process was needed to compute the
       # unflipped xfm.
-      set subjdir = $SUBJECTS_DIR/$subject
       set xfm = $subjdir/mri/transforms/talairach.xfm # unflipped
       set lta = $subjdir/mri/transforms/talairach.xfm.lta
       set ud = `UpdateNeeded $lta $xfm`
@@ -465,6 +464,7 @@ if(! -e $SUBJECTS_DIR/$subject) then
 endif
 
 if($#srchemilist == 0) set srchemilist = (lh rh)
+set subjdir = $SUBJECTS_DIR/$subject
 
 goto check_params_return;
 ############--------------##################
