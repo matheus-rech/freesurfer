@@ -98,8 +98,8 @@ int GLMallocY(GLMMAT *glm);
 int GLMallocYFFxVar(GLMMAT *glm);
 int GLMcMatrices(GLMMAT *glm);
 int GLMxMatrices(GLMMAT *glm);
-int GLMfit(GLMMAT *glm);
-int GLMtest(GLMMAT *glm);
+int GLMfit(GLMMAT *glm, int betaonly=0);
+int GLMtest(GLMMAT *glm, int gammaonly=0);
 int GLMtestFFx(GLMMAT *glm);
 
 int GLManalyze(GLMMAT *glm);

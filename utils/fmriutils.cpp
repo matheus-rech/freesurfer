@@ -897,9 +897,11 @@ MRI *MRInormWeights(MRI *w, int sqrtFlag, int invFlag, MRI *mask, MRI *wn)
   MRIglmFitAndTest() fits and tests a voxel before moving on to the
   next voxel. MRIglmFitAndTest() will be computationally more
   efficient.  So why have MRIglmFit() and MRIglmTest()? So that the
-  variance can be smoothed between the two if desired.
+  variance can be smoothed between the two if desired. If betagammaonly
+  is set, then only beta and gamma are computed. This can save time
+  in some applications (eg, dualperm).
   --------------------------------------------------------------------*/
-int MRIglmFitAndTest(MRIGLM *mriglm)
+int MRIglmFitAndTest(MRIGLM *mriglm, int betagammaonly)
 {
   int c, nc, nr, ns, nf, n;
   long nvoxtot;
@@ -1027,21 +1029,22 @@ int MRIglmFitAndTest(MRIGLM *mriglm)
           continue;
         }
 
-        GLMfit(glm);
-        if (mriglm->yffxvar == NULL)
-          GLMtest(glm);
-        else
-          GLMtestFFx(glm);
+        GLMfit(glm,betagammaonly);
+        if (mriglm->yffxvar == NULL) GLMtest(glm,betagammaonly);
+        else                         GLMtestFFx(glm);
 
         // Pack data back into MRI
-        MRIsetVoxVal(mriglm->rvar, c, r, s, 0, glm->rvar);
         MRIfromMatrix(mriglm->beta, c, r, s, glm->beta, NULL);
+        for (n = 0; n < glm->ncontrasts; n++) 
+          MRIfromMatrix(mriglm->gamma[n], c, r, s, glm->gamma[n], NULL);
+	if(betagammaonly) continue;
+
+        MRIsetVoxVal(mriglm->rvar, c, r, s, 0, glm->rvar);
         MRIfromMatrix(mriglm->eres, c, r, s, glm->eres, mriglm->FrameMask);
         if (mriglm->yhatsave) MRIfromMatrix(mriglm->yhat, c, r, s, glm->yhat, mriglm->FrameMask);
         for (n = 0; n < glm->ncontrasts; n++) {
-          MRIfromMatrix(mriglm->gamma[n], c, r, s, glm->gamma[n], NULL);
-          if (glm->C[n]->rows == 1)
-            MRIsetVoxVal(mriglm->gammaVar[n], c, r, s, 0, glm->gCVM[n]->rptr[1][1]);
+          //MRIfromMatrix(mriglm->gamma[n], c, r, s, glm->gamma[n], NULL);
+          if(glm->C[n]->rows == 1) MRIsetVoxVal(mriglm->gammaVar[n], c, r, s, 0, glm->gCVM[n]->rptr[1][1]);
           MRIsetVoxVal(mriglm->F[n], c, r, s, 0, glm->F[n]);
           MRIsetVoxVal(mriglm->z[n], c, r, s, 0, glm->z[n]);
           MRIsetVoxVal(mriglm->p[n], c, r, s, 0, glm->p[n]);

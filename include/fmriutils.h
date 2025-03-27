@@ -91,7 +91,7 @@ int MRIfromMatrix(MRI *mri, int c, int r, int s, MATRIX *M, MRI *FrameMask);
 int MRIfromSymMatrix(MRI *mri, int c, int r, int s, MATRIX *M);
 MRI *MRInormWeights(MRI *w, int sqrtFlag, int invFlag, MRI *mask, MRI *wn);
 
-int MRIglmFitAndTest(MRIGLM *mriglm);
+int MRIglmFitAndTest(MRIGLM *mriglm, int betagammaonly=0);
 int MRIglmFit(MRIGLM *glmmri);
 int MRIglmTest(MRIGLM *mriglm);
 int MRIglmLoadVox(MRIGLM *mriglm, int c, int r, int s, int LoadBeta, GLMMAT *glm);

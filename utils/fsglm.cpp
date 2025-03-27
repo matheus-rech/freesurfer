@@ -517,12 +517,14 @@ int GLMxMatrices(GLMMAT *glm)
 }
 
 /*---------------------------------------------------------------
-  GLMfit() - fit linear parameters (betas). Also computes yhat,
-  eres, and rvar. May want to defer rvar at some point (eg, to
-  do spatial filtering on the eres). XtX and iXtX must have been
-  computed by GLMxMatrices() first.
+  GLMfit() - fit linear parameters (betas). Also computes yhat, eres,
+  and rvar. May want to defer rvar at some point (eg, to do spatial
+  filtering on the eres). XtX and iXtX must have been computed by
+  GLMxMatrices() first. If betaonly is set, then only beta is computed
+  (not computing yhat, eres, rvar, etc); this can save time in some
+  applications (eg, dualperm).
   ---------------------------------------------------------------*/
-int GLMfit(GLMMAT *glm)
+int GLMfit(GLMMAT *glm, int betaonly)
 {
   int f;
 
@@ -544,6 +546,8 @@ int GLMfit(GLMMAT *glm)
   if (glm->yhat && glm->yhat->rows != glm->X->rows) MatrixFree(&glm->yhat);
   if (glm->eres && glm->eres->rows != glm->X->rows) MatrixFree(&glm->eres);
 
+  if(betaonly) return(0);
+
   // Compute yhat, eres, and residual variance
   glm->yhat = MatrixMultiplyD(glm->X, glm->beta, glm->yhat);
   glm->eres = MatrixSubtract(glm->y, glm->yhat, glm->eres);
@@ -558,10 +562,13 @@ int GLMfit(GLMMAT *glm)
 }
 
 /*------------------------------------------------------------------------
-  GLMtest() - tests all the contrasts for the given GLM. Must have already
-  run GLMcMatrices(), GLMxMatrices(), and GLMfit(). See also GLMtestFFX().
+  GLMtest() - tests all the contrasts for the given GLM. Must have
+  already run GLMcMatrices(), GLMxMatrices(), and GLMfit(). See also
+  GLMtestFFX().  If gammaonly is set, then only gamma is computed (not
+  computing F, p, z, pcc, etc); this can save time in some
+  applications (eg, dualperm).
   ------------------------------------------------------------------------*/
-int GLMtest(GLMMAT *glm)
+int GLMtest(GLMMAT *glm, int gammaonly)
 {
   int n;
   double dtmp;
@@ -594,6 +601,9 @@ int GLMtest(GLMMAT *glm)
     // glm->CiXtXCt[n]  =
     //  MatrixMultiplyD(glm->CiXtX[n],glm->Ct[n],glm->CiXtXCt[n]);
 
+    glm->gamma[n] = MatrixMultiplyD(glm->C[n], glm->beta, glm->gamma[n]);
+    if(gammaonly) continue;
+
     if (glm->igCVM[n] == NULL) glm->igCVM[n] = MatrixAlloc(glm->C[n]->rows, glm->C[n]->rows, MATRIX_REAL);
 
     // Error trap for when rvar==0
@@ -602,7 +612,6 @@ int GLMtest(GLMMAT *glm)
     else
       dtmp = glm->rvar * glm->C[n]->rows;
 
-    glm->gamma[n] = MatrixMultiplyD(glm->C[n], glm->beta, glm->gamma[n]);
     if (glm->UseGamma0[n]) MatrixSubtract(glm->gamma[n], glm->gamma0[n], glm->gamma[n]);
     glm->gammat[n] = MatrixTranspose(glm->gamma[n], glm->gammat[n]);
     glm->gCVM[n] = MatrixScalarMul(glm->CiXtXCt[n], dtmp, glm->gCVM[n]);
