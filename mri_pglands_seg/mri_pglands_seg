@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import time
 import os
 import shutil
 import time
@@ -146,12 +147,19 @@ def _define_args(parser):
                         'single directory or the same number of file paths. '
                         'If running in FreeSurfer mode (e.g. inputs are given '
                         'with --s and/or --sd), then the output (--o) must be '
-                        'a directory. If no output is provided, then the '
-                        'output paths will be parsed from the input paths (in '
-                        'in normal and FreeSurfe mode).')
+                        'a directory. Note that if the provided output is a '
+                        'directory, a subdirectory will automatically be '
+                        'created for each input image and named using the '
+                        'input image file basename (w/o extension). If no '
+                        'output is provided, then the output paths will be '
+                        'parsed from the input paths (in both normal and '
+                        'FreeSurfer mode).')
     
     # General options
-    parser.add_argument('--use-cuda', action='store_true',
+    default_path = os.path.join(
+        os.environ.get('FREESURFER_HOME_FSPYTHON'), 'models/pglands_seg'
+    )
+    parser.add_argument('--use_cuda', action='store_true',
                         help='Use Cuda for GPU support')
     parser.add_argument('--center_crop', action='store_true',
                         help='Use image center for crop window (and skip '
@@ -160,15 +168,15 @@ def _define_args(parser):
                         help='isotropic size (# of voxels) for crop patch; '
                         'default is 96')
     parser.add_argument('--logfile', type=str,
-                        help='Set logfile; default is mri_pglands_seg.log')
-    parser.add_argument('--lut', type=str, default=os.path.join(os.environ.get \
-                        ('FREESURFER_HOME_FSPYTHON'), \
-                        'models/pglands_seg/pglands.ctab'),
+                        help='Set logfile basename; default is '
+                        'mri_pglands_seg.log (and automatically writes to the '
+                        'output dir)')
+    parser.add_argument('--lut', type=str,
+                        default=os.path.join(default_path, 'pglands.ctab'),
                         help='Path to lut; default is pglands.ctab')
     parser.add_argument('--mni_template', type=str,
-                        default=os.path.join(os.environ.get \
-                        ('FREESURFER_HOME_FSPYTHON'), \
-                        'models/pglands_seg/mni152_label_template.mgz'),
+                        default=os.path.join(
+                            default_path, 'mni152_label_template.mgz'),
                         help='MNI label template used to set crop window; '
                         'default is mni152_label_template.mgz')
     parser.add_argument('--mni_template_transform', type=str,
@@ -176,10 +184,8 @@ def _define_args(parser):
                         'mni label template to subject space. This will '
                         'override the default syntax, and will apply the '
                         'transform to all subjects.')
-    parser.add_argument('--model', type=str, \
-                        default=os.path.join(os.environ.get \
-                        ('FREESURFER_HOME_FSPYTHON'), \
-                        'models/pglands_seg/pglands_seg.pth'),
+    parser.add_argument('--model', type=str, 
+                        default=os.path.join(default_path, 'pglands_seg.pth'),
                         help='Path to trained model; default is '
                         'pglands_seg.pth')
     parser.add_argument('--outbase', type=str, default='pglands',
@@ -275,15 +281,18 @@ class PGlandsSegmenter:
         self.write_posteriors = write_posts
         self.write_vol_stats = write_vols
         self.write_qa_stats = write_qas
-        module_dir = os.path.join(os.environ.get('FREESURFER_HOME_FSPYTHON'), \
-                    'models/pglands_seg')
-         # Data utilities
+        module_dir = os.path.join(
+            os.environ.get('FREESURFER_HOME_FSPYTHON'), 'models/pglands_seg'
+        )
+
+        # Data utilities
         default_lut = os.path.join(module_dir,'pglands.ctab')
-        self.lut = sf.load_label_lookup(lut_path if lut_path is not None \
-                                        else default_lut)
+        self.lut = sf.load_label_lookup(
+            lut_path if lut_path is not None else default_lut
+        )
         default_template = os.path.join(module_dir,'mni152_label_template.mgz')
         self.label_template_path = template_path if template_path is not None \
-                                    else default_template
+            else default_template
 
         # Set up trained model
         default_model = os.path.join(module_dir,'pglands_seg.pth')
@@ -291,14 +300,14 @@ class PGlandsSegmenter:
         model_checkpoint = torch.load(model_path)
 
         self.model = UNet3D(in_channels=1,
-                            out_channels=len(self.lut)).to(self.device)
+                            out_channels=len(self.lut)
+        ).to(self.device)
         self.model.load_state_dict(model_checkpoint['model_state'])
         
         # Initialize QA dataset (if necessary)
         self.qa_dataset = self.QAdataset() if write_qas else None            
 
         
-    ###
     class QAdataset(Dataset):
         """
         Data loader for training data used in QA analysis
@@ -307,67 +316,72 @@ class PGlandsSegmenter:
             """
             Will pull list of qa images from default dir
             """
-            qa_dir = os.path.join(os.environ.get('FREESURFER_HOME_FSPYTHON'), \
+            qa_dir = os.path.join(os.environ.get('FREESURFER_HOME_FSPYTHON'),
                                   'models/pglands_seg/pglands_seg_qa_data')
-            default_qa_paths = [os.path.join(qa_dir,x) \
-                                for x in os.path.listdir(qa_dir)]
-            
+            default_qa_paths = [os.path.join(qa_dir, x)
+                                for x in os.listdir(qa_dir)]
             self.imglist = default_qa_paths
 
         def __len__(self):
             return len(self.imglist)
 
         def __getitem__(self, idx):
-            img = load_volume(self.imglist[idx], conform=False)[0]
+            img = load_volume(self.imglist[idx], conform=False, is_int=True)[0]
             return img, idx
 
 
-    ###
     def _compute_label_volumes(self, img:sf.Volume, etiv=None):
         """
         Calculate volumes of each label
         """
+        print(f'Computing label stats (saving as {volstats}')
+        
         voxvol = np.prod(img.geom.voxsize)
         n_voxs = [(img.data == val).sum() for val in self.lut]
         vols = [voxvol * n for n in n_voxs]
         return vols, n_voxs
     
 
-    ###
     def _compute_etiv(self, lta:str, invol:str=None, outdir:str=None):
         """
         Estimate eTIV from input lta talairach transform. If lta does not 
         exist, calculate from scratch (will increase run time).
         """
         if not os.path.isfile(lta):
+            print(f'Computing talairach transform ({lta}) to measure eTIV for '
+                  'volume stats analysis (this should take about 3 minutes)')
+            
             # Make temporary files
-            tmpdir = os.path.join(outdir, 'temp')
+            tmpdir = os.path.join(os.path.dirname(lta), 'temp')
             norm = os.path.join(tmpdir, 'nu.mgz')
             xfm = os.path.join(tmpdir, 'talairach.xfm')
-            lta = os.path.join(outdir, 'talairach.xfm.lta')
-            os.makedirs(tmpdir)
+            os.makedirs(tmpdir, exist_ok=True)
 
             # Conform the image
-            cmd = f'mri_convert --conform {image} {norm}'
+            cmd = f'mri_convert --conform {invol} {norm} > /dev/null'
+            print(cmd[:-12])
             if sf.system.run(cmd) != 0:
                 sfs_fatal('mri_convert --conform failed!')
 
             # Run intensity normalization
             cmd = f'mri_nu_correct.mni --no-rescale --i {norm} --o {norm} ' +\
-                f'--n 1 --proto-iters 1000 --distance 50 --ants-n4'
+                f'--n 1 --proto-iters 1000 --distance 50 --ants-n4 > /dev/null'
+            print(cmd[:-12])
             if sf.system.run(cmd) != 0:
                 sf.system.fatal('mri_nu_correct failed!')
 
             # run talairach registration
-            cmd = f'talairach_avi --i {norm} --xfm {xfm}'
+            cmd = f'talairach_avi --i {norm} --xfm {xfm} > /dev/null'
+            print(cmd[:-12])
             if sf.system.run(cmd) != 0:
                 sf.system.fatal('talairach_avi failed!')
 
             # convert XFM to LTA
             mni305 = os.path.join(os.environ.get('FREESURFER_HOME'),
                                   'average', 'mni305.cor.mgz')
-            cmd = f'lta_convert --src {norm} --trg {mni305} --infm {xfm} ' +\
-                f'--outlta {lta} --subject fsaverage --ltavox2vox'
+            cmd = f'lta_convert --src {norm} --trg {mni305} --inxfm {xfm} ' +\
+                f'--outlta {lta} --subject fsaverage --ltavox2vox > /dev/null'
+            print(cmd[:-12])
             if sf.system.run(cmd) != 0:
                 sf.system.fatal('lta_convert failed!')                
             shutil.rmtree(tmpdir)
@@ -376,19 +390,41 @@ class PGlandsSegmenter:
         scale_factor = 1948.106
         return 1e3 * scale_factor / sf.load_affine(lta).det()
             
-    
-    ###
-    def _onehot_to_labels(self, onehot):
+
+    def _get_subject_label_template(self, inpath:str, trpath:str, outdir:str):
         """
-        Convert onehot encoded predictions back to label map
+        Register and load mni152 label template in subject space
         """
-        x = onehot.clone()
-        for i, val in enumerate(self.lut):
-            x[x==i] = val
-        return x
+        # Set up directory
+        regdir = os.path.dirname(trpath)
+        os.makedirs(regdir, exist_ok=True)
+        
+        # Calculate affine transform
+        if not os.path.isfile(trpath):
+            cmd = f'fs-synthmorph-reg --i {inpath} --o {regdir} ' +\
+                '--mni-out-res 1.0mm --mni-targ-res 1.0mm ' +\
+                '--no-crop --pituitary --affine-only > /dev/null'
+            print(cmd[:-12])
+            if sf.system.run(cmd) != 0:
+                sfs_fatal('fs-synthmorph-reg failure :(')
+
+        # Apply transform
+        outbase, _ = split_extension(os.path.basename(inpath))
+        tmpbase, ext = split_extension(
+            os.path.basename(self.label_template_path)
+        )
+        outpath = os.path.join(outdir, '.'.join([tmpbase, outbase, ext[1:]]))
+        if not os.path.isfile(outpath):
+            cmd = f'mri_synthmorph apply -m nearest {trpath} ' +\
+                f'{self.label_template_path} {outpath} > /dev/null'
+            print(cmd[:-12])
+            if sf.system.run(cmd) != 0:
+                sfs_fatal('mri_synthmorph apply failure :(')
+
+        return load_volume(outpath, is_int=True)[0]
+
     
 
-    ###
     def _preprocess(self, x, template=None):
         """
         Perform pre-processing steps (crop + intensity norm)
@@ -399,7 +435,6 @@ class PGlandsSegmenter:
         return x.unsqueeze(0).unsqueeze(0), crop_bounds
         
 
-    ###
     def _predict(self, x):
         """
         Predict segmentations w/ trained model
@@ -407,79 +442,54 @@ class PGlandsSegmenter:
         with torch.no_grad():
             logits = self.model(x)
         posteriors = torch.nn.functional.softmax(logits, dim=1)        
-        return posteriors
+        return posteriors.squeeze()
 
 
-    ###
-    def _qa_analysis(self, segpath:str, trpath:str):
+    def _qa_analysis(self, movpath:str, segpath:str, trpath:str):
         """
         Perform the QA analysis on output segmentation
         """
+        # Set up registration dir
+        regdir = os.path.dirname(trpath)
+        os.makedirs(regdir, exist_ok=True)
+
         # Calculate deformation to mni152 space
         if not os.path.isfile(trpath):
-            cmd = f'fs-synthmorph-reg --i {inpath} --o {regdir} ' +\
-                '--mni-out-res 1.0mm --mni-targ-res 1.0mm' +\
-                '--no-crop --pituitary >> /dev/null'
-            ret = sf.system.run(cmd)
-            if ret != 0:
+            print('Calculating deformable warp from '
+                  f'{os.path.basename(movpath)} to mni152 space for QA '
+                  'analysis (this should take about 15 mins)')
+            regdir = os.path.dirname(trpath)
+            cmd = f'fs-synthmorph-reg --i {movpath} --o {regdir} ' +\
+                '--mni-out-res 1.0mm --mni-targ-res 1.0mm ' +\
+                '--no-crop --pituitary > /dev/null'
+            print(cmd[:-12])
+            if sf.system.run(cmd) != 0:
                 sfs_fatal('fs-synthmorph-reg failure :(')
-
+                
         # Apply warp
         fbase, ext = split_extension(segpath)
         mnisegpath = '.'.join([fbase, 'mni152', ext[1:]])
         if not os.path.isfile(mnisegpath):
             cmd = f'mri_synthmorph apply -m nearest {trpath} ' +\
-                f'{self.label_template_path} {outpath}'
-            ret = sf.system.run(cmd)
-            if ret != 0:
+                f'{segpath} {mnisegpath} > /dev/null'
+            print(cmd[:-12])
+            if sf.system.run(cmd) != 0:
                 sfs_fatal('mri_synthmorph apply failure :(')
 
         # Calculate pairwise dice between output seg and all QA images
-        x = load_volume(mnisegpath, conform=False)[0]
+        print(f'Computing QA stats (saving as {qastats})')
+        
+        x = load_volume(mnisegpath, conform=False, is_int=True)[0]
         qa_dice = np.zeros((len(self.qa_dataset), len(self.lut)))
         qa_dice[:] = np.nan
         for y, idx in self.qa_dataset:
-            qa_dice[idx, :] = [2 * ((x==val) * (y==val)).sum() / \
-                               ((x==val).sum() + (y==val).sum()) \
-                               for val in self.lut]
+            qa_dice[idx, :] = [2 * ((x==n) * (y==n)).sum()
+                               / ((x==n).sum() + (y==n).sum())
+                               for n in self.lut
+            ]
         return np.max(qa_dice, axis=0)
 
 
-    ###
-    def _get_subject_label_template(self, inpath:str, trpath:str, outdir:str):
-        """
-        Register and load mni152 label template in subject space
-        """
-        # Calculate affine transform
-        regdir = os.path.dirname(trpath)
-        if os.path.isfile(trpath):
-            print(f'{trpath} already exists!')
-        else:
-            cmd = f'fs-synthmorph-reg --i {inpath} --o {regdir} ' +\
-                '--mni-out-res 1.0mm --mni-targ-res 1.0mm ' +\
-                '--no-crop --pituitary --affine-only > /dev/null'
-            print(cmd)
-            ret = sf.system.run(cmd)
-            if ret != 0:
-                sfs_fatal('fs-synthmorph-reg failure :(')
-                
-        # Apply transform
-        outbase, _ = split_extension(os.path.basename(inpath))
-        tmpbase, ext = split_extension(self.label_template_path)
-        outpath = os.path.join(outdir, '.'.join([tmpbase, outbase, ext[1:]]))
-        if os.path.isfile(outpath):
-            print(f'{outpath} exists! skipping affine registration...')
-        if not os.path.isfile(outpath):
-            cmd = f'mri_synthmorph apply -m nearest {trpath} ' +\
-                f'{self.label_template_path} {outpath}'
-            ret = sf.system.run(cmd)
-            if ret != 0:
-                sfs_fatal('mri_synthmorph apply failure :(')
-
-        return load_volume(outpath, is_int=True)[0]
-            
-    
-    ###
     def _write_stats_file(self, data:list, fspecs:list, fname:str,
                           colnames:Optional[List[str]]=None, header:str=None,
                           etiv:float=None):
@@ -488,15 +498,15 @@ class PGlandsSegmenter:
         """
         if colnames is not None:
             colnames = [colnames] if isinstance(colnames, str) else colnames
-        
+
         with open(fname, 'w') as f:
             if header is not None:
                 f.write(f'# {header}\n')
             f.write('# Created by mri_pglands_seg\n')
             if etiv is not None:
                 f.write('# Measure EstimatedTotalIntraCranialVol, eTIV, '
-                        'Estimated Total Intracranial Volume,' + \
-                        f'{etiv:.6f}, mm^3\n')
+                        'Estimated Total Intracranial Volume,'
+                        f'{etiv:.3f}, mm^3\n')
 
             f.write(f'# NRows {len(self.lut)}\n')
             f.write('# NTableCols 5\n')
@@ -511,11 +521,8 @@ class PGlandsSegmenter:
                     fstr = fspecs[j].format(data[j][n])
                     f.write(' '+fstr)
                 f.write(f' {self.lut[val].name}\n')
-
-        f.close()
         
         
-    ###
     def __call__(self, idx):
         """
         Main function for segmenter
@@ -548,21 +555,26 @@ class PGlandsSegmenter:
                                                   os.path.dirname(outvol))
         
         # Run model
-        X, crop_bounds = self._preprocess(X.to(self.device),
-                                          None if template is None \
-                                          else template.to(self.device)
+        X, crop_bounds = self._preprocess(
+            X.to(self.device),
+            template=None if template is None else template.to(self.device)
         )
-        y = self._predict(X).squeeze(dim=0)
-        seg = self._onehot_to_labels(torch.argmax(y, dim=0).squeeze())
-        
+        posteriors = self._predict(X)
+        onehot = torch.argmax(posteriors, dim=0).squeeze()
+        seg = largest_connected_component(
+            onehot_to_labels(
+                torch.argmax(
+                    posteriors, dim=0).squeeze(), self.lut
+            )
+        )
+
         # Output final segmentation
         print(f'Segmentation complete! saving output as {outvol}')
-        seg = largest_connected_component(seg)
         seg = save_volume(img=seg, path=outvol, crop_bounds=crop_bounds,
                           input_geom=input_geom, conform_geom=conform_geom,
                           is_labels=True, label_lut=self.lut,
                           return_output=True)
-        
+
         # Output posteriors
         if self.write_posteriors:
             fbase, ext = split_extension(outvol)
@@ -579,8 +591,8 @@ class PGlandsSegmenter:
                     
         # Output volume stats
         if self.write_vol_stats:
-            print(f'Computing label stats (saving as {volstats}')
-            etiv = self._compute_etiv(talaff) if self.include_etiv else None
+            etiv = self._compute_etiv(talaff, invol) if self.include_etiv \
+                else None
             vols, n_voxs = self._compute_label_volumes(seg, etiv)
             self._write_stats_file(data=[vols, n_voxs],
                                    fname=volstats,
@@ -588,11 +600,11 @@ class PGlandsSegmenter:
                                    fspecs=['{:>12.0f}', '{:>12.3f}'],
                                    header='PGlands Volume Stats',
                                    etiv=etiv)
-            
         # Output QA stats
         if self.write_qa_stats:
-            print(f'Computing QA stats (saving as {qastats})')
-            qa_scores = self._qa_analysis(segpath=outvol, trpath=qawarp)
+            qa_scores = self._qa_analysis(movpath=invol,
+                                          segpath=outvol,
+                                          trpath=qawarp)
             self._write_stats_file(data=[qa_scores],
                                    fname=qastats,
                                    colnames=['QAscore'],
@@ -661,12 +673,14 @@ def get_filenames(mode:str='normal',              # FS or normal
     - Required transforms: affines from mni to subject, warps from mni to
       subject, and affine talairachs for eTIV
     """
-    # Utilities
     def _is_basename(inpath:str):
         return True if inpath == os.path.basename(inpath) else False
     
     exts = ['.mgh', '.mgz', '.nii', '.nii.gz']
-
+    talaff = 'talairach.xfm.lta' if talaff is None else talaff
+    mniaff = 'reg.targ_to_invol.lta' if mniaff is None else mniaff
+    qawarp = 'warp.to.mni152.1.0mm.1.0mm.nii.gz' if qawarp is None else qawarp
+    
     ##
     if mode == 'FS':
         # Set SUBJECTS_DIR
@@ -674,8 +688,8 @@ def get_filenames(mode:str='normal',              # FS or normal
             else os.path.abspath(FS_subjects_dir)
 
         if sdir is None:
-            sfs_fatal('Must set subjects directory with --sd or SUBJECTS_DIR env '
-                      'variable.')
+            sfs_fatal('Must set subjects directory with --sd or SUBJECTS_DIR '
+                      'env variable.')
 
         summary_file_prefix = os.path.join(sdir, outbase + '_')
         print(f'Using subject directory {sdir}')
@@ -697,7 +711,18 @@ def get_filenames(mode:str='normal',              # FS or normal
         # Get list of input T1 images (if not already done)
         invols = invols if invols is not None else \
             [os.path.join(sdir, x, f'mri/{inbase}.mgz') for x in subjects]
-        
+
+        # Configure output directory
+        if isinstance(outpath, list) and len(outpath) > 1:
+            sfs_fatal('Cannot provide multiple outpaths (--o) if running '
+                      'in FreeSurfer mode')
+
+        outpath = sdir if outpath is None else outpath[0]
+
+        if is_valid_filename(outpath, exts):
+            sfs_fatal('Output (--o) must be a directory (or left blank) if '
+                      'running in FreeSurfer mode')
+                              
         # Set list of all output filenames for each subject
         n_images = len(invols)
         outbase = '.'.join([inbase, outbase])
@@ -710,39 +735,23 @@ def get_filenames(mode:str='normal',              # FS or normal
         mniaffs = [None] * n_images
         mni_warps = [None] * n_images
         
-        if outpath is not None:
-            if len(outpath) > 1:
-                sfs_fatal('Cannot provide multiple outpaths (--o) if running '
-                          'in FreeSurfer mode')
-            outpath = outpath[0]
-            if is_valid_filename(outpath, exts):
-                sfs_fatal('Output (--o) must be a directory (or left blank) '
-                          'if running in FreeSurfer mode')
-                        
         for i, subject in enumerate(subjects):
             # Subdirs
-            subject_dir = os.path.join(sdir if outpath is None else outpath,
-                                       subject)
-            mri_dir = os.path.join(subject_dir, 'mri') if outpath is None \
-                else subject_dir
-            stats_dir = os.path.join(subject_dir, 'stats') if outpath is None \
-                else subject_dir
-            transform_dir = os.path.join(mri_dir, 'transforms') \
-                if outpath is None else subject_dir
+            subject_dir = os.path.join(sdir, subject)
+            mri_dir = os.path.join(subject_dir, 'mri') \
+                if outpath == sdir else subject_dir
+            stats_dir = os.path.join(subject_dir, 'stats') \
+                if outpath == sdir else subject_dir
+            transform_dir = os.path.join(mri_dir , 'transforms') \
+                if outpath == sdir else subject_dir
             mni_dir = os.path.join(transform_dir, 'mni152')
-            os.makedirs(mni_dir, exist_ok=True)
             
             # Outputs
             outvols[i] = os.path.join(mri_dir, f'{outbase}.mgz')
             volstats[i] = os.path.join(stats_dir, f'{outbase}.volumes.stats')
-            qastats[i] = os.path.join(stats_dir, '{outbase}.qa.stats')
+            qastats[i] = os.path.join(stats_dir, f'{outbase}.qa.stats')
             
             # Transforms
-            talaff = 'talairach.xfm.lta' if talaff is None else talaff
-            mniaff = 'reg.targ_to_invol.lta' if mniaff is None else mniaff
-            qawarp = 'warp.to.mni152.1.0mm.1.0mm.inv.nii.gz' \
-                if qawarp is None else qawarp
-            
             talaffs[i] = talaff if not _is_basename(talaff) \
                 else os.path.join(transform_dir, talaff)
             mniaffs[i] = mniaff if not _is_basename(mniaff) \
@@ -789,10 +798,9 @@ def get_filenames(mode:str='normal',              # FS or normal
                   'path(s).')
             for pth in invols:
                 fdir, ext = split_extension(pth, exts)
-                #os.makedirs(fdir, exist_ok=True)
-                outvols += [os.path.join(fdir,
-                                         '.'.join([os.path.basename(fdir),
-                                                   outbase, ext[1:]]))]
+                outvols += [os.path.join(
+                    fdir, '.'.join([os.path.basename(fdir), outbase, ext[1:]])
+                )]
         else:
             # Output paths provided -> check compatability
             outisfiles = np.all(np.array([is_filename(pth) \
@@ -843,15 +851,9 @@ def get_filenames(mode:str='normal',              # FS or normal
 
             # Transforms
             outdir = os.path.dirname(fbase)
-            taldir = os.path.join(outdir, 'tal')
-            mnidir = os.path.join(outdir, 'mni152')
-            os.makedirs(taldir, exist_ok=True)
-            os.makedirs(outdir, exist_ok=True)
+            taldir = os.path.join(outdir, 'transforms')
+            mnidir = os.path.join(outdir, 'transforms/mni152')
 
-            talaff = 'talairach.xfm.lta' if talaff is None else talaff
-            mniaff = 'reg.targ_to_invol.lta' if mniaff is None else mniaff
-            qawarp = 'warp.to.mni152.1.0mm.1.0mm.inv.nii.gz'
-            
             talaffs[i] = talaff if not _is_basename(talaff) \
                 else os.path.join(taldir, talaff)
             mniaffs[i] = mniaff if not _is_basename(mniaff) \
@@ -891,9 +893,9 @@ def load_volume(path:str,             # Path to load
     geom = img.geom
 
     # Conform
-    img = img.conform(shape=shape if conform else geom.shape,
-                      voxsize=voxsize if conform else geom.voxsize,
-                      orientation=orientation if conform else geom.orientation,
+    img = img.conform(shape=shape if conform else None,
+                      voxsize=voxsize if conform else None,
+                      orientation=orientation if conform else None,
                       dtype=np.int32 if is_int else np.float32,
                       method='nearest' if is_int else 'linear'
     )
@@ -1002,34 +1004,49 @@ def largest_connected_component(x, vals=None, bgval=0):
     vals = np.unique(x) if vals is None else vals
     vals = [i for i in vals if i != bgval]
     x_cc = np.tile(np.zeros(x.shape), (len(vals)+1,1,1,1))
-    
-    for j in range(len(vals)):
-        x_j = np.squeeze(np.where(x==vals[j], 1, 0))
+
+    for j, val in enumerate(vals):
+        x_j = np.squeeze(np.where(x==val, 1, 0))
         x_j_cc, n_cc = ndimage.label(x_j, np.ones((3,3,3)))
         
-        if n_cc > 1:
+        if n_cc == 1:
+            largest_cc_val = 1
+        else:
             cc_vals = np.unique(x_j_cc)[1:]
             cc_counts = np.array([(x_j_cc==i).sum() for i in cc_vals])
             try:
                 largest_cc_val = cc_vals[cc_counts==cc_counts.max()].item()
             except:
-                largest_cc_val = cc_vals[np.array(cc_counts==cc_counts.max(),
-                                                  dtype=int)[0]].item()
-        else:
-            largest_cc_val = 1
-            x_cc[j+1, ...] = np.where(x_j_cc==largest_cc_val, vals[j], 0)
-            
+                largest_cc_val = cc_vals[
+                    np.array(cc_counts==cc_counts.max(), dtype=int)[0]
+                ].item()
+        x_cc[j+1, ...] = np.where(x_j_cc==largest_cc_val, val, 0)
+        
     return np.sum(x_cc, axis=0, dtype=x.dtype)
 
 
-###
-def pad_volume(img, crop_window, full_shape=(256, 256, 256)):
+
+def onehot_to_labels(onehot,  # input one-hot encoded tensor
+                     lut,     # surfa label lookup table
+):
+    """
+    Convert onehot encoded predictions back to label map
+    """
+    x = onehot.clone()
+    for i, val in enumerate(lut):
+        x[x==i] = val
+    return x
+
+
+def pad_volume(img,                         # input cropped volume
+               crop_window,                 # crop bounds from full image
+               full_shape=(256, 256, 256),  # shape of full padded image
+):
     pad_width = [[cw[0], fs - cw[1]] \
                  for cw, fs in zip(crop_window, full_shape)]
     return np.pad(img, pad_width=pad_width)
 
             
-###
 def robust_norm(x,                   # input tensor
                 m:float=0.,          # minimum intensity value
                 M:float=1.,          # maximum intensity value
