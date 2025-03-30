@@ -161,6 +161,8 @@ MATRIX *MatrixCopy(const MATRIX *mIn, MATRIX *mOut)
   cols = mIn->cols;
 
   if (!mOut) mOut = MatrixAlloc(rows, cols, mIn->type);
+  if (mOut->rows < mIn->rows || mOut->cols < mIn->cols) return (NULL);
+  MatrixZero(mOut->rows, mOut->cols, mOut);
 
   if (!mOut) ErrorExit(ERROR_NO_MEMORY, "MatrixCopy: couldn't allocate mOut");
 
