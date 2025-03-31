@@ -312,7 +312,7 @@ int DCMCountFrames(DICOMInfo **dcmfi_list, int nlist);
 int DCMSliceDir(DICOMInfo **dcmfi_list, int nlist);
 MRI *DICOMRead2(const char *dcmfile, int LoadVolume);
 //MRIFSSTRUCT *DICOMRead3(const char *dcmfile, int LoadVolume);
-std::vector<MRIFSSTRUCT> *DICOMRead3(const char *dcmfile, bool convert=true);
+std::vector<MRIFSSTRUCT> *DICOMRead3(const char *dcmfile, bool convert=false, std::vector<std::vector<float>> **ascalefactor=NULL);
 
 DCM_ELEMENT *GetElementFromFile(const char *dicomfile, long grpid, long elid);
 int AllocElementData(DCM_ELEMENT *e);

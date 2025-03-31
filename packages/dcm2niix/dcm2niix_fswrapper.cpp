@@ -243,6 +243,11 @@ MRIFSSTRUCT *dcm2niix_fswrapper::getMrifsStruct(void) {
 	return nii_getMrifsStruct();
 }
 
+// interface to nii_dicom_batch.cpp::nii_getAutoScaleFactorVector()
+std::vector<std::vector<float>> *dcm2niix_fswrapper::getAutoScaleFactorVector() {
+	return nii_getAutoScaleFactorVector();
+}
+
 // interface to nii_dicom_batch.cpp::nii_getMrifsStructVector()
 std::vector<MRIFSSTRUCT> *dcm2niix_fswrapper::getMrifsStructVector(void) {
 	return nii_getMrifsStructVector();

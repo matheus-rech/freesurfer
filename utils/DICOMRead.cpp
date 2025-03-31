@@ -6056,7 +6056,7 @@ MRI *DICOMRead2(const char *dcmfile, int LoadVolume)
 /*--------------------------------------------------------------
   DICOMRead3() - generic dicom reader using dcm2niix_fswrapper. 
   --------------------------------------------------------------*/
-std::vector<MRIFSSTRUCT> *DICOMRead3(const char *dcmfile, bool convert)
+std::vector<MRIFSSTRUCT> *DICOMRead3(const char *dcmfile, bool convert, std::vector<std::vector<float>> **ascalefactor)
 {
   //printf("Starting DICOMRead3()\n");
   printf("\n");
@@ -6131,8 +6131,10 @@ std::vector<MRIFSSTRUCT> *DICOMRead3(const char *dcmfile, bool convert)
 #endif
 
   std::vector<MRIFSSTRUCT> *mrifsStruct_vector = NULL;
-  if (ret == EXIT_SUCCESS)
+  if (ret == EXIT_SUCCESS) {
     mrifsStruct_vector = dcm2niix_fswrapper::getMrifsStructVector();
+    *ascalefactor = dcm2niix_fswrapper::getAutoScaleFactorVector();
+  }
 
   if (DCM2NIIX_INFO_DUMP != NULL)
   {

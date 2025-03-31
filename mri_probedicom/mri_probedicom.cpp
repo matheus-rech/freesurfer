@@ -1561,8 +1561,6 @@ int RenderImage(int argc, char **argv) {
  */
 int DCMCompare_dcm2niix(char *dcmfile1, char *dcmfile2, double thresh)
 {
-  bool convert = false;
-
   dcm2niix_fswrapper::clrMrifsStructVector();
   
   std::string tmpfile = makeTempFile(".txt");
@@ -1570,14 +1568,14 @@ int DCMCompare_dcm2niix(char *dcmfile1, char *dcmfile2, double thresh)
   fprintf(tmpfp, "%s\n", dcmfile1);
   fclose(tmpfp);
   DCM2NIIX_DICOM_FLIST = tmpfile.c_str();
-  std::vector<MRIFSSTRUCT> *mrifsStruct_vector1 = DICOMRead3(dcmfile1, convert);
+  std::vector<MRIFSSTRUCT> *mrifsStruct_vector1 = DICOMRead3(dcmfile1);
  
   tmpfile = makeTempFile(".txt");
   tmpfp = fopen(tmpfile.c_str(), "w");
   fprintf(tmpfp, "%s\n", dcmfile2);
   fclose(tmpfp);
   DCM2NIIX_DICOM_FLIST = tmpfile.c_str();
-  std::vector<MRIFSSTRUCT> *mrifsStruct_vector2 = DICOMRead3(dcmfile2, convert);
+  std::vector<MRIFSSTRUCT> *mrifsStruct_vector2 = DICOMRead3(dcmfile2);
   
   const struct TDICOMdata *tdicomData1 = &((*mrifsStruct_vector1)[0].tdicomData);
   const struct TDICOMdata *tdicomData2 = &((*mrifsStruct_vector2)[1].tdicomData);
