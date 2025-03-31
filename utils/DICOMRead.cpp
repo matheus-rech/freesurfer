@@ -6133,7 +6133,8 @@ std::vector<MRIFSSTRUCT> *DICOMRead3(const char *dcmfile, bool convert, std::vec
   std::vector<MRIFSSTRUCT> *mrifsStruct_vector = NULL;
   if (ret == EXIT_SUCCESS) {
     mrifsStruct_vector = dcm2niix_fswrapper::getMrifsStructVector();
-    *ascalefactor = dcm2niix_fswrapper::getAutoScaleFactorVector();
+    if (ascalefactor != NULL)
+      *ascalefactor = dcm2niix_fswrapper::getAutoScaleFactorVector();
   }
 
   if (DCM2NIIX_INFO_DUMP != NULL)
