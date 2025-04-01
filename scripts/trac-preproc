@@ -1399,7 +1399,7 @@ if ($dointra && ! $dobase && -e $fsdir/mri/brain.mgz) then
   # Make mask including cerebral WM, cerebellar WM, and WM hypointensities
   set ids = ()
   foreach label ($wmlist[1-7])
-    set ids = ($ids `grep -i " ${label}[ \t]" $fslut | awk '{print $1}'`)
+    set ids = ($ids `grep -m 1 -i " ${label}[ \t]" $fslut | awk '{print $1}'`)
   end
 
   set cmd = mri_binarize
@@ -1415,7 +1415,7 @@ if ($dointra && ! $dobase && -e $fsdir/mri/brain.mgz) then
   # As above, plus ventral DC and brainstem
   set ids = ()
   foreach label ($wmlist)
-    set ids = ($ids `grep -i " ${label}[ \t]" $fslut | awk '{print $1}'`)
+    set ids = ($ids `grep -m 1 -i " ${label}[ \t]" $fslut | awk '{print $1}'`)
   end
 
   set cmd = mri_binarize
