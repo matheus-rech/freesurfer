@@ -101,16 +101,23 @@ if(Qt5_FOUND AND NOT APPLE)
        install(FILES ${CMAKE_SOURCE_DIR}/qt/qt.conf DESTINATION bin)
      endif()
   else()
-     # The /usr/pubsw/packages qt distro contains soft links pointing to the system Qt5 files,
-     # so install via functions and do not use EXISTS/GLOB tests.
-     install_qt5_lib_links()
-     # add Qt library directory to rpath
-     set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib/qt/lib:${CMAKE_INSTALL_RPATH}")
-     # install the platform plugins
-     install_qt5_plugins_platform_links()
-     # install the image format plugins
-     install_qt5_plugins_imageformat_links()
-     # make sure executables know where to find the plugins directory
-     install(FILES ${CMAKE_SOURCE_DIR}/qt/qt.conf DESTINATION bin)
+     if(HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Rocky9")
+        ## The /usr/pubsw/packages qt distro contains soft links pointing to the system Qt5 files,
+        ## so install via functions and do not use EXISTS/GLOB tests.
+        # install_qt5_lib_links()
+        ## add Qt library directory to rpath
+        # set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib/qt/lib:${CMAKE_INSTALL_RPATH}")
+        ## install the platform plugins
+        # install_qt5_plugins_platform_links()
+        ## install the image format plugins
+        # install_qt5_plugins_imageformat_links()
+        ## make sure executables know where to find the plugins directory
+        # install(FILES ${CMAKE_SOURCE_DIR}/qt/qt.conf DESTINATION bin)
+        ##
+        ## Do not install any of the soft links from the pubsw tree pointing to system files.
+        ## Should not need to install since the linker should resolve the paths to the location of the system files.
+        ##
+        install(FILES ${CMAKE_SOURCE_DIR}/qt_rocky_native/qt.conf DESTINATION bin)
+     endif()
   endif()
 endif()

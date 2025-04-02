@@ -57,6 +57,7 @@ option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a sep
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
 option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house builds only" OFF)
 option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/qt" OFF)
+option(VTK_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/vtk" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
 
 if (NOT FREEVIEW_LINEPROF)
@@ -171,10 +172,14 @@ host_os()
 if(HOST_OS MATCHES "Rocky9")
    set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
    set(QT_SYSLIBS ON)
+   set(VTK_SYSLIBS ON)
 endif()
 if(HOST_OS MATCHES "Rocky8")
    set(QT_SYSLIBS ON)
+   set(VTK_SYSLIBS OFF)
 endif()
+message(STATUS "For HOST_OS=${HOST_OS} QT_SYSLIBS=${QT_SYSLIBS}")
+message(STATUS "For HOST_OS=${HOST_OS} VTK_SYSLIBS=${VTK_SYSLIBS}")
 
 # -------- zlib --------
 find_package(ZLIB REQUIRED)
@@ -345,11 +350,14 @@ if(NOT Qt6_DIR)
   if(NOT Qt5_DIR)
      if(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9")
         if(NOT QT_SYSLIBS)
-           set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky8_gcc10 CACHE PATH "Qt5 root base")
+           # set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky8_gcc10 CACHE PATH "Qt5 root base")
+           set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky9_gcc11 CACHE PATH "Qt5 root base")
+           set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
         else()
-           set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.9_rocky9_native CACHE PATH "Qt5 root base")
+           # set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.9_rocky9_native CACHE PATH "Qt5 root base")
+           set(Qt5_DIR /lib64/cmake/Qt5  CACHE PATH "Qt5 install directory")
+           set(QT_PLUGIN_PATH /usr/lib64/qt5/plugins CACHE PATH "Qt5 plugin directory")
         endif()
-        set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
      elseif(HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "11")
         set(Qt5_DIR /usr/lib/x86_64-linux-gnu/cmake/Qt5 CACHE PATH "Qt5 install directory")
      elseif(HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "8")
@@ -361,10 +369,12 @@ if(NOT Qt6_DIR)
      elseif(HOST_OS MATCHES "Rocky8" AND HOST_OS_GCC_VERSION MATCHES "8")
         if(NOT QT_SYSLIBS)
            set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky8 CACHE PATH "Qt5 root base")
+           set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
         else()
-           set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky8_native CACHE PATH "Qt5 root base")
+           # set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky8_native CACHE PATH "Qt5 root base")
+           set(Qt5_DIR /lib64/cmake/Qt5  CACHE PATH "Qt5 install directory")
+           set(QT_PLUGIN_PATH /usr/lib64/qt5/plugins CACHE PATH "Qt5 plugin directory")
         endif()
-        set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
      elseif(HOST_OS MATCHES "CentOS8stream" OR HOST_OS MATCHES "CentOS8")
         set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_centos8 CACHE PATH "Qt5 root base")
         set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
@@ -381,11 +391,12 @@ if(NOT Qt6_DIR)
         set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
      endif()
   else()
-     if(QT_SYSLIBS)
-        # Guess the path to the root or base subdirectory in the Qt5 distro, e.g., use when
-        # Qt5_DIR is a soft link and Qt5_BASE must be a real path.
-        string(REGEX REPLACE "\/lib\/cmake\/Qt5" "" NEW_PATH "${Qt5_DIR}")
-        set(Qt5_BASE ${NEW_PATH} CACHE PATH "Qt5 root base")
+     if(QT_SYSLIBS AND Qt5_BASE MATCHES ${FS_PACKAGES_DIR})
+       message(STATUS "For HOST_OS=${HOST_OS} modifying Qt5_DIR when QT_SYSLIBS enabled")
+       # Guess the path to the root or base subdirectory in the Qt5 distro, e.g., use when
+       # Qt5_DIR is a soft link and Qt5_BASE must be a real path.
+       string(REGEX REPLACE "\/lib\/cmake\/Qt5" "" NEW_PATH "${Qt5_DIR}")
+       set(Qt5_BASE ${NEW_PATH} CACHE PATH "Qt5 root base")
      endif()
   endif()
 endif()
@@ -406,9 +417,18 @@ endif()
 
 if(NOT VTK_DIR)
    if(HOST_OS MATCHES "Rocky9")
-      set(VTK_DIR /usr/pubsw/packages/vtk/9.1.0_native_rocky9/lib64/cmake/vtk CACHE PATH "VTK install directory")
-      set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/9.1.0_native_rocky9/lib64 CACHE PATH "VTK library directory")
-      set(VTK_INCLUDE_DIRS ${FS_PACKAGES_DIR}/vtk/9.1.0_native_rocky9/include CACHE PATH "VTK include directory")
+      set(VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2=ON)
+      if(NOT VTK_SYSLIBS)
+         set(VTK_DIR /usr/pubsw/packages/vtk/9.3.0_rocky8/lib64/cmake/vtk-9.3 CACHE PATH "VTK install directory")
+         set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/9.3.0_rocky89/lib64 CACHE PATH "VTK library directory")
+         set(VTK_INCLUDE_DIRS ${FS_PACKAGES_DIR}/vtk/9.3.0_rocky8/include CACHE PATH "VTK include directory")
+      else()
+         ## patches may not have been applied
+         # set(VTK_DIR /lib64/cmake/vtk CACHE PATH "VTK install directory")
+         set(VTK_DIR /usr/pubsw/packages/vtk/9.1.0_native_rocky9/lib64/cmake/vtk CACHE PATH "VTK install directory")
+         set(VTK_LIB64_DIR /usr/lib64 CACHE PATH "VTK library directory")
+         set(VTK_INCLUDE_DIRS /usr/include/vtk CACHE PATH "VTK include directory")
+      endif()
    elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
       set(VTK_DIR ${FS_PACKAGES_DIR}/vtk/8.2_centos9/lib64/cmake/vtk-8.2 CACHE PATH "VTK install directory")
       set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/8.2_centos9/lib64 CACHE PATH "VTK library directory")
@@ -427,8 +447,9 @@ endif()
 
 if(HOST_OS MATCHES "Rocky9")
 
-   find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonTransforms FiltersCore FiltersExtraction FiltersGeometry FiltersHybrid FiltersModeling FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingOpenGL2 ImagingStencil IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
-
+   if(VTK_SYSLIBS)
+      find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingOpenGL2 ImagingStencil InteractionStyle IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
+   endif()
 else()
    find_package(VTK HINTS ${VTK_DIR})
 endif()
@@ -726,7 +747,6 @@ add_subdirectories(
   mri_mc
   mri_normalize
   mri_normalize_tp2
-  mri_probedicom
   mri_refine_seg
   mri_relabel_hypointensities
   mri_relabel_nonwm_hypos
@@ -781,6 +801,11 @@ add_subdirectories(
   scripts
   tkregister2
 )
+
+if(NOT HOST_OS MATCHES "Rocky9")
+  add_subdirectories(mri_probedicom)
+endif()
+
 if(BUILD_FORTRAN)
   add_subdirectories(
     talairach_avi
@@ -794,7 +819,6 @@ endif()
 if(NOT MINIMAL)
   add_subdirectories(
     AANsegment
-    anatomicuts
     attic
     BrainstemSS
     diffusion_tool
@@ -1006,6 +1030,9 @@ if(NOT MINIMAL)
     mri_segment_thalamic_nuclei_dti_cnn
     mris_register_josa
   )
+  if(NOT HOST_OS MATCHES "Rocky9")
+     add_subdirectories(anatomicuts)
+  endif()
 endif()
 
 # # Only build some old subdirectories if they exist
