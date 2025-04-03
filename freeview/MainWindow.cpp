@@ -2278,8 +2278,8 @@ void MainWindow::RunScript()
       ui->view3D->ResetViewPosterior();
     else if (sa[1] == "inferior")
       ui->view3D->ResetViewInferior();
-    else if (sa[1] == "posterior")
-      ui->view3D->ResetViewPosterior();
+    else if (sa[1] == "superior")
+      ui->view3D->ResetViewSuperior();
     else if (sa[1] == "lateral")
       ui->view3D->ResetViewLateral();
     else if (sa[1] == "medial")
@@ -6961,7 +6961,36 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
     }
     else
     {
-      lc_surface->AddLayer( layer );
+      if (lc_mri->IsEmpty())
+      {
+        double mri_origin[3], mri_size[3], vs[3];
+        double worigin[3], wsize[3];
+        sf->GetWorldOrigin(mri_origin);
+        sf->GetWorldSize(mri_size);
+        lc_surface->GetWorldOrigin( worigin );
+        lc_surface->GetWorldSize( wsize );
+        lc_surface->GetWorldVoxelSize(vs);
+        for (int i = 0; i < 3; i++)
+        {
+          double upper = worigin[i] + wsize[i];
+          if (worigin[i] >= mri_origin[i])
+            worigin[i] = mri_origin[i];
+          else
+            worigin[i] = mri_origin[i] - ((int)((mri_origin[i]-worigin[i])/vs[i]+1))*vs[i];
+          if (upper <= mri_origin[i]+mri_size[i])
+            wsize[i] = mri_origin[i]+mri_size[i] - worigin[i];
+          else
+            wsize[i] = mri_origin[i]+mri_size[i] + ((int)((upper-mri_origin[i]-mri_size[i])/vs[i]+1))*vs[i];
+        }
+        lc_surface->SetWorldOrigin( worigin );
+        lc_surface->SetWorldSize( wsize );
+        lc_surface->SetWorldVoxelSize( vs );
+        lc_surface->AddLayer(sf);
+        for ( int i = 0; i < 4; i++ )
+        {
+          this->m_views[i]->SetWorldCoordinateInfo( worigin, wsize );
+        }
+      }
     }
 
     if ( !sf->HasValidVolumeGeometry() && !sf->property("IgnoreVG").toBool())
