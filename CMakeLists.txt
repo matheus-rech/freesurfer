@@ -498,7 +498,9 @@ endif()
 
 # -------- itk --------
 if(NOT ITK_DIR)
-   if(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9")
+   if(HOST_OS MATCHES "Rocky9")
+      set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_rocky9/lib/cmake CACHE PATH "ITK install directory")
+   elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_centos9/lib/cmake CACHE PATH "ITK install directory")
    elseif(HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "11")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_ubuntu22 CACHE PATH "ITK install directory")
