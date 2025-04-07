@@ -448,7 +448,7 @@ endif()
 if(HOST_OS MATCHES "Rocky9")
 
    if(VTK_SYSLIBS)
-      find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingOpenGL2 ImagingStencil InteractionStyle IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
+      find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingOpenGL2 ImagingStencil InteractionStyle IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
    endif()
 else()
    find_package(VTK HINTS ${VTK_DIR})
@@ -498,7 +498,9 @@ endif()
 
 # -------- itk --------
 if(NOT ITK_DIR)
-   if(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9")
+   if(HOST_OS MATCHES "Rocky9")
+      set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_rocky9/lib/cmake CACHE PATH "ITK install directory")
+   elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_centos9/lib/cmake CACHE PATH "ITK install directory")
    elseif(HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "11")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_ubuntu22 CACHE PATH "ITK install directory")
@@ -747,6 +749,7 @@ add_subdirectories(
   mri_mc
   mri_normalize
   mri_normalize_tp2
+  mri_probedicom
   mri_refine_seg
   mri_relabel_hypointensities
   mri_relabel_nonwm_hypos
@@ -802,10 +805,6 @@ add_subdirectories(
   tkregister2
 )
 
-if(NOT HOST_OS MATCHES "Rocky9")
-  add_subdirectories(mri_probedicom)
-endif()
-
 if(BUILD_FORTRAN)
   add_subdirectories(
     talairach_avi
@@ -819,6 +818,7 @@ endif()
 if(NOT MINIMAL)
   add_subdirectories(
     AANsegment
+    anatomicuts
     attic
     BrainstemSS
     diffusion_tool
@@ -1030,9 +1030,6 @@ if(NOT MINIMAL)
     mri_segment_thalamic_nuclei_dti_cnn
     mris_register_josa
   )
-  if(NOT HOST_OS MATCHES "Rocky9")
-     add_subdirectories(anatomicuts)
-  endif()
 endif()
 
 # # Only build some old subdirectories if they exist
