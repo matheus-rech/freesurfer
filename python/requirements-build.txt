@@ -5,7 +5,7 @@ PyWavelets==1.4.1
 PyYAML==6.0.2
 SimpleITK==2.4.1
 Werkzeug==3.0.6
-absl-py==2.2.1
+absl-py==2.2.2
 astunparse==1.6.3
 cachetools==5.5.2
 certifi==2025.1.31
@@ -16,7 +16,7 @@ deepsurfer==0.1.1a5
 filelock==3.16.1
 fireants@git+https://github.com/jnolan14/FireANTs.git@66d54fef55e42ee3906f5514c50c16b1668e225a
 flatbuffers==25.2.10
-fonttools==4.56.0
+fonttools==4.57.0
 fsspec==2025.3.0
 #fsutil==1.0
 gast==0.4.0
