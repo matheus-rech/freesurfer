@@ -2105,6 +2105,12 @@ if($DoNuIntensityCor) then
   endif
   # done:
   date > $touchdir/nu.touch
+else
+  # link nu.mgz to orig.mgz
+  pushd $subjdir/mri 
+  rm -f nu.mgz
+  ln -sf orig.mgz nu.mgz
+  popd
 endif
 
 #-----------                          -----------#
