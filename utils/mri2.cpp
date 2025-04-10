@@ -7814,9 +7814,9 @@ MRI *MRIcropAroundRAS(MRI *vol, double rasCenter[3], int voxFoVRAS[3], LTA *lta0
   used. map may have multiple frames. Returns a vector PCCs between
   the ref and each map.  Voxels are only included if they are in both
   refmask and mapmask. If a mask is NULL, then it is treated as all
-  ones.
+  ones. See also SpatialCor class.
 */
-std::vector<double> MRIspatialCC(MRI *ref, int refframe, MRI *refmask, MRI *map, MRI *mapmask)
+std::vector<double> MRIspatialCC(MRI *ref, int refframe, MRI *refmask, MRI *map, MRI *mapmask, int debug)
 {
   int nmaps = map->nframes;
   std::vector<double> cc(nmaps), mapsum(nmaps), mapsum2(nmaps), refmapsum(nmaps);
@@ -7878,19 +7878,165 @@ std::vector<double> MRIspatialCC(MRI *ref, int refframe, MRI *refmask, MRI *map,
 
   double refmn = refsum/nhits;
   double drefsum2 = (refsum2 - 2*refmn*refsum + nhits*refmn*refmn);
-  printf("MRIspatialCC(): refframe=%d\n",refframe);
-  printf("nhits = %d  refmn = %g  refsum2 = %g drefsum2 = %g\n",nhits,refmn,refsum2,drefsum2);
+  if(debug) printf("MRIspatialCC(): refframe=%d\n",refframe);
+  if(debug) printf("nhits = %d  refmn = %g  refsum2 = %g drefsum2 = %g\n",nhits,refmn,refsum2,drefsum2);
   for(int f=0; f < map->nframes; f++){
     double mapmn = mapsum[f]/nhits;
     double dmapsum2 = (mapsum2[f] - 2*mapmn*mapsum[f] + nhits*mapmn*mapmn);
     double num = refmapsum[f] - refmn*mapsum[f] - mapmn*refsum + nhits*refmn*mapmn;
     double den = sqrt(drefsum2*dmapsum2);
     cc[f] = num/den;
-    printf("f=%d mapmn=%g mapsum2=%g refmapsum=%g dmapsum2=%g den=%g num=%g   cc=%g\n",f,mapmn,mapsum2[f],refmapsum[f],dmapsum2,den,num,cc[f]);
+    if(debug) printf("f=%d mapmn=%g mapsum2=%g refmapsum=%g dmapsum2=%g den=%g num=%g   cc=%g\n",f,mapmn,mapsum2[f],refmapsum[f],dmapsum2,den,num,cc[f]);
     //printf("%8.6lf ",cc[f]);
   }
-  printf("\n");
+  if(debug) printf("\n");
   fflush(stdout);
 
   return(cc);
+}
+
+int SpatialCor::pearsoncor(int xframe, int yframe)
+{
+  if(x == NULL){
+    printf("ERROR: SpatialCor->pearsoncor(): x is NULL\n");
+    return(1);
+  }
+  if(y == NULL){
+    printf("ERROR: SpatialCor->pearsoncor(): y is NULL\n");
+    return(1);
+  }
+  if(MRIdimMismatch(this->x, this->y, 0)){
+    printf("ERROR: SpatialCor->pearsoncor() dimension mismatch between x and y\n");
+    return(1);
+  }
+  if(this->mask && MRIdimMismatch(this->x, this->mask, 0)){
+    printf("ERROR: SpatialCor->pearsoncor() dimension mismatch between x and mask\n");
+    return(1);
+  }
+  if(xframe >= this->x->nframes){
+    printf("ERROR: SpatialCor->pearsoncor(): xframe=%d >= x->nframes = %d\n",xframe,this->x->nframes);
+    return(1);
+  }
+  if(yframe >= this->y->nframes){
+    printf("ERROR: SpatialCor->pearsoncor(): yframe=%d >= y->nframes = %d\n",yframe,this->y->nframes);
+    return(1);
+  }
+  // Compute intermediate sums and sums of squares
+  // Have to use local variables for OMP (not sure why)
+  int lnmask = 0;
+  long double lxsum=0, lysum=0, lxysum=0, lx2sum=0, ly2sum=0;
+  #ifdef HAVE_OPENMP
+  #pragma omp parallel for reduction(+ : lnmask,lxsum,lysum,lxysum,lx2sum,ly2sum) 
+  #endif
+  for(int c=0; c < x->width; c++){
+    for(int r=0; r < x->height; r++){
+      for(int s=0; s < x->depth; s++){
+	int m = 1;
+	if(this->mask) m = MRIgetVoxVal(this->mask,c,r,s,0);
+	if(!m) continue;
+	lnmask++;
+	double xval = MRIgetVoxVal(this->x,c,r,s,xframe);
+	lxsum += xval;
+	lx2sum += (xval*xval);
+	double yval = MRIgetVoxVal(this->y,c,r,s,yframe);
+	lysum += yval;
+	ly2sum += (yval*yval);
+	lxysum += (xval*yval);
+      } //s
+    } //r
+  } //c
+  this->nmask = lnmask; this->xsum=lxsum, this->ysum=lysum, this->xysum=lxysum, this->x2sum=lx2sum, this->y2sum=ly2sum;
+  this->complete(); 
+  return(0);
+}
+void SpatialCor::complete(void)
+{
+  // take the sums and sums of squares and compute the means, etc
+  this->xmn = this->xsum/this->nmask;
+  this->dx2sum = this->x2sum - 2*this->xmn*this->xsum + this->nmask*this->xmn*this->xmn;
+  this->ymn = this->ysum/this->nmask;
+  this->dy2sum = this->y2sum - 2*this->ymn*this->ysum + this->nmask*this->ymn*this->ymn;
+  this->num = this->xysum - this->xmn*this->ysum - this->ymn*this->xsum + this->nmask*this->xmn*this->ymn;
+  this->den = sqrt(this->dx2sum*this->dy2sum);
+  this->pcc = this->num/this->den;
+}
+int SpatialCor::merge(SpatialCor sc)
+{
+  // merge the sums and sums of squares for this and passed SC
+  this->nmask += sc.nmask;
+  this->xsum  += sc.xsum;
+  this->x2sum += sc.x2sum;
+  this->ysum  += sc.ysum;
+  this->y2sum += sc.y2sum;
+  this->xysum += sc.xysum;
+  this->complete();
+  return(0);
+}
+int SpatialCor::print(const char *fname)
+{
+  FILE *fp = fopen(fname,"w");
+  if(fp == NULL) return(1);
+  int err = this->print(fp);
+  if(!err) fclose(fp);
+  return(err);
+}
+int SpatialCor::print(FILE *fp)
+{
+  fprintf(fp,"nmask        %d\n",this->nmask);
+  fprintf(fp,"xsum   %25.21lf\n",this->xsum);
+  fprintf(fp,"x2sum  %25.21lf\n",this->x2sum);
+  fprintf(fp,"dx2sum %25.21lf\n",this->dx2sum);
+  fprintf(fp,"xmn    %25.21lf\n",this->xmn);
+  fprintf(fp,"ysum   %25.21lf\n",this->ysum);
+  fprintf(fp,"y2sum  %25.21lf\n",this->y2sum);
+  fprintf(fp,"dy2sum %25.21lf\n",this->dy2sum);
+  fprintf(fp,"ymn    %25.21lf\n",this->ymn);
+  fprintf(fp,"xysum  %25.21lf\n",this->xysum);
+  fprintf(fp,"num    %25.21lf\n",this->num);
+  fprintf(fp,"den    %25.21lf\n",this->den);
+  fprintf(fp,"pcc    %25.21lf\n",this->pcc);
+  fflush(fp);
+  return(0);
+}
+int SpatialCor::read(const char *fname)
+{
+  FILE *fp = fopen(fname,"r");
+  if(fp == NULL) return(1);
+  fscanf(fp,"%*s  %d",&this->nmask);
+  fscanf(fp,"%*s %lf",&this->xsum);
+  fscanf(fp,"%*s %lf",&this->x2sum);
+  fscanf(fp,"%*s %lf",&this->dx2sum);
+  fscanf(fp,"%*s %lf",&this->xmn);
+  fscanf(fp,"%*s %lf",&this->ysum);
+  fscanf(fp,"%*s %lf",&this->y2sum);
+  fscanf(fp,"%*s %lf",&this->dy2sum);
+  fscanf(fp,"%*s %lf",&this->ymn);
+  fscanf(fp,"%*s %lf",&this->xysum);
+  fscanf(fp,"%*s %lf",&this->num);
+  fscanf(fp,"%*s %lf",&this->den);
+  fscanf(fp,"%*s %lf",&this->pcc);
+  fclose(fp);
+  return(0);
+}
+int SpatialCor::printline(FILE *fp)
+{
+  // This is (almost) the minimal needed to run complete(). Still need nmask.
+  fprintf(fp,"%25.21lf %25.21lf %25.21lf %25.21lf %25.21lf \n",
+	  this->xsum,this->x2sum,this->ysum,this->y2sum,this->xysum);
+  fflush(fp);
+  return(0);
+}
+int SpatialCor::readline(FILE *fp)
+{
+  int nread = fscanf(fp,"%lf %lf %lf %lf %lf \n",
+		     &this->xsum,&this->x2sum,&this->ysum,&this->y2sum,&this->xysum);
+  return(nread);
+}
+int SpatialCor::printline(const char *fname)
+{
+  FILE *fp = fopen(fname,"a"); // append
+  if(fp == NULL) return(1);
+  this->printline(fp);
+  fclose(fp);
+  return(0);
 }

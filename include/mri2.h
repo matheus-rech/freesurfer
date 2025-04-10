@@ -185,7 +185,27 @@ MRI *MRItpfpfnSeg(MRI *manseg, MRI *autoseg, std::vector<int> segids, MRI *tpfpf
 
 MRI *MRIcropAroundCRS(MRI *vol, double crsCenter[3], int crsFoV[3], std::vector<int>iKeep={});
 MRI *MRIcropAroundRAS(MRI *vol, double rasCenter[3], int voxFoVRAS[3], LTA *lta0, std::vector<int>iKeep={});
-std::vector<double> MRIspatialCC(MRI *ref, int refframe, MRI *refmask, MRI *map, MRI *mapmask);
+std::vector<double> MRIspatialCC(MRI *ref, int refframe, MRI *refmask, MRI *map, MRI *mapmask, int debug=0);
+
+class SpatialCor {
+public:
+  MRI *x=NULL, *y=NULL, *mask=NULL;
+  double xmn=0, ymn=0, xsum=0, ysum=0, x2sum=0, y2sum=0, xysum=0;
+  double dx2sum=0, dy2sum=0, num=0, den=0, pcc=0;
+  int nmask=0;
+  SpatialCor(){};
+  SpatialCor(MRI *x, MRI *y, MRI *mask){this->x = x;this->y = y;this->mask = mask;};
+  int pearsoncor(int xframe, int yframe);
+  int pearsoncor(void){return(this->pearsoncor(0,0));}
+  void complete(void);
+  int merge(SpatialCor sc);
+  int print(const char *fname);
+  int print(FILE *fp);
+  int read(const char *fname);
+  int printline(FILE *fp);
+  int printline(const char *fname);
+  int readline(FILE *fp);
+};
 
 /*!
   \fn class FixSubCortMassHA
