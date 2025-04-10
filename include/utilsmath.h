@@ -18,6 +18,7 @@
 #define utilsmath_h
 
 #include "mri.h"
+#include "mri_circulars.h"
 #include "mrisurf.h"
 #include "diag.h"
 #include "proto.h"
@@ -183,11 +184,27 @@ namespace Math
       // MRISsetXYZ will invalidate all of these,
       // so make sure they are recomputed before being used again!
 
-    MATRIX *tkrRAS2Vox = NULL;
-    if (mris->vg.valid)
-      tkrRAS2Vox = mris->vg.get_TkregRAS2Vox();
+    /* 
+     * to produce the same output as before,
+     * compute tkrRAS2Vox following the same logic in utils/mrisurf_mri.cpp::MRIS_loadRAS2VoxelMap()
+     * tkrRAS2Vox can be computed directly using VOL_GEOM::get_TkregRAS2Vox()
+     */
+    
+    // Get surface ras to scanner ras
+    MATRIX* surfRas2scannerRas;
+    if (mris->vg.valid) {
+      MRI* mri_tmp = MRIallocHeader(mris->vg.width, mris->vg.height, mris->vg.depth, MRI_UCHAR, 1);
+      MRIcopyVolGeomToMRI(mri_tmp, &mris->vg);
+      surfRas2scannerRas = RASFromSurfaceRAS_(mri_tmp, NULL);
+    }
     else
-      tkrRAS2Vox = mri_template->get_TkregRAS2Vox();
+      surfRas2scannerRas = RASFromSurfaceRAS_(mri_template, NULL);
+    
+    // Scanner RAS to Vox for passed MRI
+    MATRIX* scannerRas2vox = MRIgetRasToVoxelXform(mri_template);
+    
+    // SurfRAS2Vox = ScanRAS-To-Vox * SurfRAS-To-ScanRAS
+    MATRIX *tkrRAS2Vox = MatrixMultiply(scannerRas2vox, surfRas2scannerRas, NULL);
 
     Math::_surfTkrRAS2Vox(threadid, 0, mris->nvertices, mris, tkrRAS2Vox);
 
