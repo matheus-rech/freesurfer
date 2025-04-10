@@ -114,6 +114,13 @@ const char kFileSep[2] = "/";
 // no .nii, .bval, .bvec are created.
 MRIFSSTRUCT mrifsStruct;
 std::vector<MRIFSSTRUCT> mrifsStruct_vector;
+std::vector<std::vector<float>> autoscalefactor_vector;  // autoscale factor for each slice
+
+// retrieve autoscalefactor_vector
+std::vector<std::vector<float>> *nii_getAutoScaleFactorVector()
+{
+  return &autoscalefactor_vector;
+}
 
 // retrieve the struct
 MRIFSSTRUCT *nii_getMrifsStruct() {
@@ -8116,6 +8123,7 @@ int saveDcm2NiiCore(int nConvert, struct TDCMsort dcmSort[], struct TDICOMdata d
 #endif
 
 #ifdef USING_DCM2NIIXFSWRAPPER
+	std::vector<float> ascalefactors;
 	mrifsStruct.tdicomData = dcmList[indx]; // first in sorted list dcmSort
 #endif
 
@@ -8512,8 +8520,22 @@ int saveDcm2NiiCore(int nConvert, struct TDCMsort dcmSort[], struct TDICOMdata d
 				free(img);
 
 #ifdef USING_DCM2NIIXFSWRAPPER
+				/* At the MGH Martinos scanners, AutoScale functor scales data before saving them to DICOM.
+				 * The scale factor is saved in DICOM tag (0020, 4000). Dcm2niix retrieves (0020, 4000) as image comments,
+				 * and saves it in nifti header field aux_file. The string format is `Scale Factor: %f`.
+				 *
+				 * Save the scale factors for each slice.
+                                 * Freesurfer mri_convert uses the scale factors to undo the scaling applied by AutoScale functor.
+				 */
+				const char *AutoScale_Key = "Scale Factor:";
+				float ascale_factor = 1.0;
+                                if (strncmp(hdrI.aux_file, AutoScale_Key, strlen(AutoScale_Key)) == 0)
+                                {
+					ascale_factor = (float)strtod(&(hdrI.aux_file[strlen(AutoScale_Key) + 1]), NULL);
+					ascalefactors.push_back(ascale_factor);
+				}
 				if (opts.isVerbose)
-					printMessage("load Image #%d %s\n", i, nameList->str[indx]);
+					printMessage("(verbose) load Image #%d %s (autoscale factor: %f)\n", i, nameList->str[indx], ascale_factor);
 #endif
 			}
 		} // skip if we are only creating BIDS
@@ -8870,6 +8892,7 @@ int saveDcm2NiiCore(int nConvert, struct TDCMsort dcmSort[], struct TDICOMdata d
 	mrifsStruct.imgM = imgM;
 
 	mrifsStruct_vector.push_back(mrifsStruct);
+	autoscalefactor_vector.push_back(ascalefactors);
 #else
 	free(imgM);
 #endif

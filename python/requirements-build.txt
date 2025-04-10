@@ -5,7 +5,7 @@ PyWavelets==1.4.1
 PyYAML==6.0.2
 SimpleITK==2.4.1
 Werkzeug==3.0.6
-absl-py==2.2.0
+absl-py==2.2.2
 astunparse==1.6.3
 cachetools==5.5.2
 certifi==2025.1.31
@@ -16,7 +16,7 @@ deepsurfer==0.1.1a5
 filelock==3.16.1
 fireants@git+https://github.com/jnolan14/FireANTs.git@66d54fef55e42ee3906f5514c50c16b1668e225a
 flatbuffers==25.2.10
-fonttools==4.56.0
+fonttools==4.57.0
 fsspec==2025.3.0
 #fsutil==1.0
 gast==0.4.0
@@ -48,11 +48,11 @@ pandas==2.0.3
 pillow==10.4.0
 protobuf==4.25.6
 pyasn1==0.6.1
-pyasn1_modules==0.4.1
+pyasn1_modules==0.4.2
 pyparsing==3.1.4
 git+https://github.com/adalca/pystrum.git@ba35d4b357f54e5ed577cbd413076a07ef810a21
 python-dateutil==2.9.0.post0
-pytz==2025.1
+pytz==2025.2
 requests-oauthlib==2.0.0
 requests==2.32.3
 rsa==4.9
@@ -62,7 +62,7 @@ scipy==1.10.1
 segment-anything==1.0
 six==1.17.0
 spheremorph@git+https://github.com/silencer1127/spheremorph.git@master
-surfa@git+https://github.com/freesurfer/surfa.git@ca4e26317d3556776268ede7de20752743bf49a2
+surfa@git+https://github.com/freesurfer/surfa.git@ec5ddb193fd1caf22ec654c457b5678f6bd8e460
 sympy==1.13.3
 tensorboard-data-server==0.7.2
 tensorboard==2.13.0
@@ -76,7 +76,7 @@ tifffile==2023.7.10
 torch==2.1.2+cpu
 tqdm==4.67.1
 transforms3d==0.4.2
-trimesh==4.6.5
+trimesh==4.6.6
 typing_extensions==4.5.0
 tzdata==2025.2
 urllib3==1.26.15

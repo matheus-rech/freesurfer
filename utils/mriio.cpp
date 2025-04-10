@@ -151,7 +151,7 @@ static MRI *ximgRead(const char *fname, int read_volume);
 static MRI *nifti1Read(const char *fname, int read_volume);
 static int nifti1Write(MRI *mri, const char *fname);
 static MRI *niiRead(const char *fname, int read_volume);
-static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct);
+static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> *ascalefactors=NULL);
 static int niiWrite(MRI *mri, const char *fname, int intent=MGZ_INTENT_UNKNOWN);
 static int itkMorphWrite(MRI *mri, const char *fname);
 static int niftiQformToMri(MRI *mri, struct nifti_1_header *hdr);
@@ -707,14 +707,16 @@ MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int
   }
   else if (type == DICOM_FILE) {  
     if (UseDCM2NIIX) {
-      std::vector<MRIFSSTRUCT> *mrifsStruct_vector = DICOMRead3(fname_copy);
+      printf("mriio.cpp: starting DICOMRead3(DICOM_FILE)\n");
+      std::vector<std::vector<float>> *autoscalefactor_vector = NULL;
+      std::vector<MRIFSSTRUCT> *mrifsStruct_vector = DICOMRead3(fname_copy, true, &autoscalefactor_vector);
       if (mrifsStruct_vector == NULL)
         return NULL;
 
       int nitems = (*mrifsStruct_vector).size();
       for (int n = 0; n < nitems; n++)
       {
-        mri = niiReadFromMriFsStruct(&(*mrifsStruct_vector)[n]);
+        mri = niiReadFromMriFsStruct(&(*mrifsStruct_vector)[n], &(*autoscalefactor_vector)[n]);
         if (mri != NULL && mri->ti < 0)
 	  mri->ti = 0;
 
@@ -723,18 +725,6 @@ MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int
         free((*mrifsStruct_vector)[n].imgM);
         free((*mrifsStruct_vector)[n].tdti);
       }
-#if 0
-      MRIFSSTRUCT *mrifsStruct = DICOMRead3(fname_copy, volume_flag);
-      if (mrifsStruct == NULL) 
-	return NULL;
-
-      mri = niiReadFromMriFsStruct(mrifsStruct);
-      if (mri != NULL && mri->ti < 0)
-	mri->ti = 0;
-
-      free(mrifsStruct->imgM);
-      free(mrifsStruct->tdti);
-#endif
     }
     else if (!UseDICOMRead2){
       DICOMRead(fname_copy, &mri, volume_flag);
@@ -747,29 +737,21 @@ MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int
   }
   else if (type == SIEMENS_DICOM_FILE) {
     if (UseDCM2NIIX) {
-      printf("mriio.cpp: starting DICOMRead3()\n");
-      std::vector<MRIFSSTRUCT> *mrifsStruct_vector = DICOMRead3(fname_copy);
+      printf("mriio.cpp: starting DICOMRead3(SIEMENS_DICOM_FILE)\n");
+      std::vector<std::vector<float>> *autoscalefactor_vector = NULL;
+      std::vector<MRIFSSTRUCT> *mrifsStruct_vector = DICOMRead3(fname_copy, true, &autoscalefactor_vector);
       if (mrifsStruct_vector == NULL)
         return NULL;
 
       int nitems = (*mrifsStruct_vector).size();
       for (int n = 0; n < nitems; n++)
       {
-        mri = niiReadFromMriFsStruct(&(*mrifsStruct_vector)[n]);
+        mri = niiReadFromMriFsStruct(&(*mrifsStruct_vector)[n], &(*autoscalefactor_vector)[n]);
 	if (mriVector != NULL)
           (*mriVector).push_back(mri);
         free((*mrifsStruct_vector)[n].imgM);
         free((*mrifsStruct_vector)[n].tdti);
       }
-      
-#if 0
-      MRIFSSTRUCT *mrifsStruct = DICOMRead3(fname_copy, volume_flag);
-      if (mrifsStruct == NULL) 
-	return NULL;
-      mri = niiReadFromMriFsStruct(mrifsStruct);
-      free(mrifsStruct->imgM);
-      free(mrifsStruct->tdti);
-#endif
     } 
     else {
       printf("mriio.cpp: starting sdcmLoadVolume()\n");
@@ -8962,7 +8944,7 @@ static MRI *niiRead(const char *fname, int read_volume)
   MRIFSSTRUCT holds the parsing output from dcm2niix, which contains nifti header, 
   image data, acqusition parameters, and bvecs. See nii_dicom_batch.h for details.
   -----------------------------------------------------------------*/
-static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
+static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> *ascalefactors)
 {
   MRI *mri, *mritmp;
   int nslices;
@@ -9073,7 +9055,22 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
     }
   }
 
-  if (!scaledata) {
+  /* At the Martinos scanners, AutoScale functor scales data before saving them to DICOM.
+   * The scale factor is saved in DICOM tag (0020, 4000). Dcm2niix retrieves (0020, 4000) as image comments,
+   * and saves it in nifti header field aux_file. The string format is `Scale Factor: %f`.
+   *
+   * The scale factors are saved in dcm2niix - nii_dicom_batch.cpp::saveDcm2NiiCore().
+   * Here we use the scale factors to undo the scaling applied by AutoScale functor.
+   * The volume is created with data type MRI_FLOAT if we need to undo the scaling.
+   * 
+   * Similar logic is also implemented in DICOMRead.cpp::sdcmLoadVolumeAutoScale() when not converting with dcm2niix.
+   */
+  bool undo_autoscale = false;
+  if (ascalefactors != NULL && (*ascalefactors).size() > 0)
+    undo_autoscale = true;
+
+  bool doscaling = (scaledata || undo_autoscale);
+  if (!doscaling) {
     // voxel values are unscaled -- we use the file's data type
     if (hdr->datatype == DT_UNSIGNED_CHAR) {
       fs_type = MRI_UCHAR;
@@ -9115,7 +9112,7 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
     }
   }
   else {
-    // we must scale the voxel values
+    // we must scale the voxel values, or undo autoscale functor
     if (hdr->datatype != DT_UNSIGNED_CHAR && hdr->datatype != DT_SIGNED_SHORT && hdr->datatype != DT_SIGNED_INT &&
         hdr->datatype != DT_FLOAT && hdr->datatype != DT_DOUBLE && hdr->datatype != DT_INT8 && hdr->datatype != DT_UINT16 &&
         hdr->datatype != DT_UINT32) {
@@ -9279,7 +9276,7 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
   if (!read_volume) return (mri);
 
   int j, k, t;
-  if (!scaledata) {
+  if (!doscaling) {
     // no voxel value scaling needed
     void *buf;
     float *fbuf = (float *)calloc(mri->width, sizeof(float));
@@ -9321,7 +9318,8 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
   else {
       int bytesRead = 0;
 
-      printf("Voxel values scaling ... (Set environment variable 'NII_RESCALE_OFF' to turn off scaling)\n\n");
+      if (scaledata)
+	printf("Voxel values scaling (nifti datatype=%d => MRI_FLOAT) ... (Set environment variable 'NII_RESCALE_OFF' to turn off scaling)\n\n", hdr->datatype);
 
       /* these are set earlier:
        * fs_type = MRI_FLOAT;
@@ -9363,30 +9361,42 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
           // additional logic to scale voxel values
           for (nn = 0; nn < mri->width; nn++)
 	  {
+	    float val = 0.0;
             if (hdr->datatype == DT_UNSIGNED_CHAR) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((unsigned char*)buf)[nn] + hdr->scl_inter;
+              val = ((unsigned char*)buf)[nn];
             }
             else if (hdr->datatype == DT_SIGNED_SHORT) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((short*)buf)[nn] + hdr->scl_inter;
+              val = ((short*)buf)[nn];
             }
             else if (hdr->datatype == DT_UINT16) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((unsigned short*)buf)[nn] + hdr->scl_inter;
+              val = ((unsigned short*)buf)[nn];
             }
             else if (hdr->datatype == DT_SIGNED_INT) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((int*)buf)[nn] + hdr->scl_inter;
+              val = ((int*)buf)[nn];
             }
             else if (hdr->datatype == DT_FLOAT) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((float*)buf)[nn] + hdr->scl_inter;
+              val = ((float*)buf)[nn];
             }
             else if (hdr->datatype == DT_DOUBLE) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((double*)buf)[nn] + hdr->scl_inter;
+              val = ((double*)buf)[nn];
             }
             else if (hdr->datatype == DT_UINT32) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((unsigned int*)buf)[nn] + hdr->scl_inter;
+              val = ((unsigned int*)buf)[nn];
             }
             else if (hdr->datatype == DT_INT8) {
-              MRIFseq_vox(mri, nn, j, k, t) = hdr->scl_slope * ((char*)buf)[nn] + hdr->scl_inter;
+              val = ((char*)buf)[nn];
             }
+	    else
+	    {
+	      ErrorReturn(NULL, (ERROR_UNSUPPORTED, "niiReadFromMriFsStruct(): unsupported datatype %d (with scl_slope != 0)", hdr->datatype));
+	    }
+
+	    if (undo_autoscale) // ascalefactors index is updated every slice
+	      val = val / (*ascalefactors)[k + t * mri->depth];
+	    if (scaledata)
+	      val = hdr->scl_slope * val + hdr->scl_inter;
+	    
+            MRIFseq_vox(mri, nn, j, k, t) = val;
           }
         } // height
         exec_progress_callback(k, mri->depth, t, mri->nframes);
@@ -9464,9 +9474,6 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct)
   -----------------------------------------------------------------*/
 static int niiWrite(MRI *mri0, const char *fname, int intent)
 {
-  //znzFile fp;
-  //int j, k, t;
-  //BUFTYPE *buf;
   struct nifti_1_header hdr;
   int error, shortmax, use_compression, fnamelen;
   MRI *mri = NULL;
