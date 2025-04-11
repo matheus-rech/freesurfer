@@ -6977,6 +6977,7 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
             worigin[i] = mri_origin[i];
           else
             worigin[i] = mri_origin[i] - ((int)((mri_origin[i]-worigin[i])/vs[i]+1))*vs[i];
+
           if (upper <= mri_origin[i]+mri_size[i])
             wsize[i] = mri_origin[i]+mri_size[i] - worigin[i];
           else
@@ -6990,6 +6991,10 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
         {
           this->m_views[i]->SetWorldCoordinateInfo( worigin, wsize );
         }
+      }
+      else
+      {
+        lc_surface->AddLayer(sf);
       }
     }
 
