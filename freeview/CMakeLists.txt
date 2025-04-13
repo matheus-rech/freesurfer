@@ -12,7 +12,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     ${VTK_INCLUDE_DIRS}
   )
 
-  if (NOT DISABLE_LINEPROF)
+  if (PETSC_FOUND AND NOT DISABLE_LINEPROF)
      include_directories(${CMAKE_SOURCE_DIR}/lineprof)
   endif()
 
@@ -220,8 +220,8 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
 
   host_os()
 
-  # turn off compile of profiling for some platforms
-  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT DISABLE_LINEPROF OR NOT HOST_OS MATCHES "Rocky9"))
+  # petsc distribution may not be available on all platforms
+  if(PETSC_FOUND AND NOT DISABLE_LINEPROF)
      set(SOURCES ${SOURCES} DialogLineProfile.cpp LayerLineProfile.cpp)
   endif()
 
@@ -282,7 +282,14 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   endif()
 
   add_compile_options(-Wno-deprecated -Wno-reorder -Wno-uninitialized -Wno-unused-variable -Wno-sign-compare
-                      -Wno-overloaded-virtual -Wno-inconsistent-missing-override -Wno-deprecated-declarations -nostartfiles)
+                      -Wno-overloaded-virtual -Wno-inconsistent-missing-override -Wno-deprecated-declarations)
+
+  # this option did not work on darwin_x86_64 (Intel mac)
+  if(NOT APPLE)
+     add_compile_options(-nostartfiles)
+  elseif(APPLE_ARM64)
+     add_compile_options(-nostartfiles)
+  endif()
 
   if (DISABLE_LINEPROF)
     # add_definitions(-DDISABLE_LINEPROF)
@@ -304,9 +311,8 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
 
   add_executable(freeview ${SOURCES})
 
-  # turn off compile of profiling for some platforms
-  # if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT HOST_OS MATCHES "Rocky9"))
-  if(PETSC_FOUND AND (NOT APPLE_ARM64 OR NOT DISABLE_LINEPROF))
+  # petsc and/or profiling may not work/compile on some platforms
+  if(PETSC_FOUND AND NOT DISABLE_LINEPROF)
      target_link_libraries(freeview
        nifti
        vtkutils
