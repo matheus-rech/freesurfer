@@ -263,7 +263,12 @@ endif()
 
 # -------- petsc --------
 # petsc may not be available and/or work on all platforms, e.g., with profiling for freeview
-if(APPLE_ARM64 OR HOST_OS MATCHES "Rocky9")
+if(APPLE_ARM64)
+   set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
+   ## for testing comment out the above line and uncomment the lines below
+   # set(PETSC_DIR "/Users/developer/space_freesurfer/packages/petsc_3.18.3_darwin_arm64/3.18.3/include")
+   # find_package(PETSC)
+elseif(HOST_OS MATCHES "Rocky9")
    set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
 else()
    find_package(PETSC)
