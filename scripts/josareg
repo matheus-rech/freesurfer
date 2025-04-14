@@ -19,6 +19,8 @@ set DoPost = 0
 set MakeLinks = 1
 set sdir = ()
 set spherename = sphere
+set lta = ()
+set inittal = 0
 
 set tmpdir = ();
 set cleanup = 1;
@@ -127,7 +129,9 @@ foreach hemi ($hemilist)
     # This will implicitly read sulc. -o means "orig" surf
     # -N 0 means rigid
     set cmd = (mris_register -N 0 -threads $threads -o $white -surf0 $inflated -surf1 $white \
-      -surf2 $white -curv $sphere $tif $sphereregrigid)
+      -surf2 $white -curv )
+    if($#lta) set cmd = ($cmd -reg $lta)
+    set cmd = ($cmd $sphere $tif $sphereregrigid)
     echo $cmd | tee -a $LF
     fs_time $cmd |& tee -a $LF
     if($status) goto error_exit
@@ -270,6 +274,14 @@ while( $#argv != 0 )
       set hemilist = rh
       breaksw
 
+    case "--init-tal":
+      set inittal = 1
+      breaksw
+    case "--lta":
+      if($#argv < 1) goto arg1err;
+      set lta = $argv[1]; shift;
+      breaksw
+
     case "--sphere-name":
       if($#argv < 1) goto arg1err;
       set spherename = $argv[1]; shift;
@@ -379,6 +391,18 @@ foreach hemi ($hemilist)
   endif
 end
 
+if($#lta && $inittal) then
+  echo "ERROR: cannot both --lta and --init-tal"
+  exit 1
+endif
+if($inittal) then
+  set lta = $SUBJECTS_DIR/$subject/mri/transforms/talairach.xfm.lta
+endif
+if($#lta && ! -e $lta) then
+  echo "ERROR: cannot find $lta"
+  exit 1
+endif
+
 if($MakeLinks) then
   set warn = 0
   foreach hemi ($hemilist)
@@ -427,6 +451,8 @@ usage_exit:
   echo " --post : map thickness, curv, sulc, aparc to template space (good for debugging)"
   echo " --no-link : do not link final reg to surf/?h.sphere.reg"
   echo " --sphere-name spherename ($spherename)"
+  echo " --lta : init rigid reg with rotations from lta"
+  echo " --init-tal : init rigid reg with rotations from mri/transforms/talairch.xfm.lta"
   echo ""
 
   if(! $PrintHelp) exit 1;
