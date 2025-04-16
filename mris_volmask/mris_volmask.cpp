@@ -604,7 +604,7 @@ ComputeSurfaceDistanceFunction(MRIS* mris,
     fprintf(stderr, "[TIMER] [thread %d] ComputeSurfaceDistanceFunction() MRISDistanceField->Generate() (%2.2f seconds)\n", tid, (float)then1.milliseconds()/1000.0f);
 
     char distfieldname[256] = {'\0'};
-    sprintf(distfieldname, "/autofs/cluster/scratch_wednesday/yh887/bert.copy/mri/%s.%s.distfield.mgz", (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial");
+    sprintf(distfieldname, "%s/%s.%s.distfield.mgz", outputPath.c_str(), (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial");
     MRIwrite(mri_distfield, distfieldname);
     printf("[DEBUG] [thread %d] saved %s %s unsigned distance field: %s\n", tid, (indexSurf < 2) ? "lh" : "rh", (indexSurf%2 == 0) ? "white" : "pial", distfieldname);
 
