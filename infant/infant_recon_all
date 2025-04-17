@@ -49,7 +49,7 @@ parser.add_argument('--newborn', action='store_true', help='Indicate that the su
 parser.add_argument('--oneyear', action='store_true', help='Indicate that the subject is a one-year-old. All five' \
                     ' approx-one-year-old subjects from the training data set will be used. No age input is needed if this flag is set.')
 parser.add_argument('--avoidtraining', help='Exclude specific training subject(s) from processing.')
-parser.add_argument('--model', help='Specify alternate model weights to use for skullstripping', default=os.path.join(os.environ.get('FREESURFER_HOME'),"average/sscnn_skullstripping/infant_synthstrip_01012025.pt"))
+parser.add_argument('--model', help='Specify alternate model weights to use for skullstripping', default=os.path.join(os.environ.get('FREESURFER_HOME'),"average/synthstrip_skullstripping/infant_synthstrip_01012025.pt"))
 # Processing options
 parser.add_argument('--kneigh', type=int, help='Number of training subjects for acquiring prior information about segmentation.')
 parser.add_argument('--forceskullstrip', action='store_true', help='Enforce that skullstripping is carried out and a masked input image' \
@@ -228,10 +228,10 @@ else:
     commands.append(f'mri_convert --conform-dc {norm} {conf}')
     # skip skull-stripping if --mask was passed
     if external_mask is None:
-        os.makedirs('work/sscnn', exist_ok=True)
-        commands.append(f'mri_synthstrip -i {conf} -o work/sscnn/sscnn_skullstrip.nii.gz --model {args.model}')
+        os.makedirs('work/synthstrip', exist_ok=True)
+        commands.append(f'mri_synthstrip -i {conf} -o work/synthstrip/synthstrip_skullstrip.nii.gz --model {args.model}')
 
-        commands.append(f'mri_mask {conf} work/sscnn/sscnn_skullstrip.nii.gz {masked}')
+        commands.append(f'mri_mask {conf} work/synthstrip/synthstrip_skullstrip.nii.gz {masked}')
     # if --mask was passed, copy it
     else:
         commands.append(f'cp {external_mask} {masked}')

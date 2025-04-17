@@ -67,4 +67,4 @@ foreach(CMD reg_resample reg_f3d reg_aladin)
 endforeach()
 
 # install the model file for skullstripping
-install_symlinks(infant_synthstrip_01012025.pt TYPE files DESTINATION average/sscnn_skullstripping)
+install_symlinks(infant_synthstrip_01012025.pt TYPE files DESTINATION average/synthstrip_skullstripping)
