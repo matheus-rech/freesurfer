@@ -51,7 +51,7 @@ option(PATCH_FSPYTHON "Build subdirs with source using gfortran" OFF)
 option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" OFF)
 option(FSL_INSTALL "force install of FSL binaries for linux platforms only" OFF)
 option(TEST_WITH_CUDA "Allow tests to run that use cuda libs and require install of cuda drivers" OFF)
-option(INTEGRATE_SAMSEG "Integrate standalone SAMSEG" OFF)
+option(INTEGRATE_SAMSEG "Integrate standalone SAMSEG" ON)
 option(FIPS_SUPPORT "allow FS license to be read on FIPS system" OFF)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
@@ -65,12 +65,6 @@ if (NOT FREEVIEW_LINEPROF)
 endif()
 if (DISABLE_LINEPROF)
    message(STATUS "For HOST_OS=${HOST_OS} lineprof disabled")
-endif()
-
-# on Mac ARM64, the wheel is not built with correct platform tag
-# turn INTEGRATE_SAMSEG OFF to investigate further
-if(APPLE_ARM64)
-  set(INTEGRATE_SAMSEG OFF)
 endif()
 
 message(STATUS "For HOST_OS=${HOST_OS} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG}")
