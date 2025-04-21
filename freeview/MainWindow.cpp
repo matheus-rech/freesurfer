@@ -3301,8 +3301,8 @@ void MainWindow::CommandSetDisplayIsoSurface( const QStringList& sa_in )
     {
       if (sa[i] == "voxelize")
         mri->GetProperty()->SetShowVoxelizedContour(true);
-      else if (sa[i] != "on" || sa[i] != "1")
-        cerr << "Unrecognized option(s) for isosurface";
+      else if (sa[i] != "on" && sa[i] != "1")
+        cerr << "Unrecognized option(s) for isosurface: " << qPrintable(sa[i]) << endl;
     }
     connect(mri, SIGNAL(IsoSurfaceUpdating()), SLOT(SetProcessing()));
     connect(mri, SIGNAL(IsoSurfaceUpdated()), SLOT(SetProcessingFinished()));
@@ -3346,7 +3346,7 @@ void MainWindow::CommandSetIsoSurfaceSmooth(const QStringList &cmd)
   {
     bool bOk;
     int nIterations = cmd[1].toInt(&bOk);
-    if (bOk && nIterations > 0)
+    if (bOk) // && nIterations > 0)
     {
       mri->GetProperty()->SetContourSmoothIterations(nIterations);
     }
