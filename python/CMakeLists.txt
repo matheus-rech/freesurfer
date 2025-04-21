@@ -269,7 +269,7 @@ function(install_samseg_cli)
         # create links in ${FSPYTHON_INSTALL_PREFIX}/python/scripts/ to real python scripts in user samseg package
         symlink(${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py ${FSPYTHON_INSTALL_PREFIX}/python/scripts/${SCRIPT})      
       else()
-        # copy samseg cli from installed samseg package to ${FSPYTHON_INSTALL_PREFIX}/python/scripts/
+        # copy samseg cli scripts from installed samseg package to ${FSPYTHON_INSTALL_PREFIX}/python/scripts/
         execute_process(COMMAND bash -c \"cp ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py ${FSPYTHON_INSTALL_PREFIX}/python/scripts/${SCRIPT}\" RESULT_VARIABLE retcode)
         if(NOT \${retcode} STREQUAL 0)
 	  message(FATAL_ERROR \"Could not copy pip-installed samseg cli\")
