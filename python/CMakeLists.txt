@@ -208,13 +208,14 @@ function(integrate_samseg)
   if(APPLE)
     set(APPLE_BUILD_SETTING "APPLE=ON APPLE_ARM64=${APPLE_ARM64}")
   endif()
-  set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${PKG_TARGET} ${PIP_LAST_ARG}")
+  set(SAMSEG_PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
+  set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${SAMSEG_PKG_TARGET} ${PIP_LAST_ARG}")
 
   # pip install samseg
   install(CODE "
     message(STATUS \" for HOST_OS=${HOST_OS} \")
     message(STATUS \" ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} \")
-    message(STATUS \" PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} PYTHON_INSTALL=${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 PKG_TARGET=${PKG_TARGET} \")
+    message(STATUS \" PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} PYTHON_INSTALL=${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 SAMSEG_PKG_TARGET=${SAMSEG_PKG_TARGET} \")
 
     # no check/install samseg dependencies, all dependencies will be handled in requirement files
     message(STATUS \" installing standalone samseg from ${STANDALONE_SAMSEG_PATH} \") 
@@ -224,59 +225,6 @@ function(integrate_samseg)
       message(FATAL_ERROR \"Could not install Standalone Samseg\")
     endif()"
   )
-endfunction()
-
-function(install_samseg_cli)
-  # ??? todo: retrieve samseg directory using get_package_dir(samseg samsegdir) ???
-  # set SAMSEGCLI_DIR, this is hard-coded for now
-  if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
-    set(SAMSEGCLI_DIR ${USER_SAMSEG_PATH})
-  else()
-    set(SAMSEGCLI_DIR ${FSPYTHON_INSTALL_PREFIX}/python/lib/python3.8/site-packages)
-    if(NOT DISTRIBUTE_FSPYTHON)
-      set(SAMSEGCLI_DIR ${FSPYTHON_INSTALL_PREFIX}/python/packages)
-    endif()
-  endif()
-
-  set(SAMSEG_CLI_SCRIPTS
-    run_samseg
-    run_samseg_long
-    sbtiv
-    gems_compute_atlas_probs
-    segment_subregions
-    prepareAtlasDirectory
-    merge_add_mesh_alphas
-    computeTissueConcentrations)
-
-  # config samseg cli scripts
-  foreach(SCRIPT ${SAMSEG_CLI_SCRIPTS})
-    # config fspython wrapper script
-    if (FSPYTHON_INSTALL_TREE)
-      config_fspythonwrapper_fspython_tree(${SCRIPT})
-    else()
-      config_fspythonwrapper(${SCRIPT})
-    endif()  
-  
-    # remove pip-installed cli wrappers
-    if(DISTRIBUTE_FSPYTHON)
-      remove_files(${FSPYTHON_INSTALL_PREFIX}/python/bin/${SCRIPT})
-    else()
-      remove_files(${FSPYTHON_INSTALL_PREFIX}/python/packages/bin/${SCRIPT})
-    endif()
-  
-    install(CODE "
-      if(NOT ${USER_SAMSEG_PATH} STREQUAL \"\")
-        # create links in ${FSPYTHON_INSTALL_PREFIX}/python/scripts/ to real python scripts in user samseg package
-        symlink(${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py ${FSPYTHON_INSTALL_PREFIX}/python/scripts/${SCRIPT})      
-      else()
-        # copy samseg cli scripts from installed samseg package to ${FSPYTHON_INSTALL_PREFIX}/python/scripts/
-        execute_process(COMMAND bash -c \"cp ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py ${FSPYTHON_INSTALL_PREFIX}/python/scripts/${SCRIPT}\" RESULT_VARIABLE retcode)
-        if(NOT \${retcode} STREQUAL 0)
-	  message(FATAL_ERROR \"Could not copy pip-installed samseg cli\")
-        endif()
-      endif()"
-      )
-  endforeach()
 endfunction()
 
 # used as current default for intel linux and mac builds
@@ -349,7 +297,6 @@ endif()
 
 if(INTEGRATE_SAMSEG)
   integrate_samseg()
-  install_samseg_cli()  
 endif()
 
 
