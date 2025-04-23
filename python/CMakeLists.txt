@@ -191,8 +191,12 @@ endfunction()
 function(integrate_samseg)
   # setup STANDALONE_SAMSEG_PATH and pip install flags
   set(PIP_INSTALL_FLAGS "${PIP_NODEP_ARG} ${PIP_NOVER_ARG} --upgrade")
-  set(STANDALONE_SAMSEG_URL  "git+https://github.com/freesurfer/samseg.git")
-  set(STANDALONE_SAMSEG_PATH "${STANDALONE_SAMSEG_URL}")
+  set(requirements_samseg "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt")
+  set(STANDALONE_SAMSEG_PATH ${requirements_samseg})
+
+  # set samseg package install location
+  set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/packages")
+  set(SAMSEG_PKG_TARGET "${pip_target_option}=${SAMSEG_INSTALL_DIR}")  
   if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
     set(STANDALONE_SAMSEG_PATH "${USER_SAMSEG_PATH}")
     # editable samseg install doesn't work in the following build environments:
@@ -208,7 +212,6 @@ function(integrate_samseg)
   if(APPLE)
     set(APPLE_BUILD_SETTING "APPLE=ON APPLE_ARM64=${APPLE_ARM64}")
   endif()
-  set(SAMSEG_PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
   set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${SAMSEG_PKG_TARGET} ${PIP_LAST_ARG}")
 
   # pip install samseg
@@ -218,7 +221,11 @@ function(integrate_samseg)
     message(STATUS \" PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} PYTHON_INSTALL=${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 SAMSEG_PKG_TARGET=${SAMSEG_PKG_TARGET} \")
 
     # no check/install samseg dependencies, all dependencies will be handled in requirement files
-    message(STATUS \" installing standalone samseg from ${STANDALONE_SAMSEG_PATH} \") 
+    if(NOT ${USER_SAMSEG_PATH} STREQUAL \"\")
+      message(STATUS \" removing previous install ${SAMSEG_INSTALL_DIR}/*samseg* ... \")
+      execute_process(COMMAND bash -c \"rm -rf ${SAMSEG_INSTALL_DIR}/*samseg*\")
+    endif()
+    message(STATUS \" installing standalone samseg ... \")
     message(STATUS \" ${INTEGRATE_SAMSEG_COMMAND} \")
     execute_process(COMMAND bash -c \"${INTEGRATE_SAMSEG_COMMAND}\" RESULT_VARIABLE retcode)
     if(NOT \${retcode} STREQUAL 0)

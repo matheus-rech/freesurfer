@@ -27,22 +27,26 @@ function(install_samseg_cli)
 
   # config samseg cli scripts
   foreach(SCRIPT ${SAMSEG_CLI_SCRIPTS})
-    # config fspython wrapper script to wrap around ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py
+    # config fspython wrapper script
     if (FSPYTHON_INSTALL_TREE)
-      # modified from config_fspythonwrapper_fspython_tree()
-      install(CODE "
-        message(STATUS \"Configuring fspython wrapper: ${CMAKE_INSTALL_PREFIX}/../fspython/bin/${SCRIPT}\")
-        set(SCRIPTNAME ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py)
-        configure_file(${CMAKE_SOURCE_DIR}/samseg/samseg_cli_wrapper ${CMAKE_INSTALL_PREFIX}/../fspython/bin/${SCRIPT} @ONLY)"
-      )      
+      config_fspythonwrapper_fspython_tree(${SCRIPT})
     else()
-      # modified from config_fspythonwrapper()
+      config_fspythonwrapper(${SCRIPT})
+    endif()
+     
+    # config fspython wrapper script to wrap around ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py
+    if(NOT ${USER_SAMSEG_PATH} STREQUAL "")
+      # create links in ${FSPYTHON_INSTALL_PREFIX}/python/scripts/ to real python scripts in user samseg package
+      symlink(${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py ${FSPYTHON_INSTALL_PREFIX}/python/scripts/${SCRIPT})      
+    else()
       install(CODE "
-        message(STATUS \"Configuring fspython wrapper: ${CMAKE_INSTALL_PREFIX}/bin/${SCRIPT}\")
-        set(SCRIPTNAME ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py)
-        configure_file(${CMAKE_SOURCE_DIR}/samseg/samseg_cli_wrapper ${CMAKE_INSTALL_PREFIX}/bin/${SCRIPT} @ONLY)"
-    )
-    endif()  
+        # copy samseg cli scripts from installed samseg package to ${FSPYTHON_INSTALL_PREFIX}/python/scripts/
+        execute_process(COMMAND bash -c \"mkdir -p ${FSPYTHON_INSTALL_PREFIX}/python/scripts && cp ${SAMSEGCLI_DIR}/samseg/cli/${SCRIPT}.py ${FSPYTHON_INSTALL_PREFIX}/python/scripts/${SCRIPT}\" RESULT_VARIABLE retcode)
+        if(NOT \${retcode} STREQUAL 0)
+          message(FATAL_ERROR \"Could not copy pip-installed samseg cli\")
+        endif()"
+      )
+    endif()
   
     # remove pip-installed cli wrappers
     remove_files(${FSPYTHON_INSTALL_PREFIX}/python/packages/bin/${SCRIPT})
