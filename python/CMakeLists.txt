@@ -199,6 +199,8 @@ function(integrate_samseg)
   set(SAMSEG_PKG_TARGET "${pip_target_option}=${SAMSEG_INSTALL_DIR}")  
   if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
     set(STANDALONE_SAMSEG_PATH "${USER_SAMSEG_PATH}")
+    # for editable install to work, unset SAMSEG_PKG_TARGET, so the .pth will be python/lib/pythonX.Y/site-packages
+    set(SAMSEG_PKG_TARGET "")
     # editable samseg install doesn't work in the following build environments:
     # 1. if DISTRIBUTE_FSPYTHON=OFF,
     #       module samseg cannot be found
