@@ -1,1 +1,1 @@
-samseg@git+https://github.com/freesurfer/samseg.git@050745e52f4e2588de4c6188e6269c4dc320442a
+samseg@git+https://github.com/freesurfer/samseg.git@fd5bedd3f98bd0241362ffe9dbe2bf0bd43b94f5
