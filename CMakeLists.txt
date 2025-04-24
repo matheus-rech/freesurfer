@@ -841,6 +841,7 @@ if(NOT MINIMAL)
     label2patch
     mkxsubjreg
     matlab
+    mri_3d_photo_recon
     mri_average
     mri_bias
     mri_ca_tissue_parms
@@ -1017,7 +1018,6 @@ if(NOT MINIMAL)
     mri_synthstrip
     mri_synthseg
     mri_synthsr
-    mri_3d_photo_recon
     swi_processing
     template
     test_makevol
