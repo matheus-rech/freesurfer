@@ -100,6 +100,11 @@ public:
     m_propertyBrush = brush;
   }
 
+  BrushProperty* GetBrushProperty()
+  {
+    return m_propertyBrush;
+  }
+
   bool IsValidToPaste( int nPlane );
 
   double GetMinimumVoxelSize();
@@ -123,6 +128,7 @@ public slots:
   void ClearVoxels();
   void PrepareShifting(int nPlane);
   void DoneShifting();
+  void MarkDataModified();
 
 protected:
   QVector<int> SetVoxelByIndex( int* n1, int* n2, int nPlane, bool bAdd = true, bool ignore_brush_size = false, bool draw_as_box = false  );

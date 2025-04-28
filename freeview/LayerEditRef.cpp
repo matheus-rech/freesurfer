@@ -36,6 +36,7 @@
 #include "vtkMatrix4x4.h"
 #include "vtkAppendPolyData.h"
 #include "vtkCubeSource.h"
+#include "BrushProperty.h"
 
 LayerEditRef::LayerEditRef(QObject *parent) :
   LayerEditable(parent), m_mriRef(NULL)
@@ -128,7 +129,7 @@ void LayerEditRef::SetEndPosition(double* pos)
 
 void LayerEditRef::UpdateActors(bool bBuild3D)
 {
-  int dim[3];
+  int dim[3] = {0, 0, 0};
   double voxel_size[3] = {1, 1, 1};
   double origin[3] = {0};
   if (m_mriRef)
@@ -164,6 +165,10 @@ void LayerEditRef::UpdateActors(bool bBuild3D)
     pos1[2] = pos[2];
   }
 
+  int nBrushSize = 1;
+  if (m_mriRef)
+    nBrushSize = m_mriRef->GetBrushProperty()->GetBrushSize();
+
   double dstep = qMin(voxel_size[0], qMin(voxel_size[1], voxel_size[2]))/4;
   double dist = sqrt(vtkMath::Distance2BetweenPoints(pos, pos1));
   double v[3];
@@ -195,6 +200,40 @@ void LayerEditRef::UpdateActors(bool bBuild3D)
       pos[i] += v[i]*dstep;
     }
     dist -= dstep;
+  }
+
+  if (nBrushSize > 1)
+  {
+    QVector<POINT> old_vox = m_voxels;
+    foreach (POINT pt_in, old_vox)
+    {
+      for (int i = -nBrushSize+1; i < nBrushSize; i++)
+      {
+        for (int j = -nBrushSize+1; j < nBrushSize; j++)
+        {
+          for (int k = -nBrushSize+1; k < nBrushSize; k++)
+          {
+            if (i*i+j*j+k*k <= (nBrushSize-1)*(nBrushSize-1))
+            {
+              POINT pt = pt_in;
+              pt.n[0] += i;
+              pt.n[1] += j;
+              pt.n[2] += k;
+              for (int ii = 0; ii < 3; ii++)
+              {
+                if (pt.n[ii] < 0)
+                  pt.n[ii] = 0;
+                else if (pt.n[ii] >= dim[ii])
+                  pt.n[ii] = dim[ii]-1;
+
+                if (!m_voxels.contains(pt))
+                  m_voxels << pt;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 //  qDebug() << "n vox" << m_voxels.size() << pos1[0] << pos1[1] << pos1[2];
 
@@ -299,6 +338,6 @@ void LayerEditRef::ApplyToMRI(LayerMRI *mri_in)
   {
     mri->SetVoxelByIndex(vox.n, 0, true, true);
   }
-  mri->SetModified();
+  mri->MarkDataModified();
   Reset();
 }

@@ -68,12 +68,6 @@ bool Interactor3D::ProcessMouseDownEvent( QMouseEvent* event, RenderView* render
   {
     m_bMoveSlice = true;
   }
-//  else if ( event->button() == Qt::LeftButton && event->modifiers() & CONTROL_MODIFIER )
-//  {
-//    m_surfaceROI = view->InitializeSurfaceROI(event->x(), event->y());
-//    if (m_surfaceROI)
-//      return false;   // intercept the event, do not pass down
-//  }
   else
   {
     return Interactor::ProcessMouseDownEvent( event, renderview ); // pass down the event
@@ -105,7 +99,8 @@ bool Interactor3D::ProcessMouseUpEvent( QMouseEvent* event, RenderView* rendervi
       }
       else
       {
-        view->UpdateCursorRASPosition( event->x(), event->y() );
+        view->setProperty("set_edit_ref_point", ((event->modifiers() & Qt::AltModifier) && view->GetInteractionMode() == RenderView::IM_VoxelEdit));
+        view->UpdateCursorRASPosition(event->x(), event->y());
         view->UpdateConnectivityDisplay();
       }
     }
