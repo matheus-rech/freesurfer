@@ -2515,9 +2515,7 @@ int CountEdits(char *subject, char *outfile)
   for(hemi = 0; hemi < 2; hemi++){
     LABEL *clabel;
     MRI *wgcon;
-    char hemistr[3];
-    if(hemi==0) memcpy(hemistr,"lh",2);
-    if(hemi==1) memcpy(hemistr,"rh",2);
+    const char *hemistr = (hemi == 0) ? "lh" : "rh";
     sprintf(tmpstr,"%s/%s/surf/%s.white",SUBJECTS_DIR,subject,hemistr);
     MRIS *mris_white = MRISread(tmpstr);
     if(mris_white==NULL) exit(1);
