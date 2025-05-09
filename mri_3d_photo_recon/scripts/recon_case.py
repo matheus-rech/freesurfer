@@ -103,7 +103,7 @@ def main():
 
     # Resample to output resolution
     Iorig, Morig = image_utils.resample_images_and_masks(Iorig, Morig, arguments.photo_resolution, RESOLUTION_OUTPUT,
-                                                         stretch_lr=arguments.initial_stretch_factor_lr)
+                                                         stretch_lr=arguments.initial_stretch_factor_lr_photos)
 
     # Build original 3D volumes with a bit of anterior-posterior padding.
     # Crucially: padded planes in distance maps must have high values
@@ -150,7 +150,7 @@ def main():
         Pmesh = Wmesh = TRImesh = meta_mesh = None
     else:
         Pmesh, TRImesh, meta_mesh = mesh_utils.read_and_reorient_mesh(arguments.ref_mesh, arguments.mesh_reorient_with_indices, fsprefix, output_directory, arguments.hemisphere)
-        Pmesh[:,0] = arguments.initial_stretch_factor_lr * Pmesh[:,0]
+        Pmesh[:,0] = arguments.stretch_factor_lr_mesh * Pmesh[:,0]
         nv_orig = Pmesh.shape[0]
         Wmesh = np.ones(nv_orig)
         if False:
