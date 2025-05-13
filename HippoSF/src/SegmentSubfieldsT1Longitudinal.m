@@ -2115,26 +2115,28 @@ for t=1:nTP
     
     % Molecular layer: replace by nearest label that is not background or
     % fissure
-    [~,cropping]=cropLabelVol(tmp4.vol==214,2);
-    VOL=applyCropping(tmp4.vol,cropping);
-    llist=unique(VOL);
-    llist=llist(llist~=0 & llist~=215 & llist~=214);
-    mask=VOL==214;
-    for l=1:length(llist)
-        label=llist(l);
-        dmap=bwdist(VOL==label);
-        if l==1
-            mini=dmap(mask);
-            seg=label;
-        else
-            dist=dmap(mask);
-            m=dist<mini;
-            mini(m)=dist(m);
-            seg(m)=label;
+    if any(tmp4.vol(:)==214)
+        [~,cropping]=cropLabelVol(tmp4.vol==214,2);
+        VOL=applyCropping(tmp4.vol,cropping);
+        llist=unique(VOL);
+        llist=llist(llist~=0 & llist~=215 & llist~=214);
+        mask=VOL==214;
+        for l=1:length(llist)
+            label=llist(l);
+            dmap=bwdist(VOL==label);
+            if l==1
+                mini=dmap(mask);
+                seg=label*ones(size(mask));
+            else
+                dist=dmap(mask);
+                m=dist<mini;
+                mini(m)=dist(m);
+                seg(m)=label;
+            end
         end
+        VOL(mask)=seg;
+        tmp4.vol(cropping(1):cropping(4),cropping(2):cropping(5),cropping(3):cropping(6))=VOL;
     end
-    VOL(mask)=seg;
-    tmp4.vol(cropping(1):cropping(4),cropping(2):cropping(5),cropping(3):cropping(6))=VOL;
     myMRIwrite(tmp4,['discreteLabelsMergedBodyHeadNoMLorGCDG_tp_' num2str(t) '.mgz'],'float',tempdir);
     
     
