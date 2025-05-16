@@ -24,6 +24,7 @@ set patch = ()
 set annotoutline = 1
 set overlaymethod = "mid_to_min"
 set vtxno = ()
+set view = ()
 if($?FV_PATIENT_ORIENTATION == 0) setenv FV_PATIENT_ORIENTATION 1
 if($?FV_ROTATE_AROUND_CURSOR == 0) setenv FV_ROTATE_AROUND_CURSOR 0
 
@@ -61,6 +62,7 @@ set tSecStart = `date '+%s'`;
 if(! $UseTkSurfer) then
   ### FreeView ####----------------------------------------------
   set cmd = (freeview )
+  if($#view) set cmd = ($cmd --view $view)
   if($FV_PATIENT_ORIENTATION == 2) set cmd = ($cmd -neuro-view)
   if($FV_ROTATE_AROUND_CURSOR) set cmd = ($cmd -rotate-around-cursor)
   set cmd = ($cmd -f)
@@ -242,6 +244,22 @@ while( $#argv != 0 )
 
     case "-surfs":
       set surflist0 = (white pial inflated)
+      breaksw
+
+    case "-medial":
+      set view = medial
+      breaksw
+
+    case "-lateral":
+      set view = lateral
+      breaksw
+
+    case "-inferior":
+      set view = inferior
+      breaksw
+
+    case "-superior":
+      set view = superior
       breaksw
 
     case "-all":
@@ -441,6 +459,7 @@ usage_exit:
   echo "-neuro : use neurological orientation instead of radiological"
   echo "-rotate-around-cursor (-rca) : in 3d view, rotate around cursor (use -no- to turn off)"
   echo "-linear, -linearopaque, -piecewise, -min_to_max (default) : overlay heat scale"
+  echo "-medial, -lateral, -inferior, -superior"
   echo "--keep-sphere-vol-geom : do not ignore sphere volume geometry when loading sphere"
   echo ""
   if(! $PrintHelp) exit 1;

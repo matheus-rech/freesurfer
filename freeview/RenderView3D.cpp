@@ -71,6 +71,7 @@
 #include <vtkCubeAxesActor.h>
 #include <QMessageBox>
 #include <QActionGroup>
+#include "LayerEditRef.h"
 
 #define SLICE_PICKER_PIXEL_TOLERANCE  15
 
@@ -555,8 +556,16 @@ void RenderView3D::DoUpdateRASPosition( int posX, int posY, bool bCursor, bool b
       LayerMRI* mri_sel = (LayerMRI*)lc_mri->HasProp(prop);
       if (mri_sel && mri_sel->GetProperty()->GetShowAsContour())
       {
-        lc_mri->SetCursorRASPosition( pos );
-        MainWindow::GetMainWindow()->SetSlicePosition( pos );
+        if (property("set_edit_ref_point").toBool())
+        {
+          MainWindow::GetMainWindow()->SetEditRefPoint(mri_sel, pos);
+          setProperty("set_edit_ref_point", false);
+        }
+        else
+        {
+          lc_mri->SetCursorRASPosition( pos );
+          MainWindow::GetMainWindow()->SetSlicePosition( pos );
+        }
       }
       else if ( mri_sel || lc_roi->HasProp( prop ) )
       {
@@ -1532,6 +1541,22 @@ void RenderView3D::TriggerContextMenu( QMouseEvent* event )
     connect(act, SIGNAL(triggered()), this, SLOT(DeleteCurrentSelectRegion()));
     menu->addAction(act);
     menu->addSeparator();
+  }
+;
+  if (mainwnd->GetMode() == RenderView::IM_VoxelEdit)
+  {
+    LayerEditRef* ref = (LayerEditRef*)mainwnd->GetSupplementLayer("EditRef");
+    if (ref && ref->GetNumberOfMarks() > 0)
+    {
+      QAction* act;
+      act = new QAction("Apply to Edit", this);
+      connect(act, SIGNAL(triggered()), ref, SLOT(ApplyToMRI()));
+      menu->addAction(act);
+      act = new QAction("Clear Marks", this);
+      connect(act, SIGNAL(triggered()), ref, SLOT(Reset()));
+      menu->addAction(act);
+      menu->addSeparator();
+    }
   }
 
   QMenu* submenu = menu->addMenu("Reset View");

@@ -1067,6 +1067,15 @@ bool LayerVolumeBase::HasRedo()
   return m_bufferRedo.size() > 0;
 }
 
+void LayerVolumeBase::MarkDataModified()
+{
+  SetModified();
+  if (m_imageData.GetPointer())
+    m_imageData->Modified();
+  emit ActorUpdated();
+  emit Modified();
+}
+
 void LayerVolumeBase::Undo()
 {
   if ( m_bufferUndo.size() > 0 )
@@ -1081,9 +1090,7 @@ void LayerVolumeBase::Undo()
     LoadBufferItem( item );
     item.Clear();
 
-    SetModified();
-    emit ActorUpdated();
-    emit Modified();
+    MarkDataModified();
   }
 }
 
@@ -1101,9 +1108,7 @@ void LayerVolumeBase::Redo()
     LoadBufferItem( item );
     item.Clear();
 
-    SetModified();
-    emit ActorUpdated();
-    emit Modified();
+    MarkDataModified();
   }
 }
 
