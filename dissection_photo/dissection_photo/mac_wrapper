@@ -44,5 +44,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-$FREESURFER_HOME/bin/dissection_photo.app/Contents/MacOS/dissection_photo "$@"
+$FREESURFER_HOME/bin/dissection_photo/Contents/MacOS/dissection_photo "$@"
 exit $?
