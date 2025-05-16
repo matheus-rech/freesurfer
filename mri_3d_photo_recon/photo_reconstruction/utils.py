@@ -62,8 +62,11 @@ def get_arguments():
     parser.add_argument("--photo_resolution", type=float, required=True,
                         help="Resolution of the photos in mm (required)")
 
-    parser.add_argument("--initial_stretch_factor_lr", type=float, default=1.0,
+    parser.add_argument("--initial_stretch_factor_lr_photos", type=float, default=1.0,
                         help="Initialize stretch of photos in left-right direction by this factor.")
+
+    parser.add_argument("--stretch_factor_lr_mesh", type=float, default=1.0,
+                        help="Stretch mesh in left-right direction by this factor.")
 
     parser.add_argument("--weights", type=str, default=None,
                         help="CSV file with slab weights")
