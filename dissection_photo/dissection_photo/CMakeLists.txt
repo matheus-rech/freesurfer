@@ -22,11 +22,10 @@ if(BUILD_GUIS)
 
   if(APPLE)
     mac_deploy_qt(TARGET dissection_photo BUNDLE bin/dissection_photo PLIST Info.plist)
-    install(PROGRAMS mac_wrapper DESTINATION bin RENAME dissection_photo)
+    install(PROGRAMS mac_wrapper DESTINATION bin RENAME dissection_photo_gui.sh)
   else()
     install(TARGETS dissection_photo DESTINATION bin)
+    install_configured(dissection_photo_gui.sh DESTINATION bin)
   endif()
-
-  install_configured(dissection_photo_gui.sh DESTINATION bin)
 
 endif()

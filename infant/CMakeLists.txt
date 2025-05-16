@@ -68,3 +68,6 @@ endforeach()
 
 # install the model file for skullstripping
 install_symlinks(infant_synthstrip_01012025.pt TYPE files DESTINATION average/synthstrip_skullstripping)
+
+# # add test script
+# add_test_script(NAME infantfs_test SCRIPT test.sh)
