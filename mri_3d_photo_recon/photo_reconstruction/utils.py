@@ -62,8 +62,16 @@ def get_arguments():
     parser.add_argument("--photo_resolution", type=float, required=True,
                         help="Resolution of the photos in mm (required)")
 
-    parser.add_argument("--initial_stretch_factor_lr", type=float, default=1.0,
+    parser.add_argument("--initial_stretch_factor_lr_photos", type=float, default=1.0,
                         help="Initialize stretch of photos in left-right direction by this factor.")
+
+    parser.add_argument("--no_z_stretch", dest="no_z_stretch", action="store_true",
+                        help="Use when you are certain of slice thickness and/or photos are outside the mesh")
+    parser.set_defaults(no_z_stretch=False)
+    
+
+    parser.add_argument("--stretch_factor_lr_mesh", type=float, default=1.0,
+                        help="Stretch mesh in left-right direction by this factor.")
 
     parser.add_argument("--weights", type=str, default=None,
                         help="CSV file with slab weights")
@@ -338,6 +346,9 @@ def adjust_settings(arguments):
             cp_spacing_3d = 15.0
             k_regularizer_nonlin3d = 1.5
 
+    if arguments.no_z_stretch:
+        allow_z_stretch = False
+    
     # override if arugments provided in command line if needed
     arguments.cp_spacing_2d = arguments.cp_spacing_2d if arguments.cp_spacing_2d is not None else cp_spacing_2d
     arguments.k_dif_slice_loss = arguments.k_dif_slice_loss if arguments.k_dif_slice_loss is not None else k_dif_slice_loss
