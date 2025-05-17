@@ -1,7 +1,7 @@
 project(mris_register_josa)
 
 if (FSPYTHON_INSTALL_TREE)
-   set(mris_register_josa_dest "\.\./fspython/models")
+   set(mris_register_josa_dest "${FSPYTHON_INSTALL_PREFIX}/models")
 else()
    set(mris_register_josa_dest "models")
 endif()

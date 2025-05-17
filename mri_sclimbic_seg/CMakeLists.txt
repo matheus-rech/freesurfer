@@ -1,7 +1,7 @@
 project(mri_sclimbic_seg)
 
 if (FSPYTHON_INSTALL_TREE)
-   set(sclimbic_dest "\.\./fspython/models")
+   set(sclimbic_dest "${FSPYTHON_INSTALL_PREFIX}/models")
    install_pyscript_fspython_tree(mri_sclimbic_seg)
 else()
    set(sclimbic_dest "models")

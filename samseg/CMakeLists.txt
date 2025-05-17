@@ -1,7 +1,7 @@
 project(samseg)
 
 if (FSPYTHON_INSTALL_TREE)
-   set(pydir "${CMAKE_INSTALL_PREFIX}/\.\./fspython/python")
+   set(pydir "${FSPYTHON_INSTALL_PREFIX}/python")
 else()
    set(pydir "${CMAKE_INSTALL_PREFIX}/python")
 endif()

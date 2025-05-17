@@ -1,7 +1,7 @@
 project(mri_segment_thalamic_nuclei_dti_cnn)
 
 if (FSPYTHON_INSTALL_TREE)
-   set(thalseg_dest "\.\./fspython/models")
+   set(thalseg_dest "${FSPYTHON_INSTALL_PREFIX}/models")
    install_pyscript_fspython_tree(mri_segment_thalamic_nuclei_dti_cnn)
    install_symlinks_fspython_tree(TYPE files DESTINATION models thalseg_1.0.h5)
    install_symlinks_fspython_tree(TYPE files DESTINATION models thalseg_1.1.h5)

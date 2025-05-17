@@ -17,8 +17,8 @@ install(PROGRAMS
 )
 
 if (FSPYTHON_INSTALL_TREE)
-   set(infant_dest "\.\./fspython/python/packages")
-   set(pydir "${CMAKE_INSTALL_PREFIX}/\.\./fspython/python")
+   set(infant_dest "${FSPYTHON_INSTALL_PREFIX}/python/packages")
+   set(pydir "${FSPYTHON_INSTALL_PREFIX}/python")
 else()
    set(infant_dest "python/packages")
    set(pydir "${CMAKE_INSTALL_PREFIX}/python")

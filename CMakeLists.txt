@@ -60,6 +60,26 @@ option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw
 option(VTK_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/vtk" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
 
+# include our custom cmake functions (and others)
+include(cmake/functions.cmake)
+include(TestBigEndian)
+include(CheckFunctionExists)
+
+# Use host_os() to get HOST_OS to reference the correct 3rd party package build
+host_os()
+
+if(FSPYTHON_INSTALL_TREE)
+   # Default is parallel to cmake install prefix - use absolute path since some commands fail with path relative
+   get_filename_component(FSPYTHON_DEFAULT_RELATIVE_PATH "${CMAKE_INSTALL_PREFIX}/\.\./fspython" REALPATH)
+   set(FSPYTHON_INSTALL_PREFIX "${FSPYTHON_DEFAULT_RELATIVE_PATH}" CACHE PATH "fspython install path" FORCE)
+else()
+   set(FSPYTHON_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "fspython install path" FORCE)
+endif()
+
+# if(FSPYTHON_INSTALL_TREE)
+message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX}")
+# endif()
+
 if (NOT FREEVIEW_LINEPROF)
    set(DISABLE_LINEPROF ON)
 endif()
@@ -91,11 +111,6 @@ endif()
 
 # enable ctest
 enable_testing()
-
-# include our custom cmake functions (and others)
-include(cmake/functions.cmake)
-include(TestBigEndian)
-include(CheckFunctionExists)
 
 # prevent third-party packages from importing as a system
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED TRUE)
@@ -162,9 +177,6 @@ endif()
 
 # all custom find-modules are stored in the cmake subdir
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
-# Use host_os() to get HOST_OS to reference the correct 3rd party package build
-host_os()
 
 if(HOST_OS MATCHES "Rocky9")
    set(DISABLE_LINEPROF ON)
@@ -1065,10 +1077,6 @@ if(EXISTS "./mri_make_bem_surfaces")
       add_subdirectories(mri_make_bem_surfaces)
       message(STATUS "Adding mri_make_bem_surfaces to build on ${HOST_OS}")
    endif()
-endif()
-
-if(FSPYTHON_INSTALL_TREE)
-   message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX}")
 endif()
 
 if(INFANT_MODULE)

@@ -5,7 +5,7 @@ if(NOT INSTALL_PYTHON_DEPENDENCIES)
 endif()
 
 if (FSPYTHON_INSTALL_TREE)
-   set(qatools_dest "${CMAKE_INSTALL_PREFIX}/../fspython/python/packages")
+   set(qatools_dest "${FSPYTHON_INSTALL_PREFIX}/python/packages")
    install_pyscript_fspython_tree(qatools.py)
 else()
    set(qatools_dest "${CMAKE_INSTALL_PREFIX}/python/packages")

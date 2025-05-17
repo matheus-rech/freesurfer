@@ -134,9 +134,11 @@ if [ "${install_path}" == "" ]; then
    exit 1
 fi 
 
-# Use python_binary directory as the fspython wrapper script may not yet be installed
-python_binary="${install_path}/python/bin/python3"
-nvidia_subdir="$install_path/python/lib/python3.8/site-packages/nvidia"
+## Use python_binary directory as the fspython wrapper script may not yet be installed
+# python_binary="${install_path}/python/bin/python3"
+python_binary="$FSPYTHON_INSTALL_PREFIX/python/bin/python3"
+# nvidia_subdir="$install_path/python/lib/python3.8/site-packages/nvidia"
+nvidia_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python3.8/site-packages/nvidia"
 
 if [ $generate -eq 1 ]; then
    # If requirements files not soft links and modified, then stop and do not clobber
@@ -319,8 +321,9 @@ if [ $uninstall -eq 1 ]; then
       echo "$s: Found nothing to uninstall for nvidia and triton in output from pip freeze."
    fi
 
-   tflow_subdir="$install_path/python/lib/python3.8/site-packages/tensorflow"
    # tflow_subdir="$install_path/python/lib/python3.8/site-packages"
+   # tflow_subdir="$install_path/python/lib/python3.8/site-packages/tensorflow"
+   tflow_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python3.8/site-packages/tensorflow"
    if [ -e $tflow_subdir ]; then
       rm -f header.list
       (cd ${tflow_subdir} && find -type f ! -name "*LICENSE*" ! -name "*.so*" -exec grep -i "copyright.*nvidia" {} \; -print | grep "^\.\/") > header.list

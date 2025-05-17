@@ -1,7 +1,7 @@
 project(mri_synthsr)
 
 if (FSPYTHON_INSTALL_TREE)
-   set(mri_synthsr_dest "\.\./fspython/models")
+   set(mri_synthsr_dest "${FSPYTHON_INSTALL_PREFIX}/models")
 else()
    set(mri_synthsr_dest "models")
 endif()
