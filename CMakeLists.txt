@@ -910,6 +910,7 @@ if(NOT MINIMAL)
     mri_paint
     mri_parse_sdcmdir
     mri_path2label
+    mri_pglands_seg
     mri_polv
     mri_probe_ima
     mri_reduce
