@@ -76,6 +76,12 @@ else()
    set(FSPYTHON_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "fspython install path" FORCE)
 endif()
 
+# INFANT_MODULE install and associated binaries working on some platforms
+if(APPLE OR HOST_OS MATCHES "CentOS7" OR HOST_OS MATCHES "Rocky8")
+  set(INFANT_MODULE ON)
+  message(STATUS "For HOST_OS=${HOST_OS} INFANT_MODULE=${INFANT_MODULE}")
+endif()
+
 # if(FSPYTHON_INSTALL_TREE)
 message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX}")
 # endif()
