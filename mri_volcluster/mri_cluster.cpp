@@ -259,6 +259,7 @@ int main(int argc, char *argv[])
   check_options();
   if (checkoptsonly) return(0);
   dump_options(stdout);
+  setenv("FS_COPY_HEADER_CTAB","1",1);
 
 #ifdef _OPENMP
   printf("%d avail.processors, using %d\n",omp_get_num_procs(),omp_get_max_threads());
