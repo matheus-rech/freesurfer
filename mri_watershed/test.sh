@@ -14,7 +14,12 @@ fi
 
 # Have not yet set TESSTDATA_SUFFIX as .clang13 for MacOS 12
 if [ "$host_os" == "macos12" ]; then
-   compare_vol brainmask.mgz brainmask.ref.clang13.mgz
+   if [ "$CLANG_VERSION" == "14" ]; then
+      # as of 5/2025 tulum running clang14 but PHS024550 running clang 13
+      compare_vol brainmask.mgz brainmask.ref.clang14.mgz
+   else
+      compare_vol brainmask.mgz brainmask.ref.clang13.mgz
+   fi
 elif [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]] || [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "centos9" ]] || [[ "$host_os" == "macos10" ]]; then
    compare_vol brainmask.mgz brainmask.ref${TESTDATA_SUFFIX}.mgz
 else

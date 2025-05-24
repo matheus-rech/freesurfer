@@ -21,7 +21,12 @@ fi
 # tests to look for newly generated reference files on MacOS 10.12 with .clang13 suffix
 # So as of this writing TESTDATA_SUFFIX not defined for MacOS 12 and hardcode .clang13 below.
 if [ "$host_os" == "macos12" ]; then
-   compare_vol aseg.auto_noCCseg.out.mgz aseg.auto_noCCseg.clang13.mgz
+   if [ "$CLANG_VERSION" == "14" ]; then
+      # as of 5/2025 tulum running clang14 but PHS024550 running clang 13
+      compare_vol aseg.auto_noCCseg.out.mgz aseg.auto_noCCseg.clang14.mgz
+   else
+      compare_vol aseg.auto_noCCseg.out.mgz aseg.auto_noCCseg.clang13.mgz
+   fi
 elif [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "macos10" ]]; then
    compare_vol aseg.auto_noCCseg.out.mgz aseg.auto_noCCseg${TESTDATA_SUFFIX}.mgz
 else

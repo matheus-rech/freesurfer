@@ -124,12 +124,19 @@ FSTEST_TESTDATA_TARBALL="${FSTEST_SCRIPT_DIR}/testdata.tar.gz"
 # run on the target OS.
 host_os=$(get_os)
 export TESTDATA_SUFFIX=""
+export CLANG_VERSION=""
 if [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]]; then
    export TESTDATA_SUFFIX=".gcc8"
 elif [ "$host_os" == "centos9" ]; then
    export TESTDATA_SUFFIX=".gcc10"
 elif [ "$host_os" == "macos10" ]; then
    export TESTDATA_SUFFIX=".clang12"
+elif [ "$host_os" == "macos12" ]; then
+   # as of 5/2025, both tulum and PHS024550 are running a verison of MacOS monterey 12.X
+   # however tulum is using clang14 and PHS024550 is using clang13.  Some tests on tulum
+   # have been changed to have *.clang14 reference files in the individual subdir test.sh
+   clang_version=`clang --version | grep "^Apple clang version" | awk '{print $4}' | sed 's;\..*;;'`
+   export CLANG_VERSION="$clang_version"
 fi
 
 # if we're regenerating testdata, make a temporary 'testdata_regeneration' storage directory for
