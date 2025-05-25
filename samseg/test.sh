@@ -4,7 +4,11 @@ source "$(dirname $0)/../test.sh"
 export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
 
 if [ "$host_os" == "macos12" ]; then
-   TESTDATA_SUFFIX=".clang13"
+   if [ "$CLANG_VERSION" == "14" ]; then
+      TESTDATA_SUFFIX=".clang14"
+   else
+      TESTDATA_SUFFIX=".clang13"
+   fi
    # ensure TERM defined to known to be good value
    export TERM=linux
 fi
