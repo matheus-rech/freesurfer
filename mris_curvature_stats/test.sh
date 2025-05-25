@@ -4,7 +4,11 @@ source "$(dirname $0)/../test.sh"
 test_command mris_curvature_stats -o raw -h 10 -G cvs_avg35 rh rh.curv
 
 if [ "$host_os" == "macos12" ]; then
-   TESTDATA_SUFFIX=".clang13"
+   if [ "$CLANG_VERSION" == "14" ]; then
+      TESTDATA_SUFFIX=".clang14"
+   else
+      TESTDATA_SUFFIX=".clang13"
+   fi
 fi
 
 compare_file raw ref${TESTDATA_SUFFIX}
