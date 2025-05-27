@@ -36,11 +36,11 @@ endif()
 
 install(FILES CNYBCH.yaml DESTINATION average)
 
-install(niftyreg/license.niftyreg.txt TYPE files DESTINATION docs)
+install_symlinks(niftyreg/license.niftyreg.txt TYPE files DESTINATION docs)
 
 #install_append_help(infant_recon_all infant_recon_all.help.xml bin)
 
-install(all_c_robtemplate_affine_mean.05.01.2018.nii.gz TYPE files DESTINATION average)
+install_symlinks(all_c_robtemplate_affine_mean.05.01.2018.nii.gz TYPE files DESTINATION average)
 
 add_subdirectory(labelfusion)
 
@@ -50,7 +50,7 @@ install(PROGRAMS docker/infant-container-entrypoint-aws.bash DESTINATION bin)
 
 # install external niftyreg binaries
 if(APPLE)
-  if(Apple_ARM64)
+  if(APPLE_ARM64)
     set(NIFTY_REG_DIR niftyreg/mac_arm64)
   else()
     set(NIFTY_REG_DIR niftyreg/mac_x86)
