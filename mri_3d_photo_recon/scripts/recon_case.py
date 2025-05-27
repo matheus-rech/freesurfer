@@ -6,7 +6,9 @@ from photo_reconstruction import utils
 
 # Constants we shouldn't have to touch
 RESOLUTIONS = [4, 2, 1]  # Resolutions at which we work (in mm)
-RESOLUTION_OUTPUT = 0.5  # Resolution for final 3D recon (in mm); will be ignored (set to 1mm) if weights are provided
+# Solves problems with machine learning imputation
+# RESOLUTION_OUTPUT = 0.5  # Resolution for final 3D recon (in mm); will be ignored (set to 1mm) if weights are provided
+RESOLUTION_OUTPUT = 1.0
 STEPS = [250, 150, 75]  # Optimization steps at every resolution (per pass)
 
 TOL = 1e-6  # Tolerance / threshold for convergence
