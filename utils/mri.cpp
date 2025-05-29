@@ -14369,13 +14369,19 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
 
   const float vox_vol = mri->xsize * mri->ysize * mri->zsize;
 
-  /* first find border voxels */
+  /* Find border voxels, defined as a voxel=label who has a face neighbor that is not in the label or
+     voxel!=label that has a face neighbor that is in the label, so it is a double wide border  */
+  // 1 = mark=1
+  // 1 = face neighbors ("six_connected")
+  Timer mytimer;
   mri_border = MRImarkLabelBorderVoxels(mri, NULL, label, 1, 1);
+  int msecBorder = mytimer.milliseconds();
 
   if (DIAG_VERBOSE_ON && (Gdiag & DIAG_WRITE)) {
     MRIwrite(mri_border, "b.mgz");
   }
 
+  mytimer.reset();
   volume = 0;
   for (x = 0; x < mri->width; x++) {
     for (y = 0; y < mri->height; y++) {
@@ -14387,46 +14393,62 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
         const int vox_label = MRIgetVoxVal(mri, x, y, z, 0);
         const int border = MRIgetVoxVal(mri_border, x, y, z, 0);
 
-        /*
-          Note that these are all zeroed at the start
-          of MRIcomputeLabelNbhd
-        */
-        int nbr_label_counts[maxlabels], label_counts[maxlabels];
-        float label_means[maxlabels];
-
+	// If this voxel is not not in the label and not on the border, just skip it
         if ((vox_label != label) && (border == 0)) {
           continue;
         }
 
+        /* Note that these are all zeroed at the start of MRIcomputeLabelNbhd. */
+        int nbr_label_counts[maxlabels], label_counts[maxlabels];
+        float label_means[maxlabels];
+
         if (border == 0) {
+	  // In the label but not on the border, just add it to the total. This could 
+	  // be checked above 
           volume += vox_vol;
         }
-        else { /* compute partial volume */
+        else { /* current voxel is on the border, so compute partial volume based on intensity */
+	  // Compute mean of all labels within 1 vox of current vox (nearest nbr)
           MRIcomputeLabelNbhd(mri, mri_vals, x, y, z, nbr_label_counts, label_means, 1, maxlabels);
-
+	  // Compute mean of all labels within 7 vox of current vox. 
+	  // This is likely very computationally expensive
           MRIcomputeLabelNbhd(mri, mri_vals, x, y, z, label_counts, label_means, 7, maxlabels);
 
-          // Compute partial volume based on intensity
-          const float val = MRIgetVoxVal(mri_vals, x, y, z, 0);
+          const float val = MRIgetVoxVal(mri_vals, x, y, z, 0); // value at the current vox
 
+	  // mean of the label of current vox within 7vox of current vox
           float mean_label = label_means[vox_label];
           int nbr_label = -1;
           int max_count = 0;
           float pv, mean_nbr;
 
-          /* look for a label that is a nbr and is
-             on the other side of val from the label mean */
+          /* Look for another label that is a nbr and is on the other
+	     intensity side of val from the label mean */
           int this_label;
-
+	  // Look through all possible labels 
           for (this_label = 0; this_label < maxlabels; this_label++) {
             if (this_label == vox_label) {
-              continue;
+              continue; // skip if this_label is the label for this voxel
             }
 
             if (nbr_label_counts[this_label] == 0) {
-              continue; /* not a nbr */
+              continue; /* not a nbr within 1vox (not nearest nbr)*/
             }
 
+	    // The logic of this if() statement is obtuse. It is looking for the label
+	    // with the maximum 7vox counts and an intensity constraint.
+
+	    // label_counts[this_label] > max_count -- 7vox nbr counts
+
+	    // label_means[this_label] = mean of this_label within 7vox of current vox
+	    // val = val at this voxel
+	    // mean_label = mean of current vox label within 7vox of current vox
+	    // This is looking for a this_label where the diff between
+	    // mean of this_label and the current voxval is in the
+	    // opposite direction relative the mean of current vox
+	    // label and the current vox val. Eg, the mean of the current label is great than
+	    // the current voxel ((mean_label - val)>0) and the mean of this_label is darker than 
+	    // the current voxel ((label_means[this_label] - val)<0)
             if ((label_counts[this_label] > max_count) && ((label_means[this_label] - val) * (mean_label - val) < 0)) {
               // max_count = label_means[this_label] ; // bug
               max_count = label_counts[this_label];
@@ -14434,6 +14456,13 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
             }
           }
 
+	  // Skip if neither current voxel label nor the nbr label is
+	  // the passed label.  This can only happen if current vox is
+	  // an out-of-label border vox and when the nbr_label is a
+	  // label that: (1) is within 7vox, (2) is the max count, (3)
+	  // has proper intensity but is not the passed label. I think it would
+	  // have had the same effect just to check whether the passed label
+	  // met the intensity constraint and had the max count (or not).
           if (vox_label != label && nbr_label != label) {
             continue;  // this struct not in voxel
           }
@@ -14508,6 +14537,9 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
   }
 
   MRIfree(&mri_border);
+
+  int msecPV = mytimer.milliseconds();
+  if(0) {printf("%d PV markborder %d pv %d\n",label,msecBorder,msecPV); fflush(stdout);}
 
   return (volume);
 }
