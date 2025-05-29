@@ -12,7 +12,12 @@ test_command ../../mri_convert/mri_convert -dsold 6 6 6 -i T1.mgz -o T1_downsamp
 # tests to look for newly generated reference files on MacOS 10.12 with .clang13 suffix
 # So as of this writing TESTDATA_SUFFIX not defined for MacOS 12 and hardcode .clang13 below.
 if [ "$host_os" == "macos12" ]; then
-   compare_vol --thresh 0.00042725 T1.ref.clang13.mgz T1.out.mgz
+   if [ "$CLANG_VERSION" == "14" ]; then
+      # as of 5/2025 tulum running clang14 but PHS024550 running clang 13
+      compare_vol --thresh 0.00042725 T1.ref.clang14.mgz T1.out.mgz
+   else
+      compare_vol --thresh 0.00042725 T1.ref.clang13.mgz T1.out.mgz
+   fi
 elif [ "$host_os" == "ubuntu18" ]; then
    compare_vol T1.ref.gcc8.mgz T1.out.mgz
 elif [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]] || [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "centos9" ]] || [[ "$host_os" == "macos10" ]]; then

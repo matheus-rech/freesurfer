@@ -77,7 +77,7 @@ else()
 endif()
 
 # INFANT_MODULE install and associated binaries working on some platforms
-if(APPLE OR HOST_OS MATCHES "CentOS7" OR HOST_OS MATCHES "Rocky8")
+if(APPLE OR HOST_OS MATCHES "CentOS7" OR HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22")
   set(INFANT_MODULE ON)
   message(STATUS "For HOST_OS=${HOST_OS} INFANT_MODULE=${INFANT_MODULE}")
 endif()

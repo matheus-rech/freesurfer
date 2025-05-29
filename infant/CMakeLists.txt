@@ -50,20 +50,21 @@ install(PROGRAMS docker/infant-container-entrypoint-aws.bash DESTINATION bin)
 
 # install external niftyreg binaries
 if(APPLE)
-  if(Apple_ARM64)
+  if(APPLE_ARM64)
     set(NIFTY_REG_DIR niftyreg/mac_arm64)
   else()
     set(NIFTY_REG_DIR niftyreg/mac_x86)
   endif()
+elseif("${HOST_OS}" STREQUAL "Ubuntu 20")
+  set(NIFTY_REG_DIR niftyreg/ubuntu_x86)
+elseif("${HOST_OS}" STREQUAL "Ubuntu 22")
+  set(NIFTY_REG_DIR niftyreg/ubuntu_x86)
 else()
   set(NIFTY_REG_DIR niftyreg/linux_x86)
 endif()
+
 foreach(CMD reg_resample reg_f3d reg_aladin)
-  if(APPLE)
-    install_symlinks(${NIFTY_REG_DIR}/${CMD} TYPE PROGRAMS DESTINATION bin)
-  else()
-    install_symlinks(${NIFTY_REG_DIR}/${CMD} TYPE PROGRAMS DESTINATION bin)
-  endif()
+  install_symlinks(${NIFTY_REG_DIR}/${CMD} TYPE PROGRAMS DESTINATION bin)
 endforeach()
 
 # install the model file for skullstripping
