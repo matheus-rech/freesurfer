@@ -6284,7 +6284,8 @@ MRI *MRIcopyHeader(const MRI *mri_src, MRI *mri_dst)
   mri_dst->ncmds = mri_src->ncmds;
 
   if(mri_src->ct) {
-    printf("MRIcopyHeader(): source has ctab. Copying ctab ...\n");
+    if (Gdiag & DIAG_SHOW && DIAG_VERBOSE_ON)
+      printf("MRIcopyHeader(): source has ctab. Copying ctab ...\n");
     if(mri_dst->ct) CTABfree(&mri_dst->ct);
     mri_dst->ct = CTABdeepCopy(mri_src->ct);
   }
