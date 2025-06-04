@@ -30,10 +30,11 @@ use_cmake_test_framework="true"
 
 if [ "$use_cmake_test_framework" == "true" ]; then
    source "$(dirname $0)/../test.sh"
-   # running with 4 threads should not put too much stress on CPU/memory usage
-   # - given other tests are running (in parallel) during nightly builds
+   # running 4 threads is too much CPU/memory load as it uses the performance
+   # and not efficientcy cores.  That means on portable machines with say
+   # 4 efficiency cores and 4 performance cores, response will nose dive.
    # which mri_synthsr
-   test_command mri_synthsr --i $SUBJECTS_DIR/bert/mri --o bert.out --threads 4
+   test_command mri_synthsr --i $SUBJECTS_DIR/bert/mri --o bert.out --threads 2
    rm -f testdata.tar.gz
 elif [ "$use_cmake_test_framework" == "false" ]; then
    # run test standalone, e.g., debugging
@@ -44,7 +45,7 @@ elif [ "$use_cmake_test_framework" == "false" ]; then
    export FREESURFER_HOME=/usr/local/freesurfer/dev
    source $FREESURFER_HOME/SetUpFreeSurfer.sh
    # (cd testdata && date && which mri_synthsr)
-   (cd testdata && date && bash -x `which mri_synthsr` --i $SUBJECTS_DIR/bert/mri --o bert.out --threads 4 && date)
+   (cd testdata && date && bash -x `which mri_synthsr` --i $SUBJECTS_DIR/bert/mri --o bert.out --threads 2 && date)
 else
    echo "Nothing selected to run."
    exit 1
