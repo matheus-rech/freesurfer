@@ -8040,3 +8040,59 @@ int SpatialCor::printline(const char *fname)
   fclose(fp);
   return(0);
 }
+
+
+MRI *MRIsegBorder(MRI *seg, int *maxlabel, int topo)
+{
+  // This is supposed to replicate the border creation as done in
+  // MRIvoxelsInLabelWithPartialVolumeEffects(). In that function,
+  // the border is only created for a single label, where as here
+  // it is created for all labels. That func uses topo=1. This
+  // function also creates a list of labels of the neighboring
+  // voxels in later frames to make the PV calculation faster.
+  // maxlabel is the largest label value.
+  int nnbrs=0;
+  if(topo == 1) nnbrs = 6;  // face neighbors
+  if(topo == 2) nnbrs = 18; // +edge neighbors
+  if(topo == 3) nnbrs = 26; // +corner neighbors
+  MRI *border = MRIallocSequence(seg->width,seg->height,seg->depth,MRI_INT,1+nnbrs);
+  MRIcopyHeader(seg,border);
+  MRIcopyPulseParameters(seg,border);
+
+  *maxlabel = 0;
+  int nhits = 0;
+  for(int c=0; c < seg->width; c++){
+    for(int r=0; r < seg->height; r++){
+      for(int s=0; s < seg->depth; s++){
+	int voxlabel = MRIgetVoxVal(seg,c,r,s,0);
+	if(*maxlabel < voxlabel) *maxlabel = voxlabel;
+	int knbr = 0;
+	for(int dc = -1; dc < 2; dc++){
+	  int cc = c+dc;
+	  if(cc < 0 || cc >= seg->width) continue;
+	  for(int dr = -1; dr < 2; dr++){
+	    int rr = r+dr;
+	    if(rr < 0 || rr >= seg->height) continue;
+	    for(int ds = -1; ds < 2; ds++){
+	      int ss = s+ds;
+	      if(ss < 0 || ss >= seg->depth) continue;
+	      if(abs(dc)+abs(dr)+abs(ds)>topo) continue;
+	      int nbrlabel = MRIgetVoxVal(seg,cc,rr,ss,0);
+	      if(voxlabel != nbrlabel) {
+		// dont use voxlabel here because label 0 will be 0
+		MRIsetVoxVal(border,c,r,s,0,1);
+		MRIsetVoxVal(border,c,r,s,1+knbr,nbrlabel);
+		knbr++;
+		//dc = 2; dr = 2; ds = 2; // break
+		nhits++;
+	      }
+	    }//ds
+	  }//dr
+	}//dc
+
+      }//s
+    }//r
+  }//c
+  printf("nhits = %d, maxlabel=%d\n",nhits,*maxlabel);
+  return(border);
+}

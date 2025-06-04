@@ -1827,11 +1827,9 @@ int MRIcomputeLabelNbhd( const MRI *mri_labels, const MRI *mri_vals,
 			 const int x, const int y, const int z,
 			 int *label_counts, float *label_means,
 			 const int whalf, const int max_labels );
-float MRIvoxelsInLabelWithPartialVolumeEffects( const MRI *mri,
-						const MRI *mri_vals,
-						int label,
-						MRI *mri_mixing_coef,
-						MRI *mri_nbr_labels );
+float MRIvoxelsInLabelWithPartialVolumeEffects( const MRI *mri,const MRI *mri_vals,
+						int label, MRI *mri_mixing_coef,
+						MRI *mri_nbr_labels, int maxlabels, MRI *segborder=NULL);
 MRI   *MRImakeDensityMap(MRI *mri, MRI *mri_vals, int label, MRI *mri_dst,
                          float orig_res) ;
 int MRIfillBox(MRI *mri, MRI_REGION *box, float fillval) ;

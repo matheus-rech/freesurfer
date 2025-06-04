@@ -191,7 +191,7 @@ main(int argc, char *argv[]) {
         if (!IS_BRAIN(label)) continue ;
         if (partial_volume)
           volume += MRIvoxelsInLabelWithPartialVolumeEffects
-            (mri, mri_vals, label, NULL, NULL) ;
+            (mri, mri_vals, label, NULL, NULL,20000,NULL) ;
         else
           volume += MRIvoxelsInLabel(mri, label) ;
       }
@@ -204,7 +204,7 @@ main(int argc, char *argv[]) {
 
       if (partial_volume)
         volume = MRIvoxelsInLabelWithPartialVolumeEffects
-          (mri, mri_vals, label, NULL, NULL) ;
+          (mri, mri_vals, label, NULL, NULL,20000,NULL) ;
       else
         volume = MRIvoxelsInLabel(mri, label) ;
     }

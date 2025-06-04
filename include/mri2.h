@@ -186,6 +186,7 @@ MRI *MRItpfpfnSeg(MRI *manseg, MRI *autoseg, std::vector<int> segids, MRI *tpfpf
 MRI *MRIcropAroundCRS(MRI *vol, double crsCenter[3], int crsFoV[3], std::vector<int>iKeep={});
 MRI *MRIcropAroundRAS(MRI *vol, double rasCenter[3], int voxFoVRAS[3], LTA *lta0, std::vector<int>iKeep={});
 std::vector<double> MRIspatialCC(MRI *ref, int refframe, MRI *refmask, MRI *map, MRI *mapmask, int debug=0);
+MRI *MRIsegBorder(MRI *seg, int *maxlabel, int topo);
 
 class SpatialCor {
 public:

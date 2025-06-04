@@ -6284,7 +6284,7 @@ MRI *MRIcopyHeader(const MRI *mri_src, MRI *mri_dst)
   mri_dst->ncmds = mri_src->ncmds;
 
   if(mri_src->ct) {
-    printf("MRIcopyHeader(): source has ctab. Copying ctab ...\n");
+    //printf("MRIcopyHeader(): source has ctab. Copying ctab ...\n");
     if(mri_dst->ct) CTABfree(&mri_dst->ct);
     mri_dst->ct = CTABdeepCopy(mri_src->ct);
   }
@@ -14329,19 +14329,12 @@ int MRIsampleVolumeSlice(MRI *mri, double x, double y, double z, double *pval, i
 #define MRI_VOX_LABEL_PARTIAL_VOLUME_OUTPUT 0
 
 float MRIvoxelsInLabelWithPartialVolumeEffects(
-    const MRI *mri, const MRI *mri_vals, const int label, MRI *mri_mixing_coef, MRI *mri_nbr_labels)
+   const MRI *mri, const MRI *mri_vals, const int label, MRI *mri_mixing_coef, MRI *mri_nbr_labels, int maxlabels, MRI *segborder)
 {
-  enum { maxlabels = 20000 };
+  //pass maxlabels = 20000 if unsure
   float volume;
   int x, y, z;
   MRI *mri_border;
-  // DNG 6/7/07 : had to use maxlabels instead of MAX_CMA_LABELS here
-  // so that segmentations with values > MAX_CMA_LABELS can be
-  // accessed. This includes the cortical segmentations as well as
-  // white matter segs. Currently, the max seg no is 4181, but this
-  // could easily change.
-  // NJS 2/17/10 : Indeed, it did change... the Destrieux a2009s atlas has
-  // label values up to about 15000.
 
   if (label >= maxlabels) {
     printf("ERROR: MRIvoxelsInLabelWithPartialVolumeEffects()\n");
@@ -14369,13 +14362,16 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
 
   const float vox_vol = mri->xsize * mri->ysize * mri->zsize;
 
-  /* Find border voxels, defined as a voxel=label who has a face neighbor that is not in the label or
-     voxel!=label that has a face neighbor that is in the label, so it is a double wide border  */
-  // 1 = mark=1
-  // 1 = face neighbors ("six_connected")
   Timer mytimer;
-  mri_border = MRImarkLabelBorderVoxels(mri, NULL, label, 1, 1);
-  int msecBorder = mytimer.milliseconds();
+  int msecBorder = 0;
+  if(segborder == NULL){
+    /* Find border voxels, defined as a voxel=label who has a face neighbor that is not in the label or
+       voxel!=label that has a face neighbor that is in the label, so it is a double wide border  */
+    // 1 = mark=1
+    // 1 = face neighbors ("six_connected")
+    mri_border = MRImarkLabelBorderVoxels(mri, NULL, label, 1, 1);
+    msecBorder = mytimer.milliseconds();
+  } else mri_border = segborder; // See MRIsegBorder() -- speeds it up a lot
 
   if (DIAG_VERBOSE_ON && (Gdiag & DIAG_WRITE)) {
     MRIwrite(mri_border, "b.mgz");
@@ -14383,6 +14379,7 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
 
   mytimer.reset();
   volume = 0;
+  int nhits = 0;
   for (x = 0; x < mri->width; x++) {
     for (y = 0; y < mri->height; y++) {
       for (z = 0; z < mri->depth; z++) {
@@ -14397,6 +14394,20 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
         if ((vox_label != label) && (border == 0)) {
           continue;
         }
+	if(segborder != NULL && vox_label != label && border != 0){
+	  // The current voxel is not in the passed label and it is a
+	  // border vox to some label. Check whether a neighbor of the
+	  // current voxel is is in the label.
+	  int ok = 0;
+	  for(int f=1; f < segborder->nframes; f++){
+	    if(MRIgetVoxVal(segborder,x,y,z,f) == label){
+	      ok = 1;
+	      break;
+	    }
+	  }
+	  if(!ok) continue;
+	}
+	nhits ++;
 
         /* Note that these are all zeroed at the start of MRIcomputeLabelNbhd. */
         int nbr_label_counts[maxlabels], label_counts[maxlabels];
@@ -14432,11 +14443,18 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
             }
 
             if (nbr_label_counts[this_label] == 0) {
-              continue; /* not a nbr within 1vox (not nearest nbr)*/
+              continue; /* not a nbr within 1vox*/
             }
 
-	    // The logic of this if() statement is obtuse. It is looking for the label
-	    // with the maximum 7vox counts and an intensity constraint.
+	    // The logic of this if() statement is obtuse. It is
+	    // looking for the label with the maximum 7vox counts
+	    // where the inensity of the current voxel is between the
+	    // mean of the passed label and the label of the current
+	    // voxel. Below, an additional constraint is added that
+	    // requires at least one of the the labels to be the
+	    // passed label. The logic is that if the border voxel
+	    // intensity is between the means of the adjacent labels,
+	    // then there must be some PV.
 
 	    // label_counts[this_label] > max_count -- 7vox nbr counts
 
@@ -14536,10 +14554,15 @@ float MRIvoxelsInLabelWithPartialVolumeEffects(
     }
   }
 
-  MRIfree(&mri_border);
+  if(segborder == NULL) MRIfree(&mri_border);
+
 
   int msecPV = mytimer.milliseconds();
-  if(0) {printf("%d PV markborder %d pv %d\n",label,msecBorder,msecPV); fflush(stdout);}
+  if(0){
+    printf("pv nhits = %d   vol %g\n",nhits,volume);
+    printf("%d PV markborder %d pv %d\n",label,msecBorder,msecPV); 
+    fflush(stdout);
+  }
 
   return (volume);
 }

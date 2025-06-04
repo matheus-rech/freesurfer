@@ -197,6 +197,7 @@ int nReplace , SrcReplace[1000], TrgReplace[1000]; // for replacing segs
 int GetCachedBrainVolStats = 1;
 MRI *MRIrescaleBySeg(MRI *invol, MRI *seg, std::vector<int> segids, double targetmean, MRI *outvol);
 double atlas_icv=0;
+int UseSegBorder = 1;
 
 /*--------------------------------------------------*/
 int main(int argc, char **argv)
@@ -821,6 +822,10 @@ int main(int argc, char **argv)
 
   DoContinue=0;nx=0;skip=0;n0=0;vol=0;nhits=0;c=0;min=0.0;max=0.0;range=0.0;mean=0.0;std=0.0;snr=0.0;
 
+  int maxlabel=0;
+  MRI *segborder = NULL;
+  if(pvvol && UseSegBorder) segborder = MRIsegBorder(seg,&maxlabel,1);
+
   ROMP_PF_begin
 #ifdef HAVE_OPENMP
   #pragma omp parallel for if_ROMP(assume_reproducible) firstprivate(DoContinue,nx,skip,n0,vol,nhits,c,min,max,range,mean,std,snr)  schedule(guided)
@@ -868,9 +873,9 @@ int main(int argc, char **argv)
         }
         else
         {
-          vol = MRIvoxelsInLabelWithPartialVolumeEffects(seg, pvvol, StatSumTable[n].id, NULL, NULL);
+          //maxlabel = 20000;segborder = NULL;
+          vol = MRIvoxelsInLabelWithPartialVolumeEffects(seg, pvvol, StatSumTable[n].id, NULL, NULL,maxlabel+1,segborder);
           nhits = MRIsegCount(seg, StatSumTable[n].id, 0);
-//          nhits = nint(vol/voxelvolume);
         }
       }  // if (!mris)
       else
@@ -1619,6 +1624,8 @@ static int parse_commandline(int argc, char **argv)
     {
       DoSNR = 1;
     }
+    else if ( !strcmp(option, "--segborder") ) UseSegBorder = 1;
+    else if ( !strcmp(option, "--no-segborder") ) UseSegBorder = 0;
     else if ( !strcmp(option, "--acc") || !strcmp(option, "--accumulate") )
     {
       DoAccumulate=1;
