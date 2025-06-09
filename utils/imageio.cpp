@@ -600,7 +600,7 @@ int ImageUnpackFileName(const char *inFname, int *pframe, int *ptype, char *outF
     dot = StrUpper(strcpy(buf, dot + 1));
     if (!strcmp(dot, "MAT"))
       *ptype = MATLAB_IMAGE;
-    else if (!strcmp(dot, "TIF") || !strcmp(dot, "TIFF"))
+    else if (!strcmp(dot, "TIF") || !strcmp(dot, "TIFF") || !strcmp(dot, "SVS"))
       *ptype = TIFF_IMAGE;
     else if (!strcmp(dot, "JPG") || !strcmp(dot, "JPEG"))
       *ptype = JPEG_IMAGE;
@@ -735,33 +735,19 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
   IMAGE *I;
   TIFF *tif = TIFFOpen(fname, "r");
   int type = PFBYTE;  // just make compiler happy
-  int width, height, ret, row;
+  int width, height, ret;
   short nsamples, bits_per_sample;
-  int nframe, frame;
-  ubyte *iptr;
-  tdata_t *buf;
   short photometric;
-  int photometricInt;
   short fillorder;
   short compression;
-  int compressionInt;
   short orientation;
   short resunit;
-#if 0  // we used to translate RGB image into grey scale
-//unsigned char     *buffer;
-  int      skip;
-  int      i;
-  float    r, g, b, y;
-  float    *pf;
-#endif
-  unsigned int scanlinesize;  //, extra_samples;
-  int index = 0;
   float xres, yres, res;
 
   if (!tif) return (NULL);
 
   /* Find out how many frames we have */
-  nframe = 1;  // note that TIFFOpen reads the 1st directory
+  int nframe = 1;  // note that TIFFOpen reads the 1st directory
   while (TIFFReadDirectory(tif)) nframe++;
 
   // some tif image just cannot be handled
@@ -797,11 +783,11 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
   ret = TIFFGetFieldDefaulted(tif, TIFFTAG_ORIENTATION, &orientation);
   if (DIAG_VERBOSE_ON) {
     fprintf(stderr, "\ntiff info\n");
-    fprintf(stderr, "         size: (%d, %d)\n", width, height);
-    fprintf(stderr, "samples/pixel: %d\n", nsamples);
+    fprintf(stderr, "  size: (%d, %d)\n", width, height);
+    fprintf(stderr, "  samples/pixel: %d\n", nsamples);
     fprintf(stderr, "  bits/sample: %d\n", bits_per_sample);
     fprintf(stderr, "  orientation: %d\n", orientation);
-    photometricInt = photometric;  // used in 'case' statement to avoid
+    int photometricInt = photometric;  // used in 'case' statement to avoid
     // gcc warning 'case value out of range'
     switch (photometricInt) {
       case PHOTOMETRIC_MINISWHITE:
@@ -841,7 +827,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
         fprintf(stderr, "  photometric: unknown type\n");
         break;
     }
-    compressionInt = compression;  // used in 'case' statement to avoid
+    int compressionInt = compression;  // used in 'case' statement to avoid
     // gcc warning 'case value out of range'
     // we are not supporting compression at this time
     switch (compressionInt) {
@@ -927,9 +913,9 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
       break;
   }
 
-  iptr = I->image;
+  ubyte *iptr = I->image;
 
-  for (frame = 0; frame < nframe; frame++) {
+  for (int frame = 0; frame < nframe; frame++) {
     int planar_config, fillorder;
     TIFFSetDirectory(tif, frame);
 
@@ -942,10 +928,11 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGELENGTH, &height);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLESPERPIXEL, &nsamples);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
-    scanlinesize = TIFFScanlineSize(tif);
-    for (row = 0; row < height; row++) {
+    unsigned int scanlinesize = TIFFScanlineSize(tif);
+    for (int row = 0; row < height; row++) {
       // get the pointer at the first column of a row
       // note that the orientation is column, row
+      int index = 0;      
       switch (orientation) {
         case ORIENTATION_TOPLEFT:
           index = height - row - 1;
@@ -958,6 +945,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
       }
 
       if (nsamples == 1) {
+	tdata_t *buf = NULL;
         switch (bits_per_sample) {
           default:
           case 8:
@@ -1008,9 +996,8 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
       else if (nsamples == 4)  // RGB model + alpha
       {
         int s;
-        unsigned char *ipix;
-        ipix = (unsigned char *)calloc(scanlinesize, sizeof(unsigned char));
-        buf = (tdata_t *)ipix;
+        unsigned char *ipix = (unsigned char *)calloc(scanlinesize, sizeof(unsigned char));
+        tdata_t *buf = (tdata_t *)ipix;
         switch (bits_per_sample) {
           default:
           case 8:
@@ -1019,8 +1006,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
               ErrorReturn(NULL, (ERROR_BADFILE, "TiffReadImage:  TIFFReadScanline returned error"));
         }
         for (s = 0; s < width; s++) {
-          unsigned char *opix;
-          opix = IMAGERGBpix(I, s, index);
+          unsigned char *opix = IMAGERGBpix(I, s, index);
           *opix++ = *ipix;
           *opix++ = *(ipix + 1);
           *opix++ = *(ipix + 2);
@@ -1033,53 +1019,10 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
         switch (bits_per_sample) {
           default:
           case 8:
-            buf = (tdata_t *)IMAGERGBpix(I, 0, index);
+            tdata_t *buf = (tdata_t *)IMAGERGBpix(I, 0, index);
             if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
               ErrorReturn(NULL, (ERROR_BADFILE, "TiffReadImage:  TIFFReadScanline returned error"));
         }
-
-#if 0
-        ////////////////////////////////////////////////////////////
-        // we used to translate into the grey value
-        // now translate it into Y value
-        // RGB range 0 to 1.0
-        // then YIQ is
-        //     Y   =  0.299  0.587   0.114  R
-        //     I      0.596 -0.275  -0.321  G
-        //     Q      0.212 -0.523   0.311  B
-        // andd use Y for grey scale (this is color tv signal into bw tv
-        switch (bits_per_sample)
-        {
-        default:
-        case 8:
-          skip = 3; //
-          for (i = 0; i < width; ++i)
-          {
-            r = (float) buf[i*skip];
-            g = (float) buf[i*skip+1];
-            b = (float) buf[i*skip+2];
-            y = (0.299*r + 0.587*g + 0.114*b);
-            *IMAGEpix(I, i, row) = (unsigned char) y;
-          }
-          break; // 3 bytes at a time
-        case 32:
-          skip = 12; // 3x4 bytes at a time
-          for (i=0; i < width ; ++i)
-          {
-            pf = (float *) &buf[i*skip];
-            r = *pf;
-            pf = (float *) &buf[i*skip+4];
-            g = *pf;
-            pf = (float *) &buf[i*skip+8];
-            b = *pf;
-            y = (0.299*r + 0.587*g + 0.114*b);
-            *IMAGEFpix(I, i, row) = y;
-          }
-        case 64:
-          ErrorExit(ERROR_BADPARM, "At this time we don't support RGB double valued tiff.\n");
-        }
-        free(buffer);
-#endif
       }
     }
     if (frame0 < 0)

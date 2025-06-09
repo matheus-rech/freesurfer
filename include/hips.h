@@ -142,8 +142,8 @@ struct header {
   int fcol;  /* The first ROI col */
   int pixel_format; /* The format of each pixel */
   int numcolor; /* The number of color frames per image */
-  int numpix;  /* The number of pixels per stored frame */
-  fs_hsize_t sizepix; /* The number of bytes per pixel */
+  fs_hsize_t numpix;  /* The number of pixels per stored frame */
+  int sizepix; /* The number of bytes per pixel */
   fs_hsize_t sizeimage; /* The number of bytes per stored frame */
   ubyte *image;  /* The image itself */
   h_boolean imdealloc; /* if nonzero, free image when requested */

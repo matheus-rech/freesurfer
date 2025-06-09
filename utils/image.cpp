@@ -3746,14 +3746,11 @@ float ImageRMSDifference(IMAGE *I1_in, IMAGE *I2_in)
   return (rms);
 }
 
-int init_header(IMAGE *I, const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc) {
-  int bytes ;
-
+int init_header(IMAGE *I, const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc,bool alloc) {  
   I->num_frame = nfr ;
   I->orows = I->rows = rw ;
   I->ocols = I->cols = cl ;
   I->pixel_format = pfmt ;
-  bytes = rw*cl*nfr ;
   switch (pfmt) {
   default:
   case PFBYTE:
@@ -3791,14 +3788,20 @@ int init_header(IMAGE *I, const char *onm,const char *snm,int nfr,const char *od
     I->sizepix = sizeof(float);
     break;
   }
-  bytes *= I->sizepix ;
-  I->numpix = I->rows * I->cols ;
+
+  I->numpix = (unsigned long)rw * cl;
   I->sizeimage = I->numpix * I->sizepix ;
-  I->firstpix = I->image ;
-  I->image = (ubyte *)calloc(bytes, sizeof(char)) ;
-  if (!I->image)
-    ErrorExit(ERROR_NOMEMORY, "init_header: could not allocate %d bytes",
-              bytes) ;
+
+  I->image = NULL;
+  if (alloc) {
+    unsigned long bytes = (unsigned long)rw*cl*nfr ;
+    bytes = bytes * I->sizepix ;
+    I->firstpix = I->image ;
+    I->image = (ubyte *)calloc(bytes, sizeof(char)) ;
+    if (!I->image)
+      ErrorExit(ERROR_NOMEMORY, "init_header: could not allocate %d bytes",
+                bytes) ;
+  }
 
   return(NO_ERROR) ;
 }

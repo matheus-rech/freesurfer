@@ -245,7 +245,7 @@ IMAGE  *ImageDownsample2(IMAGE *Isrc, IMAGE *Idst) ;
 IMAGE  *ImageUpsample2(IMAGE *Isrc, IMAGE *Idst) ;
 
 // hips functions
-int init_header(IMAGE *I,const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc);
+int init_header(IMAGE *I,const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc,bool alloc=true);
 int h_copy(IMAGE *Isrc, IMAGE *Idst);
 int free_header(IMAGE *I);
 
