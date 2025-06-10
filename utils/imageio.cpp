@@ -47,6 +47,8 @@
 #include "tiffio.h"
 #include "utils.h"
 
+#include "romp_support.h"
+
 /*-----------------------------------------------------
                     MACROS AND CONSTANTS
 -------------------------------------------------------*/
@@ -54,8 +56,8 @@
 /*-----------------------------------------------------
                     STATIC PROTOTYPES
 -------------------------------------------------------*/
-
-static IMAGE *TiffReadImage(const char *fname, int frame);
+static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads=1);
+static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation);
 static IMAGE *TiffReadHeader(const char *fname, IMAGE *I);
 static int TiffWriteImage(IMAGE *I, const char *fname, int frame);
 static IMAGE *JPEGReadImage(const char *fname);
@@ -426,7 +428,7 @@ IMAGE *ImageReadType(const char *fname, int pixel_format)
 
         Description
 ------------------------------------------------------*/
-IMAGE *ImageRead(const char *fname)
+IMAGE *ImageRead(const char *fname, int nthreads)
 {
   IMAGE *I = NULL;
   MATRIX *mat;
@@ -441,7 +443,7 @@ IMAGE *ImageRead(const char *fname)
 
   switch (type) {
     case TIFF_IMAGE:
-      I = TiffReadImage(buf, frame);
+      I = TiffReadImage(buf, frame, nthreads);
       if (I == NULL) return (NULL);
       break;
     case MATLAB_IMAGE:
@@ -729,8 +731,7 @@ int ImageAppend(IMAGE *I, const char *fname)
            Description:
              Read a TIFF image from a file.
 ----------------------------------------------------------------------*/
-
-static IMAGE *TiffReadImage(const char *fname, int frame0)
+static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
 {
   IMAGE *I;
   TIFF *tif = TIFFOpen(fname, "r");
@@ -747,11 +748,15 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
   if (!tif) return (NULL);
 
   /* Find out how many frames we have */
-  int nframe = 1;  // note that TIFFOpen reads the 1st directory
-  while (TIFFReadDirectory(tif)) nframe++;
+  int nframe = TIFFNumberOfDirectories(tif);
 
-  // some tif image just cannot be handled
-  if (nframe == 0) nframe = 1;
+  // the frame range
+  int end_frame = (frame0 < 0) ? nframe : frame0+1;  
+  frame0 = (frame0 < 0) ? 0 : frame0;
+
+  int nframe_toread = end_frame - frame0;
+  //printf("[DEBUG] TiffReadImage(): pages found:%d, pages to read:%d [%d, %d)\n",
+  //         nframe, nframe_toread, frame0, end_frame);
 
   /* Go back to the beginning */
   TIFFSetDirectory(tif, 0);
@@ -781,6 +786,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
   //    ORIENTATION_RIGHTBOT        7       /* row 0 rhs, col 0 bottom */
   //    ORIENTATION_LEFTBOT         8       /* row 0 lhs, col 0 bottom */
   ret = TIFFGetFieldDefaulted(tif, TIFFTAG_ORIENTATION, &orientation);
+  TIFFClose(tif);
   if (DIAG_VERBOSE_ON) {
     fprintf(stderr, "\ntiff info\n");
     fprintf(stderr, "  size: (%d, %d)\n", width, height);
@@ -847,7 +853,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
         fprintf(stderr, "  compression: %d see /usr/include/tiff.h for meaning\n", compression);
         break;
     }
-  }
+  }  // if (DIAG_VERBOSE_ON)
   // extra_samples = 0;
   switch (nsamples) {
     case 1:
@@ -892,10 +898,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
     ErrorExit(ERROR_BADPARM, "IMAGE: nsamples = %d.  only grey scale or RGB image is supported\n", nsamples);
 
   // type can be grey scale or RGB
-  if (frame0 < 0)
-    I = ImageAlloc(height, width, type, nframe);
-  else
-    I = ImageAlloc(height, width, type, 1);
+  I = ImageAlloc(height, width, type, nframe_toread);
 
   res = (xres + yres) / 2;
   switch (resunit) {
@@ -913,19 +916,50 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
       break;
   }
 
-  ubyte *iptr = I->image;
+#ifdef HAVE_OPENMP
+  int threads_set = (nframe_toread < nthreads) ? nframe_toread : nthreads;  
+  omp_set_num_threads(threads_set);
+  printf("\nTiffReadImage(): requested threads = %d, threads set = %d\n"
+	 "(use environment variable FS_IMAGEREAD_NTHREADS to request number of threads to run)\n", nthreads, threads_set);  
+#endif
 
-  for (int frame = 0; frame < nframe; frame++) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for (int frame = frame0; frame < end_frame; frame++) {
+    TiffReadImageDirectory(fname, I, frame, orientation);
+  }  // frame
+
+  return (I);
+}  // TiffReadImage()
+
+
+static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation)
+{
+  /*
+   * ??? todo: sizeimage can be different, print sizeimage for each page ???
+   * ??? we would like to only open a selective range of images. can't use nframe as the index to images ???
+   */
+    IMAGE *I_tmp = (IMAGE *)calloc(1, sizeof(IMAGE));
+    *I_tmp = *I;
+    I_tmp->image += nframe * I->sizeimage;
+    //printf("[DEBUG] TiffReadImageDirectory(): #%03d frame I_tmp->image = %p (I->image = %p)\n", nframe, I_tmp->image, I->image);
+
+    TIFF *tif = TIFFOpen(fname, "r");
+
     int planar_config, fillorder;
-    TIFFSetDirectory(tif, frame);
+    TIFFSetDirectory(tif, nframe);
 
-    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_FILLORDER, &fillorder);
+    int ret = TIFFGetFieldDefaulted(tif, TIFFTAG_FILLORDER, &fillorder);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar_config);
     if (planar_config == PLANARCONFIG_SEPARATE)
-      ErrorReturn(NULL, (ERROR_UNSUPPORTED, "TiffReadImage:  PLANARCONFIG_SEPARATE unsupported"));
-    // else planar_config ==  PLANARCONFIG_CONTIG
+      ErrorReturn(ERROR_UNSUPPORTED, (ERROR_UNSUPPORTED, "TiffReadImageDirectory():  PLANARCONFIG_SEPARATE unsupported"));
+
+    int width, height;    
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGEWIDTH, &width);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGELENGTH, &height);
+
+    short nsamples, bits_per_sample;    
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLESPERPIXEL, &nsamples);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
     unsigned int scanlinesize = TIFFScanlineSize(tif);
@@ -949,20 +983,25 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
         switch (bits_per_sample) {
           default:
           case 8:
-            buf = (tdata_t *)IMAGEpix(I, 0, index);
+            buf = (tdata_t *)IMAGEpix(I_tmp, 0, index);
             break;
           case 16:
-            buf = (tdata_t *)IMAGESpix(I, 0, index);
+            buf = (tdata_t *)IMAGESpix(I_tmp, 0, index);
             break;
           case 32:
-            buf = (tdata_t *)IMAGEFpix(I, 0, index);
+            buf = (tdata_t *)IMAGEFpix(I_tmp, 0, index);
             break;
           case 64:
-            buf = (tdata_t *)IMAGEDpix(I, 0, index);
+            buf = (tdata_t *)IMAGEDpix(I_tmp, 0, index);
             break;
         }
+
+#if 0	
+	if (row == 0)
+	  printf("\t#%03d frame, %d row, buf = %p\n", nframe, row, buf);
+#endif
         if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
-          ErrorReturn(NULL, (ERROR_BADFILE, "TiffReadImage:  TIFFReadScanline returned error"));
+          ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
         if (bits_per_sample == 1)  // unpack bitmap
         {
           unsigned char *bitmap, bitmask;
@@ -976,7 +1015,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
             if (fillorder == FILLORDER_LSB2MSB) {
               for (bitmask = 0x01, bit = 0; bit < 8; bit++) {
                 if (col + bit == (unsigned)Gx && index == Gy) DiagBreak();
-                *IMAGEpix(I, col + bit, index) = ((byte_ & bitmask) > 0);
+                *IMAGEpix(I_tmp, col + bit, index) = ((byte_ & bitmask) > 0);
                 bitmask = bitmask << 1;
               }
             }
@@ -984,7 +1023,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
             {
               for (bitmask = 0x01 << 7, bit = 0; bit < 8; bit++) {
                 if (col + bit == (unsigned)Gx && index == Gy) DiagBreak();
-                *IMAGEpix(I, col + bit, index) = ((byte_ & bitmask) > 0);
+                *IMAGEpix(I_tmp, col + bit, index) = ((byte_ & bitmask) > 0);
                 bitmask = bitmask >> 1;
               }
             }
@@ -1003,10 +1042,10 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
           case 8:
             //          buf = (tdata_t*) IMAGERGBpix(I, 0, index);
             if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
-              ErrorReturn(NULL, (ERROR_BADFILE, "TiffReadImage:  TIFFReadScanline returned error"));
+              ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
         }
         for (s = 0; s < width; s++) {
-          unsigned char *opix = IMAGERGBpix(I, s, index);
+          unsigned char *opix = IMAGERGBpix(I_tmp, s, index);
           *opix++ = *ipix;
           *opix++ = *(ipix + 1);
           *opix++ = *(ipix + 2);
@@ -1019,23 +1058,19 @@ static IMAGE *TiffReadImage(const char *fname, int frame0)
         switch (bits_per_sample) {
           default:
           case 8:
-            tdata_t *buf = (tdata_t *)IMAGERGBpix(I, 0, index);
+	    tdata_t *buf = (tdata_t *)IMAGERGBpix(I_tmp, 0, index);
             if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
-              ErrorReturn(NULL, (ERROR_BADFILE, "TiffReadImage:  TIFFReadScanline returned error"));
+              ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
         }
       }
-    }
-    if (frame0 < 0)
-      I->image += I->sizeimage;
-    else if (frame == frame0) /* only interested in one frame */
-      break;
-  }
-  I->image = iptr;
+    }  // row
+    
+    TIFFClose(tif);
+    free(I_tmp);
 
-  TIFFClose(tif);
+    return NO_ERROR;
+}  // TiffReadImageDirectory()
 
-  return (I);
-}
 
 #ifndef Darwin
 #ifndef Windows_NT
