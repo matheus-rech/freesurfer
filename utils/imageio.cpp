@@ -916,6 +916,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
       break;
   }
 
+#if 0  // disable multi-threaded page read. it interferes with 'mris_register -threads'
 #ifdef HAVE_OPENMP
   int threads_set = (nframe_toread < nthreads) ? nframe_toread : nthreads;  
   omp_set_num_threads(threads_set);
@@ -925,6 +926,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
 #endif
   for (int frame = frame0; frame < end_frame; frame++) {
     TiffReadImageDirectory(fname, I, frame, orientation);
