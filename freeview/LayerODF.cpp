@@ -590,8 +590,9 @@ vtkPolyData* LayerODF::BuildActor(vtkActor* actor2D, vtkActor* actor3D, vtkPoint
   polydata->GetPointData()->SetActiveScalars(qPrintable(GetProperty()->GetOdfColorCode()==0?"Directional":"Magnitude"));
 
   vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
-  normals->SetFeatureAngle(90);
-  if (fdeci < 1)
+  normals->SetFeatureAngle(120);
+  normals->ComputePointNormalsOn();
+  if (false) // fdeci < 1)
   {
     vtkSmartPointer<vtkDecimatePro> deci = vtkSmartPointer<vtkDecimatePro>::New();
     deci->SetTargetReduction(fdeci);
