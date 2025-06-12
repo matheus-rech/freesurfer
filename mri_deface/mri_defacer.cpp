@@ -307,6 +307,7 @@ int main(int argc, char *argv[])
     defacer.EmbedCode(defacer.outvol,defacer.outvol);
   }
 
+  defacer.outvol->ncmds = 0;
   err = MRIwrite(defacer.outvol,outvolpath);
   if(err) exit(1);
 
