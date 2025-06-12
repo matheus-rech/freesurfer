@@ -32,9 +32,9 @@ typedef struct header IMAGE ;
 #include "kernel.h"
 
 /* allocation */
-IMAGE   *ImageAlloc(int rows, int cols, int format, int nframes) ;
+IMAGE   *ImageAlloc(int rows, int cols, int format, int nframes, unsigned long imagebufsize=0) ;
 IMAGE   *ImageAllocHeader(int rows, int cols, int format, int nframes) ;
-int     ImageAllocBuffer(IMAGE *image) ;
+int     ImageAllocBuffer(IMAGE *image, unsigned long imagebufsize=0) ;
 int     ImageFree(IMAGE **pI) ;
 
 /* resizing */
@@ -52,7 +52,7 @@ IMAGE   *ImageResize(IMAGE *Isrc, IMAGE *Idst, int drows, int dcols) ;
 /* file I/O */
 
 /* reading */
-IMAGE   *ImageRead(const char *fname) ;
+IMAGE   *ImageRead(const char *fname, int nthreads=1, int start_frame=0, int end_frame=-1) ;
 IMAGE   *ImageReadType(const char *fname, int pixel_format) ;
 IMAGE    *ImageReadFrames(const char *fname, int start, int nframes) ;
 int      ImageReadInto(const char *fname, IMAGE *image, int image_no) ;
@@ -245,7 +245,7 @@ IMAGE  *ImageDownsample2(IMAGE *Isrc, IMAGE *Idst) ;
 IMAGE  *ImageUpsample2(IMAGE *Isrc, IMAGE *Idst) ;
 
 // hips functions
-int init_header(IMAGE *I,const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc);
+int init_header(IMAGE *I,const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc,bool alloc=true);
 int h_copy(IMAGE *Isrc, IMAGE *Idst);
 int free_header(IMAGE *I);
 

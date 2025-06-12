@@ -183,7 +183,7 @@ int string_to_type(const char *string)
   else if (strcmp(ls, "nii") == 0) type = NII_FILE;
   else if (strcmp(ls, "nrrd") == 0) type = NRRD_FILE;
   // check for IMAGE file
-  else if (!strcmp(ls, "mat") || !strcmp(ls, "tif") || !strcmp(ls, "tiff") || !strcmp(ls, "jpg") || !strcmp(ls, "jpeg") ||
+  else if (!strcmp(ls, "mat") || !strcmp(ls, "svs")  || !strcmp(ls, "tif") || !strcmp(ls, "tiff") || !strcmp(ls, "jpg") || !strcmp(ls, "jpeg") ||
       !strcmp(ls, "pgm") || !strcmp(ls, "ppm") || !strcmp(ls, "pbm") || !strcmp(ls, "rgb"))
     type = IMAGE_FILE;
   else if (strcmp(ls, "curv") == 0) type = MRI_CURV_FILE;

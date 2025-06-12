@@ -62,7 +62,7 @@
 
         Description
 ------------------------------------------------------*/
-IMAGE *ImageAlloc(int rows, int cols, int format, int nframes)
+IMAGE *ImageAlloc(int rows, int cols, int format, int nframes, unsigned long imagebufsize)
 {
   IMAGE *I;
   int ecode;
@@ -70,8 +70,8 @@ IMAGE *ImageAlloc(int rows, int cols, int format, int nframes)
   I = (IMAGE *)calloc(1, sizeof(IMAGE));
   if (!I) ErrorExit(ERROR_NO_MEMORY, "ImageAlloc: could not allocate header\n");
 
-  init_header(I, "orig", "seq", nframes, "today", rows, cols, format, 1, "temp");
-  ecode = ImageAllocBuffer(I);
+  init_header(I, "orig", "seq", nframes, "today", rows, cols, format, 1, "temp", false);
+  ecode = ImageAllocBuffer(I, imagebufsize);
   if (ecode != NO_ERROR) ErrorExit(Gerror, "ImageAlloc: could not allocate %dx%d buffer\n", rows, cols);
   return (I);
 }
@@ -101,24 +101,23 @@ IMAGE *ImageAllocHeader(int rows, int cols, int format, int nframes)
         Description
            stolen from hips2 code and modified to allocate multiple frames.
 ------------------------------------------------------*/
-int ImageAllocBuffer(IMAGE *I)
+int ImageAllocBuffer(IMAGE *I, unsigned long imagebufsize)
 {
-  int fcb, cb;
-  long npix;
-
   if (I->sizeimage == (fs_hsize_t)0) /*dng*/
   {
     I->imdealloc = (h_boolean)FALSE; /*dng*/
     return (NO_ERROR);
   }
-  npix = (long)I->sizeimage * (long)I->num_frame;
+  unsigned long npix = imagebufsize;
+  if (npix <= 0)
+    npix = I->sizeimage * I->num_frame;
   if (I->image)
     free(I->image);  // init_header might have calloc'd already,
                      // so this free prevents memory leakage
   if ((I->image = (ubyte *)hcalloc(npix, sizeof(ubyte))) == (ubyte *)NULL) return (ERROR_NO_MEMORY);
   if (I->pixel_format == PFMSBF || I->pixel_format == PFLSBF) {
-    fcb = I->fcol / 8;
-    cb = (I->ocols + 7) / 8;
+    int fcb = I->fcol / 8;
+    int cb = (I->ocols + 7) / 8;
     I->firstpix = I->image + ((cb * I->frow) + fcb);
   }
   else
@@ -3746,14 +3745,11 @@ float ImageRMSDifference(IMAGE *I1_in, IMAGE *I2_in)
   return (rms);
 }
 
-int init_header(IMAGE *I, const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc) {
-  int bytes ;
-
+int init_header(IMAGE *I, const char *onm,const char *snm,int nfr,const char *odt,int rw,int cl,int pfmt,int nc,const char *desc,bool alloc) {  
   I->num_frame = nfr ;
   I->orows = I->rows = rw ;
   I->ocols = I->cols = cl ;
   I->pixel_format = pfmt ;
-  bytes = rw*cl*nfr ;
   switch (pfmt) {
   default:
   case PFBYTE:
@@ -3791,14 +3787,20 @@ int init_header(IMAGE *I, const char *onm,const char *snm,int nfr,const char *od
     I->sizepix = sizeof(float);
     break;
   }
-  bytes *= I->sizepix ;
-  I->numpix = I->rows * I->cols ;
+
+  I->numpix = (unsigned long)rw * cl;
   I->sizeimage = I->numpix * I->sizepix ;
-  I->firstpix = I->image ;
-  I->image = (ubyte *)calloc(bytes, sizeof(char)) ;
-  if (!I->image)
-    ErrorExit(ERROR_NOMEMORY, "init_header: could not allocate %d bytes",
-              bytes) ;
+
+  I->image = NULL;
+  if (alloc) {
+    unsigned long bytes = (unsigned long)rw*cl*nfr ;
+    bytes = bytes * I->sizepix ;
+    I->firstpix = I->image ;
+    I->image = (ubyte *)calloc(bytes, sizeof(char)) ;
+    if (!I->image)
+      ErrorExit(ERROR_NOMEMORY, "init_header: could not allocate %d bytes",
+                bytes) ;
+  }
 
   return(NO_ERROR) ;
 }

@@ -1688,6 +1688,8 @@ void LayerMRI::SetActiveFrame( int nFrame )
     m_listLabelCenters.clear();
     GetProperty()->UpdateActiveFrame(nFrame);
     UpdateColorMap();
+    if (GetProperty()->GetShowAsContour())
+      RebuildContour();
     emit ActiveFrameChanged( nFrame );
     emit ActorUpdated();
   }

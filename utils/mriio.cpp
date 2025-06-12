@@ -783,9 +783,14 @@ MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int
   else if (type == GIFTI_FILE)
     mri = MRISreadGiftiAsMRI(fname_copy, volume_flag);
   else if (type == IMAGE_FILE) {
-    I = ImageRead(fname_copy);
+    int nthreads = 1;
+    if (getenv("FS_IMAGEREAD_NTHREADS"))
+      nthreads = atoi(getenv("FS_IMAGEREAD_NTHREADS"));
+    I = ImageRead(fname_copy, nthreads, start_frame, end_frame);
     mri = ImageToMRI(I);
     ImageFree(&I);
+    // reset these two variables so they are not checked
+    start_frame = end_frame = -1;
   }
   else if (type == MGH_ANNOT) {
     mri = ReadAnnotAsMRISeg(fname_copy, volume_flag);
