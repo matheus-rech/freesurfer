@@ -786,10 +786,11 @@ MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int
     int nthreads = 1;
     if (getenv("FS_IMAGEREAD_NTHREADS"))
       nthreads = atoi(getenv("FS_IMAGEREAD_NTHREADS"));
-    I = ImageRead(fname_copy, nthreads);
+    I = ImageRead(fname_copy, nthreads, start_frame, end_frame);
     mri = ImageToMRI(I);
-    // free only the IMAGE, IMAGE->image will be freed in MRIfree()
-    free(I); //ImageFree(&I);
+    ImageFree(&I);
+    // reset these two variables so they are not checked
+    start_frame = end_frame = -1;
   }
   else if (type == MGH_ANNOT) {
     mri = ReadAnnotAsMRISeg(fname_copy, volume_flag);

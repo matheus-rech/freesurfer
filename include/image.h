@@ -32,9 +32,9 @@ typedef struct header IMAGE ;
 #include "kernel.h"
 
 /* allocation */
-IMAGE   *ImageAlloc(int rows, int cols, int format, int nframes) ;
+IMAGE   *ImageAlloc(int rows, int cols, int format, int nframes, unsigned long imagebufsize=0) ;
 IMAGE   *ImageAllocHeader(int rows, int cols, int format, int nframes) ;
-int     ImageAllocBuffer(IMAGE *image) ;
+int     ImageAllocBuffer(IMAGE *image, unsigned long imagebufsize=0) ;
 int     ImageFree(IMAGE **pI) ;
 
 /* resizing */
@@ -52,7 +52,7 @@ IMAGE   *ImageResize(IMAGE *Isrc, IMAGE *Idst, int drows, int dcols) ;
 /* file I/O */
 
 /* reading */
-IMAGE   *ImageRead(const char *fname, int nthreads=1) ;
+IMAGE   *ImageRead(const char *fname, int nthreads=1, int start_frame=0, int end_frame=-1) ;
 IMAGE   *ImageReadType(const char *fname, int pixel_format) ;
 IMAGE    *ImageReadFrames(const char *fname, int start, int nframes) ;
 int      ImageReadInto(const char *fname, IMAGE *image, int image_no) ;

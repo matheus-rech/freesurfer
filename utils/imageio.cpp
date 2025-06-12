@@ -56,8 +56,29 @@
 /*-----------------------------------------------------
                     STATIC PROTOTYPES
 -------------------------------------------------------*/
-static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads=1);
-static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation);
+typedef struct {
+  int toread;   // 1=page is selected to be read; 0=not selected
+  unsigned long sizeimage;
+  int is_bigendian;  // non-zero if the file is BigEndian; zero if the file is LittleEndian
+  int is_tiled;      // non-zero if the image data has a tiled organization; zero if the image data is organized in strips.
+  
+  int planar_config;
+  int width;
+  int height;
+  short nsamples;
+  short bits_per_sample;
+  short photometric;
+  short fillorder;
+  short compression;
+  short orientation;
+  short resunit;
+  float xres;
+  float yres;
+} TiffDirectoryInfo;
+
+static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads=1, int end_frame=-1);
+static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation, TiffDirectoryInfo *tiffdirectoryinfo);
+static unsigned long TiffReadDirectoryInfo(TIFF *tif, TiffDirectoryInfo *tiffdirectoryinfo, int start_page, int end_page);
 static IMAGE *TiffReadHeader(const char *fname, IMAGE *I);
 static int TiffWriteImage(IMAGE *I, const char *fname, int frame);
 static IMAGE *JPEGReadImage(const char *fname);
@@ -428,27 +449,28 @@ IMAGE *ImageReadType(const char *fname, int pixel_format)
 
         Description
 ------------------------------------------------------*/
-IMAGE *ImageRead(const char *fname, int nthreads)
+// the frame range is inclusive [start_frame, end_frame]
+IMAGE *ImageRead(const char *fname, int nthreads, int start_frame, int end_frame)
 {
   IMAGE *I = NULL;
   MATRIX *mat;
   FILE *fp;
-  int type, frame;
+  int type, frame0;
   char* buf;
 
   buf = (char*)malloc(strlen(fname) + 1);
   strcpy(buf, fname); /* don't destroy callers string */
 
-  ImageUnpackFileName(buf, &frame, &type, buf);
+  ImageUnpackFileName(buf, &frame0, &type, buf);
 
   switch (type) {
     case TIFF_IMAGE:
-      I = TiffReadImage(buf, frame, nthreads);
+      I = TiffReadImage(buf, (frame0 < 0) ? start_frame : frame0, nthreads, end_frame);
       if (I == NULL) return (NULL);
       break;
     case MATLAB_IMAGE:
       DiagPrintf(
-          DIAG_WRITE, "ImageRead: buf=%s, frame=%d, type=%d (M=%d,H=%d)\n", buf, frame, type, MATLAB_IMAGE, HIPS_IMAGE);
+          DIAG_WRITE, "ImageRead: buf=%s, frame=%d, type=%d (M=%d,H=%d)\n", buf, frame0, type, MATLAB_IMAGE, HIPS_IMAGE);
       mat = MatlabRead(buf);
       if (!mat) ErrorReturn(NULL, (ERROR_NO_FILE, "ImageRead(%s) failed\n", buf));
       I = ImageFromMatrix(mat, NULL);
@@ -457,8 +479,8 @@ IMAGE *ImageRead(const char *fname, int nthreads)
       break;
     case HIPS_IMAGE:
       fp = fopen(buf, "rb");
-      if (!fp) ErrorReturn(NULL, (ERROR_NO_FILE, "ImageRead(%s, %d) failed\n", buf, frame));
-      I = ImageFRead(fp, buf, frame, 1);
+      if (!fp) ErrorReturn(NULL, (ERROR_NO_FILE, "ImageRead(%s, %d) failed\n", buf, frame0));
+      I = ImageFRead(fp, buf, frame0, 1);
       fclose(fp);
       break;
     case JPEG_IMAGE:
@@ -731,7 +753,7 @@ int ImageAppend(IMAGE *I, const char *fname)
            Description:
              Read a TIFF image from a file.
 ----------------------------------------------------------------------*/
-static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
+static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads, int end_frame)
 {
   IMAGE *I;
   TIFF *tif = TIFFOpen(fname, "r");
@@ -750,16 +772,20 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
   /* Find out how many frames we have */
   int nframe = TIFFNumberOfDirectories(tif);
 
-  // the frame range
-  int end_frame = (frame0 < 0) ? nframe : frame0+1;  
+  // the frame range given is inclusive [frame0, end_frame], change it to [frame0, end_frame)
   frame0 = (frame0 < 0) ? 0 : frame0;
+  end_frame = (end_frame < 0) ? nframe : end_frame+1;
+
+  // retrieve all page information, calculate image buffer size for selected pages
+  TiffDirectoryInfo tiffdirectoryinfo[nframe];
+  unsigned long imagebufsize = TiffReadDirectoryInfo(tif, tiffdirectoryinfo, frame0, end_frame);
 
   int nframe_toread = end_frame - frame0;
-  //printf("[DEBUG] TiffReadImage(): pages found:%d, pages to read:%d [%d, %d)\n",
-  //         nframe, nframe_toread, frame0, end_frame);
+  //printf("[DEBUG] TiffReadImage(): pages found:%d, pages to read:%d [%d, %d), image buf size:%lu\n",
+  //	 nframe, nframe_toread, frame0, end_frame, imagebufsize);
 
-  /* Go back to the beginning */
-  TIFFSetDirectory(tif, 0);
+  /* Go to the page of interest */
+  TIFFSetDirectory(tif, frame0);
 
   ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGEWIDTH, &width);
   ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGELENGTH, &height);
@@ -898,7 +924,7 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
     ErrorExit(ERROR_BADPARM, "IMAGE: nsamples = %d.  only grey scale or RGB image is supported\n", nsamples);
 
   // type can be grey scale or RGB
-  I = ImageAlloc(height, width, type, nframe_toread);
+  I = ImageAlloc(height, width, type, nframe_toread, imagebufsize);
 
   res = (xres + yres) / 2;
   switch (resunit) {
@@ -929,23 +955,41 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads)
 #endif
 #endif
   for (int frame = frame0; frame < end_frame; frame++) {
-    TiffReadImageDirectory(fname, I, frame, orientation);
+    TiffReadImageDirectory(fname, I, frame, orientation, tiffdirectoryinfo);
   }  // frame
 
   return (I);
 }  // TiffReadImage()
 
 
-static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation)
+static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation, TiffDirectoryInfo *tiffdirectoryinfo)
 {
   /*
-   * ??? todo: sizeimage can be different, print sizeimage for each page ???
-   * ??? we would like to only open a selective range of images. can't use nframe as the index to images ???
+   * sizeimage for each page can be different.
+   * only selected pages will be read, can't use nframe to calculate the offset to imagebuf
+   * if the sizeimages for each page are different, we can't stack them into MRI frame because the width and height will be different.
    */
     IMAGE *I_tmp = (IMAGE *)calloc(1, sizeof(IMAGE));
     *I_tmp = *I;
-    I_tmp->image += nframe * I->sizeimage;
-    //printf("[DEBUG] TiffReadImageDirectory(): #%03d frame I_tmp->image = %p (I->image = %p)\n", nframe, I_tmp->image, I->image);
+    //I_tmp->image += nframe * I->sizeimage;
+
+    unsigned long sizeimage_prev = 0;
+    for (int i = 0; i < nframe; i++) {
+      if (!tiffdirectoryinfo[i].toread)
+	continue;
+      
+      unsigned long sizeimage = tiffdirectoryinfo[i].sizeimage;
+      if (sizeimage_prev > 0 && sizeimage_prev != sizeimage) {
+	printf("TiffReadImageDirectory():  pages have different image size. open them individually.");
+	exit(1);
+      }
+	
+      sizeimage_prev = sizeimage;
+      I_tmp->image += sizeimage;
+    }
+    //printf("[DEBUG] TiffReadImageDirectory(): #%03d frame I_tmp->image = %p (I->image = %p) %d x %d bits_per_sample=%d, image_size=%lu, is_tiled=%d\n",
+    //	   nframe, I_tmp->image, I->image, tiffdirectoryinfo[nframe].width, tiffdirectoryinfo[nframe].height, tiffdirectoryinfo[nframe].bits_per_sample,
+    //     tiffdirectoryinfo[nframe].sizeimage, tiffdirectoryinfo[nframe].is_tiled);
 
     TIFF *tif = TIFFOpen(fname, "r");
 
@@ -954,8 +998,10 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
 
     int ret = TIFFGetFieldDefaulted(tif, TIFFTAG_FILLORDER, &fillorder);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar_config);
-    if (planar_config == PLANARCONFIG_SEPARATE)
-      ErrorReturn(ERROR_UNSUPPORTED, (ERROR_UNSUPPORTED, "TiffReadImageDirectory():  PLANARCONFIG_SEPARATE unsupported"));
+    if (planar_config == PLANARCONFIG_SEPARATE) {
+      printf("TiffReadImageDirectory():  PLANARCONFIG_SEPARATE unsupported");
+      exit(1);
+    }
 
     int width, height;    
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGEWIDTH, &width);
@@ -1072,6 +1118,80 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
 
     return NO_ERROR;
 }  // TiffReadImageDirectory()
+
+
+/* The page range is [start_page, end_page)
+ * The function will retrieve information for all pages in the TIFF. 
+ * The pages in range will have 'toread' field marked as 1.
+ *
+ * Return the image buffer size to hold all selected pages.
+ */
+static unsigned long TiffReadDirectoryInfo(TIFF *tif, TiffDirectoryInfo *tiffdirectoryinfo, int start_page, int end_page)
+{
+  // go to the first directory
+  TIFFSetDirectory(tif, 0);
+
+  unsigned long imagebufsize = 0;
+  int npage = 0;  
+  do {
+    // TIFFIsBigEndian() is not supported in freesurfer/packages/tiff
+    //tiffdirectoryinfo[npage].is_bigendian = TIFFIsBigEndian(tif);
+    tiffdirectoryinfo[npage].is_tiled = TIFFIsTiled(tif);
+    
+    int planar_config;
+    int ret = TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar_config);
+    if (planar_config == PLANARCONFIG_SEPARATE)
+      ErrorReturn(ERROR_UNSUPPORTED, (ERROR_UNSUPPORTED, "TiffReadDirectoryInfo():  PLANARCONFIG_SEPARATE unsupported"));
+
+    int width, height;    
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGEWIDTH, &width);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGELENGTH, &height);
+    
+    short nsamples, bits_per_sample;    
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLESPERPIXEL, &nsamples);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
+
+    short photometric, fillorder, compression, orientation, resunit;
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_PHOTOMETRIC, &photometric);
+    // fill order is LSB or MSB TIFFReadScanLine() handles it automatically
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_FILLORDER, &fillorder);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_COMPRESSION, &compression);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_RESOLUTIONUNIT, &resunit);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_ORIENTATION, &orientation);
+  
+    float xres, yres;
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_XRESOLUTION, &xres);
+    if (ret == 0) xres = resunit == 1 ? .1 : (10 * 2.54);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_YRESOLUTION, &yres);
+    if (ret == 0) yres = resunit == 1 ? .1 : (10 * 2.54);
+
+    // calculate image size  
+    unsigned long numpix = (unsigned long)width * height;
+    tiffdirectoryinfo[npage].sizeimage = numpix * (bits_per_sample/8);
+
+    tiffdirectoryinfo[npage].toread = 0;
+    if (npage >= start_page && npage < end_page) {
+      tiffdirectoryinfo[npage].toread = 1;
+      imagebufsize += tiffdirectoryinfo[npage].sizeimage;
+    }
+    tiffdirectoryinfo[npage].planar_config = planar_config;
+    tiffdirectoryinfo[npage].width = width;
+    tiffdirectoryinfo[npage].height = height;
+    tiffdirectoryinfo[npage].nsamples = nsamples;
+    tiffdirectoryinfo[npage].bits_per_sample = bits_per_sample;
+    tiffdirectoryinfo[npage].photometric = photometric;
+    tiffdirectoryinfo[npage].fillorder = fillorder;
+    tiffdirectoryinfo[npage].compression = compression;
+    tiffdirectoryinfo[npage].orientation = orientation;
+    tiffdirectoryinfo[npage].resunit = resunit;
+    tiffdirectoryinfo[npage].xres = xres;
+    tiffdirectoryinfo[npage].yres = yres;
+    
+    npage++;
+  } while (TIFFReadDirectory(tif));
+
+  return imagebufsize;
+}
 
 
 #ifndef Darwin

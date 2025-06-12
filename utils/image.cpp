@@ -62,7 +62,7 @@
 
         Description
 ------------------------------------------------------*/
-IMAGE *ImageAlloc(int rows, int cols, int format, int nframes)
+IMAGE *ImageAlloc(int rows, int cols, int format, int nframes, unsigned long imagebufsize)
 {
   IMAGE *I;
   int ecode;
@@ -70,8 +70,8 @@ IMAGE *ImageAlloc(int rows, int cols, int format, int nframes)
   I = (IMAGE *)calloc(1, sizeof(IMAGE));
   if (!I) ErrorExit(ERROR_NO_MEMORY, "ImageAlloc: could not allocate header\n");
 
-  init_header(I, "orig", "seq", nframes, "today", rows, cols, format, 1, "temp");
-  ecode = ImageAllocBuffer(I);
+  init_header(I, "orig", "seq", nframes, "today", rows, cols, format, 1, "temp", false);
+  ecode = ImageAllocBuffer(I, imagebufsize);
   if (ecode != NO_ERROR) ErrorExit(Gerror, "ImageAlloc: could not allocate %dx%d buffer\n", rows, cols);
   return (I);
 }
@@ -101,24 +101,23 @@ IMAGE *ImageAllocHeader(int rows, int cols, int format, int nframes)
         Description
            stolen from hips2 code and modified to allocate multiple frames.
 ------------------------------------------------------*/
-int ImageAllocBuffer(IMAGE *I)
+int ImageAllocBuffer(IMAGE *I, unsigned long imagebufsize)
 {
-  int fcb, cb;
-  long npix;
-
   if (I->sizeimage == (fs_hsize_t)0) /*dng*/
   {
     I->imdealloc = (h_boolean)FALSE; /*dng*/
     return (NO_ERROR);
   }
-  npix = (long)I->sizeimage * (long)I->num_frame;
+  unsigned long npix = imagebufsize;
+  if (npix <= 0)
+    npix = I->sizeimage * I->num_frame;
   if (I->image)
     free(I->image);  // init_header might have calloc'd already,
                      // so this free prevents memory leakage
   if ((I->image = (ubyte *)hcalloc(npix, sizeof(ubyte))) == (ubyte *)NULL) return (ERROR_NO_MEMORY);
   if (I->pixel_format == PFMSBF || I->pixel_format == PFLSBF) {
-    fcb = I->fcol / 8;
-    cb = (I->ocols + 7) / 8;
+    int fcb = I->fcol / 8;
+    int cb = (I->ocols + 7) / 8;
     I->firstpix = I->image + ((cb * I->frow) + fcb);
   }
   else
