@@ -273,7 +273,9 @@ int main(int argc, char *argv[])
     CmdLineEntry( CMD_LINE_OPTION, "p-lut", "p-lut", "<NAME>...", "Set the look up table name to use for p-label display. name can be the name of a stock lookup table or the file name of a lookup table file. default is the default freesurfer look up table.\n", 1, 1 ),
     CmdLineEntry( CMD_LINE_OPTION, "cmat", "connectome-matrix", "<CMAT_FILE> <PARCELLATION_FILE>", "Load connectome matrix data files. Requires a cmat file and a parcellation volume file. Available sub-options are:\n\n'lut=color_table' Enter the name or file name of the color table to be used. Default is the FreeSurfer default LUT.\n", 2, 2 ),
     CmdLineEntry( CMD_LINE_OPTION, "fcd", "fcd", "<SUBJECT_DIR> <SUBJECT> [SUFFIX]", "Load FCD data. Requires subject directory and subject. Suffix is optional.\n", 2, 3 ),
-    CmdLineEntry( CMD_LINE_OPTION, "t", "tract", "<FILE>...", "Load one or more tract files.\n", 1, 1000 ),
+    CmdLineEntry( CMD_LINE_OPTION, "t", "tract", "<FILE>...", "Load one or more tract files. Available sub-options are:\n\n"
+    "':color=name' Set the track in given solid color. Name can be a generic color name such as 'red' or 'lightgreen', or three integer values as RGB values ranging from 0 to 255. For example '255,0,0' is the same as 'red'.\n\n"
+    "':render=style' Indicates how the tracks are rendered. default is 'line'. The other option is 'tube'.\n", 1, 1000 ),
     CmdLineEntry( CMD_LINE_OPTION, "tc", "tract-cluster", "<DIRECTORY>", "Load tract cluster data from given directory.\n", 1, 1 ),
     CmdLineEntry( CMD_LINE_OPTION, "odf", "odf", "<FILE> [Vertex_file] [Face_file]", "Load ODF data. If no vertex and face files given, will use the default vertices and faces by Diffusion Toolkit. Available sub-options are:\n\n"
     "':hemisphere=1' Indicates that the odf data is hemisphere.\n\n"
