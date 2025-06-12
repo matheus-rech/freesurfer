@@ -399,7 +399,7 @@ while( $#argv != 0 )
       if($#argv < 1) goto arg1err;
       foreach a ($argv)
         set c = `echo "$a" | cut -c1`
-        if("$c" == "-") break;
+        if("$c" == "-" && $a != "-1") break;
         set LesionMaskPattern = ($LesionMaskPattern $argv[1]); shift;
       end
       set DoLesion = 1
