@@ -60,6 +60,66 @@
 #include "romp_support.h"
 #endif
 
+MRI *MRIcorify(MRI *seg, double corethresh){
+  int segidlist[10000], firstframe[10000], lastframe[10000];
+
+  // For each seg, get the first and last frame it appears in
+  int segnomax = -1;
+  for(int f=0; f < seg->nframes; f++){
+    for(int c=0; c < seg->width; c++){
+      for(int r=0; r < seg->height; r++){
+	for(int s=0; s < seg->depth; s++){
+	  int segid = MRIgetVoxVal(seg,c,r,s,f);
+	  if(segid > segnomax) segnomax = segid;
+	  if(segidlist[segid] == 0){
+	    firstframe[segid] = f;
+	    lastframe[segid] = f;
+	  }
+	  segidlist[segid]++;
+	  if(firstframe[segid] > f) firstframe[segid] = f;
+	  if(lastframe[segid]  < f) lastframe[segid] = f;
+	}
+      }
+    }
+  }
+
+  MRI *core = MRIclone(seg,NULL);
+  MRIcopyHeader(seg,core);
+  MRIcopyPulseParameters(seg,core);
+  if(seg->ct) core->ct = CTABdeepCopy(seg->ct);
+  if(seg->nframes == 1) return(core);
+  printf("Starting corification %d\n",segnomax);
+  for(int segid = 1; segid <= segnomax; segid++){
+    if(segidlist[segid] == 0) continue;
+    int nf = lastframe[segid] - firstframe[segid] + 1;
+    printf("segid %4d %5d  %2d %2d %2d ",segid,segidlist[segid],firstframe[segid],lastframe[segid],nf);
+    int nhits = 0;
+    for(int c=0; c < seg->width; c++){
+      for(int r=0; r < seg->height; r++){
+	for(int s=0; s < seg->depth; s++){
+	  int nmiss=0;
+	  for(int f=firstframe[segid]; f <= lastframe[segid]; f++){
+	    int val = MRIgetVoxVal(seg,c,r,s,f);
+	    if(val == segid) continue;
+	    nmiss ++;
+	  }// f
+	  // Check if the number of misses exceeds threshold
+	  if(nmiss > corethresh*nf) continue;
+	  nhits++;
+	  // If not enough is missing, then fill in all frames (core)
+	  for(int f=firstframe[segid]; f <= lastframe[segid]; f++){
+	    int val = MRIgetVoxVal(seg,c,r,s,f);
+	    if(val == segid) MRIsetVoxVal(core,c,r,s,f,val);
+	  }
+	}// s
+      }// r
+    }// c
+    printf(" nhits=%d\n",nhits);
+  }//seg
+  printf("Done corification\n");
+  return(core);
+}
+
 class SpatTempCluster {
   // test masking, edge and corner
   // clusters - centroid, pointsets, size
@@ -395,6 +455,24 @@ static int parse_commandline(int argc, char **argv) {
       omp_set_num_threads(threads);
       #endif
     } 
+    else if(!strcasecmp(option, "--corify")) {
+      // standalone invol thresh outvol
+      if(nargc < 3) CMDargNErr(option,2);
+      MRI *invol = MRIread(pargv[0]);
+      if(!invol) exit(1);
+      double thresh;
+      sscanf(pargv[1],"%lf",&thresh);
+      printf("corify thresh %g\n",thresh);
+      if(thresh < 0 || thresh > 1) {
+	printf("ERROR: threshold must be between 0 and 1\n");
+	exit(1);
+      }
+      MRI *core = MRIcorify(invol,thresh);
+      if(!core) exit(1);
+      int err = MRIwrite(core,pargv[2]);
+      exit(err);
+      nargsused = 2;
+    }
     else {
       fprintf(stderr,"ERROR: Option %s unknown\n",option);
       if(CMDsingleDash(option))
@@ -423,6 +501,7 @@ static void print_usage(void) {
   printf("   --thmax thmax (default is +infinity)\n");
   printf("   --abs, --pos, --neg\n");
   printf("   --face, --edge, --cornder : neighbor definition (vol only)\n");
+  printf("   --corify tsegvol thresh corevol (thresh 0-1, 0 more strict)\n");
   #ifdef _OPENMP
   printf("   --threads N : use N threads (with Open MP)\n");
   printf("   --max-threads : use the maximum allowable number of threads for this computer\n");
