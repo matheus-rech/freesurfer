@@ -59,6 +59,7 @@
 typedef struct {
   int toread;   // 1=page is selected to be read; 0=not selected
   unsigned long sizeimage;
+  unsigned int scanlinesize;
   int is_bigendian;  // non-zero if the file is BigEndian; zero if the file is LittleEndian
   int is_tiled;      // non-zero if the image data has a tiled organization; zero if the image data is organized in strips.
   
@@ -987,9 +988,10 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
       sizeimage_prev = sizeimage;
       I_tmp->image += sizeimage;
     }
-    //printf("[DEBUG] TiffReadImageDirectory(): #%03d frame I_tmp->image = %p (I->image = %p) %d x %d bits_per_sample=%d, image_size=%lu, is_tiled=%d\n",
-    //	   nframe, I_tmp->image, I->image, tiffdirectoryinfo[nframe].width, tiffdirectoryinfo[nframe].height, tiffdirectoryinfo[nframe].bits_per_sample,
-    //     tiffdirectoryinfo[nframe].sizeimage, tiffdirectoryinfo[nframe].is_tiled);
+    //printf("[DEBUG] TiffReadImageDirectory(): #%03d I_tmp->image=%p (I->image=%p) %4d x %4d (nsamples=%d, bits/sample=%d, imagesize=%lu, tiled=%d, scanlinesize=%u)\n",
+    //	   nframe, I_tmp->image, I->image, tiffdirectoryinfo[nframe].width, tiffdirectoryinfo[nframe].height,
+    //	   tiffdirectoryinfo[nframe].nsamples, tiffdirectoryinfo[nframe].bits_per_sample,
+    //	   tiffdirectoryinfo[nframe].sizeimage, tiffdirectoryinfo[nframe].is_tiled, tiffdirectoryinfo[nframe].scanlinesize);
 
     TIFF *tif = TIFFOpen(fname, "r");
 
@@ -1044,10 +1046,9 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
             break;
         }
 
-#if 0	
-	if (row == 0)
-	  printf("\t#%03d frame, %d row, buf = %p\n", nframe, row, buf);
-#endif
+	//if (row == 0)
+	//  printf("\t#%03d frame, %d row, buf = %p\n", nframe, row, buf);
+
         if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
           ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
         if (bits_per_sample == 1)  // unpack bitmap
@@ -1165,9 +1166,10 @@ static unsigned long TiffReadDirectoryInfo(TIFF *tif, TiffDirectoryInfo *tiffdir
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_YRESOLUTION, &yres);
     if (ret == 0) yres = resunit == 1 ? .1 : (10 * 2.54);
 
-    // calculate image size  
+    // calculate image size
     unsigned long numpix = (unsigned long)width * height;
-    tiffdirectoryinfo[npage].sizeimage = numpix * (bits_per_sample/8);
+    tiffdirectoryinfo[npage].sizeimage = numpix * nsamples * (bits_per_sample/8);
+    tiffdirectoryinfo[npage].scanlinesize = TIFFScanlineSize(tif);
 
     tiffdirectoryinfo[npage].toread = 0;
     if (npage >= start_page && npage < end_page) {
