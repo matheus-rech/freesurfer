@@ -75,6 +75,7 @@ end
 
 if(RmPrestim)
   Nps = round(TPS/TER) + 1; % +1 includes Delay=0
+  % Probably want to keep Delay=0 in FIR, but currently not
 else
   Nps = 0;
 end
@@ -89,35 +90,42 @@ else
   % The matrix is divided into two parts: PreStim and PostStim
   % The PreStim part has all -1/Nps.
   % The PostStim part is diagonal with the PostStim Weights
-  if(Nps > 0) Rpre = -ones(nDelays-Nps,Nps)/Nps;
-  else        Rpre = [];
+  if(RmPrestim < 2)
+    if(Nps > 0) Rpre = -ones(nDelays-Nps,Nps)/Nps;
+    else        Rpre = [];
+    end
+    nnpost = [Nps+1:nDelays]; % PostStim Indicies
+    Rpost  = diag(WDelays(nnpost)); % Diagonal PostStim Weights
+    R = [Rpre Rpost];
+    % Remove rows of R for which the PostStim weights are zero
+    indnz = find(WDelays(nnpost) ~= 0);
+    R = R(indnz,:);
+  else %RmPrestim=2
+    % Remove the prestim but keep the prestim time points
+    A = [-ones(nDelays,Nps)/Nps zeros(nDelays,nDelays-Nps)];
+    B = diag(WDelays);
+    R = A+B;
   end
-  nnpost = [Nps+1:nDelays]; % PostStim Indicies
-  Rpost  = diag(WDelays(nnpost)); % Diagonal PostStim Weights
-  %Rpost = eye(nDelays-Nps);
-  R = [Rpre Rpost];
-
-  % Remove rows of R for which the PostStim weights are zero
-  indnz = find(WDelays(nnpost) ~= 0);
-  R = R(indnz,:);
 end
 
-% Make sure that the positives of each row sum to 1
-% and that the negatives of each row sum to -1. This
-% also assures that each row sums to zero if there
-% are positives and negatives in the row.
-for nthrow = 1:size(R,1);
-  % positives %
-  ind = find(R(nthrow,:)>0);
-  if(~isempty(ind))
-    xsum = sum(R(nthrow,ind));
-    R(nthrow,ind) = R(nthrow,ind)/xsum;
-  end
-  % negatives %
-  ind = find(R(nthrow,:)<0);
-  if(~isempty(ind))
-    xsum = sum(R(nthrow,ind));
-    R(nthrow,ind) = R(nthrow,ind)/abs(xsum);
+if(RmPrestim < 2)
+  % Make sure that the positives of each row sum to 1
+  % and that the negatives of each row sum to -1. This
+  % also assures that each row sums to zero if there
+  % are positives and negatives in the row.
+  for nthrow = 1:size(R,1);
+    % positives %
+    ind = find(R(nthrow,:)>0);
+    if(~isempty(ind))
+      xsum = sum(R(nthrow,ind));
+      R(nthrow,ind) = R(nthrow,ind)/xsum;
+    end
+    % negatives %
+    ind = find(R(nthrow,:)<0);
+    if(~isempty(ind))
+      xsum = sum(R(nthrow,ind));
+      R(nthrow,ind) = R(nthrow,ind)/abs(xsum);
+    end
   end
 end
 

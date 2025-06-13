@@ -324,6 +324,10 @@ while( $#argv != 0 )
       set rmprestim = "-rmprestim";
       breaksw
 
+    case "-rmprestim2":
+      set rmprestim = "-rmprestim2";
+      breaksw
+
     case "-showcmtx":
       set showcmtx = "-showcmtx";
       breaksw
@@ -512,7 +516,8 @@ usage_exit:
   echo "   -setwdelay        : prompt for setting of delay weights (implies -sumdelays)"
   echo "   -sumdelays        : sum weighted delays"
   echo "   -no-sumdelays     : do not sum weighted delays"
-  echo "   -rmprestim        : subtract prestimulus baseline"
+  echo "   -rmprestim        : subtract prestimulus baseline, remove tp <= 0"
+  echo "   -rmprestim2       : subtract prestimulus baseline but keep full window"
   echo "   -nosumconds       : don't sum conditions (for f-test)"
   echo "   -ircorr nircorr   : correlate with gamma function"
   echo "   -deltarange dmin dmax : range of delta for gamma function"
@@ -596,6 +601,13 @@ Turn off -sumdelays.
 
 For FIR designs, compute a contrast such that the average hemodynamic 
 response prior to stimulus on set is subtracted from the hemodynamic
-response waveform. This is good for removing baseline shifts.
+response waveform. This is good for removing baseline shifts. The FIR
+time points before and equalt to 0 are removed.
+
+-rmprestim2
+
+Same as -rmprestim but keeps all time points
+
+
 
 

@@ -261,6 +261,10 @@ while( $#argv != 0 )
       set RmPreStim = 1;
       breaksw
 
+    case "-rmprestim2"
+      set RmPreStim = 2;
+      breaksw
+
     case "-sumconds"
       set sumconds = 1;
       breaksw

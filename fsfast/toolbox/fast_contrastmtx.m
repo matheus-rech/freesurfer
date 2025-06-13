@@ -16,8 +16,9 @@ function R = fast_contrastmtx(TER,TW,TPS,nConds,SumConds,WConds,SumDelays,WDelay
 % WDelays - delay weighting vector. Ignored if SumDelays = 0. If
 %  [], replaced with ones (ie, forces a simple average).
 %
-% RmPrestim = 1 subtract prestimulus average; will replace
-%   the prestim components of WDelays.
+% RmPrestim = 1 subtract prestimulus average; will remove
+%   the prestim components of WDelays. If =2, then does not
+%   remove the prestime time points.
 %
 % CNorm = 1: set weights such that each row sums to 0
 %         0: do not change from the original
@@ -77,7 +78,6 @@ R = [];
 for nthCond = 1:nConds
 
   RCond = fast_condctrstmtx(TER,TW,TPS,SumDelays,WDelays,RmPrestim);
-
   if(isempty(RCond)) R = []; return; end
 
   if(SumConds)
@@ -94,7 +94,7 @@ for nthCond = 1:nConds
 end
 
 
-if(CNorm==1)
+if(CNorm==1 & RmPrestim < 2)
   % Make sure that the positives of each row sum to 1
   % and that the negatives of each row sum to -1. This
   % also assures that each row sums to zero if there
