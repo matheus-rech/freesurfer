@@ -211,6 +211,8 @@ function(integrate_samseg)
   endif()
   set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${SAMSEG_PKG_TARGET} ${PIP_LAST_ARG}")
 
+  ## NOTE - this would not be necessary if it worked to install samseg by listing its spec from requirements-samseg.txt in the requirements-build.txt file.
+  ## That install currently does not work because samseg reports requirung nunpy >= 2.0 which conflicts with other package requirements.
   # pip install samseg
   install(CODE "
     message(STATUS \" for HOST_OS=${HOST_OS} \")
@@ -231,6 +233,17 @@ function(integrate_samseg)
   )
 endfunction()
 
+function(rm_fspython_packages_bin)
+   # there should be no python/packages/bin subdriectory after a package install
+   install(CODE "
+     message(STATUS \"nuke python/packages/bin\")
+     execute_process(COMMAND bash -c \" ( cd ${FSPYTHON_INSTALL_PREFIX}/python/packages && rm -rf bin) \" RESULT_VARIABLE patch)
+     if(NOT \${patch} STREQUAL 0)
+       message(FATAL_ERROR \"Could not rm python/pakcages/bin\")
+     endif()"
+   )
+endfunction()
+
 # used as current default for intel linux and mac builds
 if(DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    message(STATUS "For HOST_OS=${HOST_OS} DISTRIBUTE_FSPYTHON ON AND INSTALL_PYTHON_DEPENDENCIES ON")
@@ -239,6 +252,10 @@ if(DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    # install packages under python/lib/python<rev>/site-packages, add fspython wrapper
    # install a copy of the requirements-build.txt file if the build was set to use it for the revs of pkgs to install
    python_3_8_base_install()
+   if(INTEGRATE_SAMSEG)
+      integrate_samseg()
+      # rm_fspython_packages_bin()
+   endif()
    packages_install()
    sitepackages_install()
    fspython_script_install()
@@ -258,6 +275,10 @@ if(DISTRIBUTE_FSPYTHON AND NOT INSTALL_PYTHON_DEPENDENCIES)
    # install C bindings, etc. under python/packages
    # NO pre-installed site-packages, add fspython wrapper
    python_3_8_base_install()
+   if(INTEGRATE_SAMSEG)
+      integrate_samseg()
+      # rm_fspython_packages_bin()
+   endif()
    packages_install()
    fspython_script_install()
 endif()
@@ -272,6 +293,10 @@ if(NOT DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    # install a copy of the requirements-build.txt file if the build was set to use it for the revs of pkgs to install
    set(PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
    message(STATUS For "HOST_OS=${HOST_OS} PKG_TARGET=${PKG_TARGET}")
+   if(INTEGRATE_SAMSEG)
+      integrate_samseg()
+      # rm_fspython_packages_bin()
+   endif()
    packages_install()
    sitepackages_install()
    fspython_script_install()
@@ -292,15 +317,14 @@ if(NOT DISTRIBUTE_FSPYTHON AND NOT INSTALL_PYTHON_DEPENDENCIES)
    # install C bindings, etc. under python/packages
    # NO pre-installed site-packages, add fspython wrapper
    # set PKG_TARGET, this is needed for integrate_samseg()
+   if(INTEGRATE_SAMSEG)
+      integrate_samseg()
+      # rm_fspython_packages_bin()
+   endif()
    set(PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
    message(STATUS For "HOST_OS=${HOST_OS} PKG_TARGET=${PKG_TARGET}")
    packages_install()
    fspython_script_install()
-endif()
-
-
-if(INTEGRATE_SAMSEG)
-  integrate_samseg()
 endif()
 
 
