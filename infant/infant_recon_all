@@ -12,16 +12,12 @@ from surfa import pipeline as fsp
 
 
 description='''
-This program performs a recon on T1-weighted infant (0-2 yrs)
-brain MRI images. Please cite the following while journal
-submission is pending:
+This program performs a recon on T1-weighted infant (0-4.5 yrs) brain MRI images. Please cite the following while journal submission is pending:
+Zöllei, L, Iglesias, JE, Ou, Y, Grant, PR, Fischl,B. Infant FreeSurfer: An automated segmentation and surface extraction pipeline for T1-weighted neuroimaging data of infants 0-2 years, NeuroImage, 2020, 116946
 
-L. Zöllei, J.E. Iglesias, Y. Ou, P.E. Grant, B. Fischl,
-Infant FreeSurfer: An automated segmentation and surface
-extraction pipeline for T1-weighted neuroimaging data of
-infants 0-2 years. arXiv:2001.03091, 2020
+The new skullstripping method can be cited by:
+Kelley, W. et al. Boosting skull-stripping performance for pediatric brain images. Proc IEEE Int Symp Biomed Imaging. 2024 May;2024. doi: 10.1109/isbi56570.2024.10635307. PMID: 38463507; PMCID: PMC10925384.
 '''
-
 
 # ---- Parse Options ----
 
@@ -40,8 +36,8 @@ parser.add_argument('--masked', help='Pre-masked input image. Providing this wil
 parser.add_argument('--mask', help='Pre-masked input image. Providing this will skip the skull-stripping step. Unlike --masked, will do all volume normalizations to the provided mask.')
 parser.add_argument('--segfile', help='Volumetric segmentation from another source. Unless --forceskullstrip is set, a masked' \
                     ' input image is also expected along with and matching this input.')
-parser.add_argument('--t2', action='store_true', help='Enable T2 processing.')
-parser.add_argument('--t2file', help='Input file - T2 image.')
+#parser.add_argument('--t2', action='store_true', help='Enable T2 processing.')
+#parser.add_argument('--t2file', help='Input file - T2 image.')
 
 # Training subject options
 parser.add_argument('--newborn', action='store_true', help='Indicate that the subject is a newborn. All five newborn subjects' \
@@ -123,9 +119,9 @@ if not args.keep_going and not args.force and os.path.exists(os.path.join(outdir
 if not args.outdir and not subjsdir or not os.path.isdir(subjsdir):
     sf.system.fatal('Must set SUBJECTS_DIR or use --outdir flag to indicate a valid data location.')
 
-if not input_t1 and not input_masked:
-    if not os.path.isfile(os.path.join(subjsdir, subj, 'mprage.nii.gz')):
-        sf.system.fatal('Must provide input T1 with --inputfile or --masked flag.')
+if not os.path.isfile(os.path.join(subjsdir, subj, 'mprage.nii.gz')):
+    if not input_t1 or not input_masked:
+        sf.system.fatal('Must provide input. Either have mprage.nii.gz in the output_dir; or define it explicitely T1 with --inputfile or --masked flag.')
 
 if input_masked and args.forceskullstrip:
     sf.system.fatal('Cannot force skullstripping while providing skullstripped input.')
@@ -194,6 +190,10 @@ else:
     
     mprage = 'mprage.nii.gz'
     # if this file doesn't exist in the outdir, copy it over
+
+    # os.path.join(subjsdir, subj, 'mprage.nii.gz')
+
+    
     if not os.path.isfile(mprage):
         shutil.copyfile(input_t1, mprage)
     if input_t1:
