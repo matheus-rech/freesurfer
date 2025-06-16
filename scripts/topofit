@@ -23,6 +23,7 @@ set ico7 = 0
 set inflateiters = 10
 set involname = brain.finalsurfs.manedit
 #set ds = /autofs/space/iddhi_001/users/greve/deepsurfer/ds
+set fstkey = (-k "@#@FSTIME-TF ")
 
 set tmpdir = ();
 set cleanup = 1;
@@ -108,7 +109,7 @@ if($ud || $ForceUpdate) then
   echo \n\n ==============================================| tee -a $LF
   echo $cmd | tee -a $LF
   echo \n\n ==============================================| tee -a $LF
-  fs_time $cmd |& tee -a $LF
+  fs_time $fstkey  $cmd |& tee -a $LF
   if($status) goto error_exit
   set udmade = 1
 endif
@@ -119,7 +120,7 @@ if($ico7) then
   if(! -e $tfspherelrrev) then
     set cmd = (mris_convert --left-right-rev $tfsphere $tfspherelrrev)
     echo $cmd | tee -a $LF
-    fs_time $cmd | tee -a $LF
+    fs_time $fstkey  $cmd | tee -a $LF
     if($status) goto error_exit
     set udmade = 1
   endif
@@ -135,7 +136,7 @@ if($ico7) then
       if($ud || $ForceUpdate) then  
         set cmd = (mris_apply_reg --bci-xyz $tfsurf $tfsphere0 $ico7targ $tfsurfico7)
         echo $cmd | tee -a $LF
-        fs_time $cmd |& tee -a $LF
+        fs_time $fstkey  $cmd |& tee -a $LF
         if($status) goto error_exit
         set udmade = 1
         # Need to remove intersections?
@@ -166,7 +167,7 @@ if($MakeSphere) then
       # -o means "orig" surf
       set cmd = (mris_sphere -threads $threads -o $white -seed 1234 $lrrevarg $targsphere $sphere)
       echo $cmd | tee -a $LF
-      fs_time $cmd |& tee -a $LF
+      fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
@@ -205,7 +206,7 @@ if($DoPost) then
       # If not using ico7, then may need more iters
       set cmd = (mris_inflate -threads $threads -$hemi -n $inflateiters -sulc sulc $white $inflated)
       echo $cmd | tee -a $LF
-      fs_time $cmd |& tee -a $LF
+      fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
@@ -215,7 +216,7 @@ if($DoPost) then
     if($ud || $ForceUpdate) then
       set cmd = (mris_place_surface --curv-map $white 2 10 $map)
       echo $cmd | tee -a $LF
-      fs_time $cmd |& tee -a $LF
+      fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
@@ -226,7 +227,7 @@ if($DoPost) then
       # ?h.inflated.H will go into same dir as $inflated (the output dir)
       set cmd = (mris_curvature -seed 1234 -thresh .999 -n -a 5 -w -distances 10 10 $inflated)
       echo $cmd | tee -a $LF
-      fs_time $cmd |& tee -a $LF
+      fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
@@ -238,7 +239,7 @@ if($DoPost) then
     if($ud || $ForceUpdate) then
       set cmd = (mris_place_surface --thickness $white $pial 20 5 $thickness)
       echo $cmd | tee -a $LF
-      fs_time $cmd |& tee -a $LF
+      fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
@@ -256,7 +257,7 @@ if($DoPost) then
       if($ud || $ForceUpdate) then
         set cmd = (mris_place_surface --area-map $surf  $map)
         echo $cmd | tee -a $LF
-        fs_time $cmd |& tee -a $LF
+        fs_time $fstkey  $cmd |& tee -a $LF
         if($status) goto error_exit
         set udmade = 1
       endif
@@ -268,7 +269,7 @@ if($DoPost) then
     if($ud || $ForceUpdate) then
       set cmd = (mris_convert --volume2 $white $pial nolabel $map)
       echo $cmd | tee -a $LF
-      fs_time $cmd |& tee -a $LF
+      fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
