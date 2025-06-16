@@ -83,7 +83,7 @@ MATRIX *LINEAR_TRANSFORM_ARRAY::get_matrix(int InputCoords, int OutputCoords, MA
     printf("ERROR: LTA::GetMatrix: num_xforms > 1\n");
     return(NULL);
   }
-  printf("LTA::GetMatrix: %d %d\n",InputCoords,OutputCoords);
+  //printf("LTA::GetMatrix: %d %d\n",InputCoords,OutputCoords);
   if(InputCoords == FS_COORDS_SCANNER_RAS && OutputCoords == FS_COORDS_SCANNER_RAS) {
     // scannerRAS to scannerRAS
     LTAchangeType(lta,LINEAR_RAS_TO_RAS);
