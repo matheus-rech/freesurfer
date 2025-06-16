@@ -820,6 +820,7 @@ add_subdirectories(
   mrisp_paint
   python
   samseg
+  samseg_scripts
   talairach_afd
   scripts
   tkregister2

@@ -59,7 +59,8 @@
 typedef struct {
   int toread;   // 1=page is selected to be read; 0=not selected
   unsigned long sizeimage;
-  unsigned int scanlinesize;
+  unsigned long scanlinesize;
+  unsigned long tilesize;
   int is_bigendian;  // non-zero if the file is BigEndian; zero if the file is LittleEndian
   int is_tiled;      // non-zero if the image data has a tiled organization; zero if the image data is organized in strips.
   
@@ -77,7 +78,11 @@ typedef struct {
   float yres;
 } TiffDirectoryInfo;
 
+static bool FS_TIFF_DEBUG = false;
+
 static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads=1, int end_frame=-1);
+static int TiffReadStrippedImage(TIFF *tif, IMAGE *I_tmp, short orientation);
+static int TiffReadTiledImage(TIFF *tif, IMAGE *I_tmp);
 static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short orientation, TiffDirectoryInfo *tiffdirectoryinfo);
 static unsigned long TiffReadDirectoryInfo(TIFF *tif, TiffDirectoryInfo *tiffdirectoryinfo, int start_page, int end_page);
 static IMAGE *TiffReadHeader(const char *fname, IMAGE *I);
@@ -769,6 +774,8 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads, int end
   float xres, yres, res;
 
   if (!tif) return (NULL);
+  if (getenv("FS_TIFF_DEBUG") != NULL)
+    FS_TIFF_DEBUG = true;
 
   /* Find out how many frames we have */
   int nframe = TIFFNumberOfDirectories(tif);
@@ -782,8 +789,9 @@ static IMAGE *TiffReadImage(const char *fname, int frame0, int nthreads, int end
   unsigned long imagebufsize = TiffReadDirectoryInfo(tif, tiffdirectoryinfo, frame0, end_frame);
 
   int nframe_toread = end_frame - frame0;
-  //printf("[DEBUG] TiffReadImage(): pages found:%d, pages to read:%d [%d, %d), image buf size:%lu\n",
-  //	 nframe, nframe_toread, frame0, end_frame, imagebufsize);
+  if (FS_TIFF_DEBUG)
+    printf("[DEBUG] TiffReadImage(): pages found=%d, pages to read=%d [%d, %d), image buf size=%lu\n",
+           nframe, nframe_toread, frame0, end_frame, imagebufsize);
 
   /* Go to the page of interest */
   TIFFSetDirectory(tif, frame0);
@@ -988,23 +996,39 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
       sizeimage_prev = sizeimage;
       I_tmp->image += sizeimage;
     }
-    //printf("[DEBUG] TiffReadImageDirectory(): #%03d I_tmp->image=%p (I->image=%p) %4d x %4d (nsamples=%d, bits/sample=%d, imagesize=%lu, tiled=%d, scanlinesize=%u)\n",
-    //	   nframe, I_tmp->image, I->image, tiffdirectoryinfo[nframe].width, tiffdirectoryinfo[nframe].height,
-    //	   tiffdirectoryinfo[nframe].nsamples, tiffdirectoryinfo[nframe].bits_per_sample,
-    //	   tiffdirectoryinfo[nframe].sizeimage, tiffdirectoryinfo[nframe].is_tiled, tiffdirectoryinfo[nframe].scanlinesize);
+    if (FS_TIFF_DEBUG)
+      printf("[DEBUG] TiffReadImageDirectory(): #%03d I_tmp->image=%p (I->image=%p) %4d x %4d (nsamples=%d, bits/sample=%d, imagesize=%lu, tiled=%d, scanlinesize=%lu, tilesize=%lu)\n",
+    	     nframe, I_tmp->image, I->image, tiffdirectoryinfo[nframe].width, tiffdirectoryinfo[nframe].height,
+    	     tiffdirectoryinfo[nframe].nsamples, tiffdirectoryinfo[nframe].bits_per_sample,
+    	     tiffdirectoryinfo[nframe].sizeimage, tiffdirectoryinfo[nframe].is_tiled, tiffdirectoryinfo[nframe].scanlinesize, tiffdirectoryinfo[nframe].tilesize);
 
     TIFF *tif = TIFFOpen(fname, "r");
-
-    int planar_config, fillorder;
     TIFFSetDirectory(tif, nframe);
 
-    int ret = TIFFGetFieldDefaulted(tif, TIFFTAG_FILLORDER, &fillorder);
-    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar_config);
+    int planar_config;    
+    TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar_config);
     if (planar_config == PLANARCONFIG_SEPARATE) {
       printf("TiffReadImageDirectory():  PLANARCONFIG_SEPARATE unsupported");
       exit(1);
     }
 
+    int ret = NO_ERROR;
+    if (tiffdirectoryinfo[nframe].is_tiled)
+      ret = TiffReadTiledImage(tif, I_tmp);
+    else
+      ret = TiffReadStrippedImage(tif, I_tmp, orientation);
+    
+    TIFFClose(tif);
+    free(I_tmp);
+    return ret;
+}  // TiffReadImageDirectory()
+
+
+static int TiffReadStrippedImage(TIFF *tif, IMAGE *I_tmp, short orientation)
+{
+    int fillorder;
+    int ret = TIFFGetFieldDefaulted(tif, TIFFTAG_FILLORDER, &fillorder);
+    
     int width, height;    
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGEWIDTH, &width);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGELENGTH, &height);
@@ -1012,6 +1036,10 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
     short nsamples, bits_per_sample;    
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLESPERPIXEL, &nsamples);
     ret = TIFFGetFieldDefaulted(tif, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
+
+    printf("TiffReadStrippedImage(): read strip image %d x %d, nsamples = %d, bits_per_sample = %d\n",
+	   width, height, nsamples, bits_per_sample);
+
     unsigned int scanlinesize = TIFFScanlineSize(tif);
     for (int row = 0; row < height; row++) {
       // get the pointer at the first column of a row
@@ -1050,7 +1078,7 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
 	//  printf("\t#%03d frame, %d row, buf = %p\n", nframe, row, buf);
 
         if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
-          ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
+          ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadStrippedImage():  TIFFReadScanline returned error"));
         if (bits_per_sample == 1)  // unpack bitmap
         {
           unsigned char *bitmap, bitmask;
@@ -1083,7 +1111,6 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
       }
       else if (nsamples == 4)  // RGB model + alpha
       {
-        int s;
         unsigned char *ipix = (unsigned char *)calloc(scanlinesize, sizeof(unsigned char));
         tdata_t *buf = (tdata_t *)ipix;
         switch (bits_per_sample) {
@@ -1091,9 +1118,9 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
           case 8:
             //          buf = (tdata_t*) IMAGERGBpix(I, 0, index);
             if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
-              ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
+              ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadStrippedImage():  TIFFReadScanline returned error"));
         }
-        for (s = 0; s < width; s++) {
+        for (int s = 0; s < width; s++) {
           unsigned char *opix = IMAGERGBpix(I_tmp, s, index);
           *opix++ = *ipix;
           *opix++ = *(ipix + 1);
@@ -1109,16 +1136,13 @@ static int TiffReadImageDirectory(const char *fname, IMAGE *I, int nframe, short
           case 8:
 	    tdata_t *buf = (tdata_t *)IMAGERGBpix(I_tmp, 0, index);
             if (TIFFReadScanline(tif, buf, row, 0) < 0)  // row must be sequentially read for compressed data
-              ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadImageDirectory():  TIFFReadScanline returned error"));
+              ErrorReturn(ERROR_BADFILE, (ERROR_BADFILE, "TiffReadStrippedImage():  TIFFReadScanline returned error"));
         }
       }
     }  // row
-    
-    TIFFClose(tif);
-    free(I_tmp);
 
     return NO_ERROR;
-}  // TiffReadImageDirectory()
+}  // TiffReadStrippedImage()
 
 
 /* The page range is [start_page, end_page)
@@ -1167,9 +1191,10 @@ static unsigned long TiffReadDirectoryInfo(TIFF *tif, TiffDirectoryInfo *tiffdir
     if (ret == 0) yres = resunit == 1 ? .1 : (10 * 2.54);
 
     // calculate image size
+    tiffdirectoryinfo[npage].scanlinesize = TIFFScanlineSize(tif);
+    tiffdirectoryinfo[npage].tilesize = TIFFTileSize(tif);
     unsigned long numpix = (unsigned long)width * height;
     tiffdirectoryinfo[npage].sizeimage = numpix * nsamples * (bits_per_sample/8);
-    tiffdirectoryinfo[npage].scanlinesize = TIFFScanlineSize(tif);
 
     tiffdirectoryinfo[npage].toread = 0;
     if (npage >= start_page && npage < end_page) {
@@ -1194,6 +1219,106 @@ static unsigned long TiffReadDirectoryInfo(TIFF *tif, TiffDirectoryInfo *tiffdir
 
   return imagebufsize;
 }
+
+
+/* read Tile-oriented page
+ * The image is broken up into a set of rectangular areas that may have dimensions less than the image width and height. 
+ * All the tiles in an image have the same size, and the tile width and length must each be a multiple of 16 pixels. 
+ * Tiles are ordered left-to-right and top-to-bottom in an image.
+ *
+ * The x and y parameters are always used by TIFFReadTile(). 
+ * The z parameter is used if the image is deeper than 1 slice (ImageDepth > 1). 
+ * The sample parameter is used only if data are organized in separate planes ( PlanarConfiguration = 2).
+ *
+ * TIFF images use either "strips" or "tiles" for organization. 
+ * Strips are full-width sections of the image, while tiles are rectangular subsections with defined dimensions. 
+ * The presence of TileWidth and TileLength fields indicates a tiled image, while RowsPerStrip indicates a stripped image. 
+ * Tiling is beneficial for processing large images as it allows for handling individual tiles without loading the entire image. 
+ * Optimizing block sizes to match tile or strip dimensions can enhance performance by reducing repetitive data reads. 
+ */
+static int TiffReadTiledImage(TIFF *tif, IMAGE *I_tmp)
+{
+    /*** ONLY TILED IMAGES WITH nsamples=3, bits_per_sample=8 ARE TESTED ***/
+    /*** TILED IMAGES WITH OTHER CONFIGURATIONS PROBABLY WON'T WORK ***/
+  
+    int width, height;    
+    int ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGEWIDTH, &width);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_IMAGELENGTH, &height);
+
+    short nsamples, bits_per_sample;    
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLESPERPIXEL, &nsamples);
+    ret = TIFFGetFieldDefaulted(tif, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
+
+    int tile_width, tile_length;
+    TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tile_width);
+    TIFFGetField(tif, TIFFTAG_TILELENGTH, &tile_length);
+
+    printf("TiffReadTiledImage(): read tile images %d x %d, tile size %d x %d, nsamples = %d, bits_per_sample = %d\n",
+	   width, height, tile_width, tile_length, nsamples, bits_per_sample);
+      
+    unsigned long tilesize = TIFFTileSize(tif);
+    unsigned char *tilebuf = (unsigned char *)calloc(tilesize, sizeof(unsigned char));
+    if (FS_TIFF_DEBUG)
+      printf("[DEBUG] TiffReadTiledImage(): tilebuf=%p\n", tilebuf);
+ 
+    int ntiles_read = -1;
+    int num_tile_x = (int)(width  / tile_width)  + 1;
+    unsigned long tile_bytes_per_row = (unsigned long)tile_width * nsamples * (bits_per_sample/8);
+    for (int y = 0; y < height; y += tile_length) {
+      for (int x = 0; x < width; x += tile_width) {
+	// read the tile
+	unsigned long bytes_left_tilebuf = TIFFReadTile(tif, tilebuf, x, y, 0, 0);
+	ntiles_read++;
+	if (FS_TIFF_DEBUG)
+	  printf("[DEBUG] TiffReadTiledImage(): <<< TILE #%03d, x=%d, y=%d >>>\n", ntiles_read, x, y);
+
+	// adjust im_idx_height_offset every num_tile_x tiles
+	int im_idx_height_offset = (int)(ntiles_read / num_tile_x) * tile_length;
+	int nrow_tilebuf = -1;
+	while (bytes_left_tilebuf) {
+	  // the pixel data will be re-arranged into I_tmp->image buffer one tile row at a time
+	  nrow_tilebuf++;
+	  // adjust im_idx_width (column position in I_tmp->image buffer) for each tile
+	  int im_idx_width = (int)(ntiles_read % num_tile_x) * tile_width;
+	  int im_idx_height = im_idx_height_offset + nrow_tilebuf;
+	  if (im_idx_height > (height - 1)) {
+	    if (FS_TIFF_DEBUG)
+	      printf("[DEBUG] TiffReadTiledImage(): ***END OF IMAGE ROW*** TILE #%03d, bytes_left_tilebuf=%lu, im_idx_width=%d, im_idx_height=%d (offset=%d)\n",
+                     ntiles_read, bytes_left_tilebuf, im_idx_width, im_idx_height, im_idx_height_offset);
+	    break;  // discard the rest of tilebuf
+	  }
+
+	  // adjust the I_tmp->image pointer to where the pixel data will be copied into
+          // note that the orientation is column, row
+	  int index = height - im_idx_height - 1;	    
+	  unsigned char *imbuf = (unsigned char *)IMAGERGBpix(I_tmp, im_idx_width, index);
+
+	  // calculate number of bytes to copy
+	  unsigned long bytes_tocopy = tile_bytes_per_row;
+	  if ((im_idx_width + tile_width) > width) {
+	    // discard extra tile pixel in this row
+	    bytes_tocopy -= (unsigned long)(im_idx_width + tile_width - width) * nsamples * (bits_per_sample/8);
+	    if (FS_TIFF_DEBUG)
+	      printf("[DEBUG] TiffReadTiledImage(): @@@DISCARD ROW PIXEL TILE #%03d, bytes_left_tilebuf=%lu, bytes_tocopy=%lu, im_idx_width=%d, im_idx_height=%d (offset=%d)\n",
+                     ntiles_read, bytes_left_tilebuf, bytes_tocopy, im_idx_width, im_idx_height, im_idx_height_offset);
+	  }
+
+	  // copy the pixel data
+	  int idx_tilebuf = tilesize - bytes_left_tilebuf;
+	  if (FS_TIFF_DEBUG) // && nrow_tilebuf == 0)
+	    printf("[DEBUG] TiffReadTiledImage(): TILE #%03d, bytes_left_tilebuf=%lu, idx_tilebuf=%d, memcpy(%p, %p, %lu), im_idx_width=%d, im_idx_height=%d (offset=%d)\n",
+		   ntiles_read, bytes_left_tilebuf, idx_tilebuf, imbuf, tilebuf+idx_tilebuf, bytes_tocopy, im_idx_width, im_idx_height, im_idx_height_offset);
+	  memcpy(imbuf, tilebuf+idx_tilebuf, bytes_tocopy);
+
+	  // move to next row
+	  bytes_left_tilebuf -= tile_bytes_per_row;
+	}  // while
+      }
+    }
+
+    free(tilebuf);
+    return NO_ERROR;
+}  // TiffReadTiledImage()
 
 
 #ifndef Darwin
