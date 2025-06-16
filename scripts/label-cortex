@@ -206,7 +206,10 @@ foreach hemi ($hemilist)
     set cmd = (mri_cor2label --i $gamask  --l $galabel --surf-path $whitepreaparc --id 1 --thresh 0.5)
     echo $cmd | tee -a $LF
     if($RunIt) $cmd |& tee -a $LF
-    if($status) goto error_exit;
+    if($status) then
+      echo "If the error is: found no voxels matching id 1, try rerunning with -no-fix-ga"|& tee -a $LF
+      goto error_exit;
+    endif
     set udmade = 1
   endif
 
