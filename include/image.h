@@ -334,7 +334,7 @@ int free_header(IMAGE *I);
                                   (((long)n) * 2 * im->ocols * im->orows))
 
 // RGB images are 3 bytes per pixel
-#define IMAGERGBpix(im, x, y)           ((im->image) + (((int) y) * im->ocols * 3) + (x*3))
+#define IMAGERGBpix(im, x, y)           ((im->image) + (((unsigned long) y) * im->ocols * 3) + ((unsigned long)x*3))
 
 
 #define IMAGEDseq_pix(im,x,y,n)   ((IMAGEDseq(im,n)) \
