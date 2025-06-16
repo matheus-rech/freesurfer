@@ -36,7 +36,7 @@
 #include "colortab.h"
 #include "cma.h"
 #include "mrisutils.h"
-
+#include "timer.h"
 
 int main(int argc, char *argv[]) ;
 static int  get_option(int argc, char *argv[]) ;
@@ -131,6 +131,8 @@ main(int argc, char *argv[])
   ErrorInit(NULL, NULL, NULL) ;
   DiagInit(NULL, NULL, NULL) ;
 
+  Timer mytimer;
+
   ac = argc ;
   av = argv ;
   for ( ; argc > 1 && ISOPTION(*argv[1]) ; argc--, argv++)
@@ -215,6 +217,8 @@ main(int argc, char *argv[])
     exit(1);
   }
 
+  int msecTime = mytimer.milliseconds();
+  printf("Time %g\n",msecTime/(1000.0));  fflush(stdout);
   if(UseTH3Vol){
     MRI *ctxmask;
     LABEL *label;
@@ -247,6 +251,8 @@ main(int argc, char *argv[])
     MRISfree(&mrisp);
     MRIfree(&ctxmask);
   }
+  msecTime = mytimer.milliseconds();
+  if(0) printf("Time2 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   MRISsaveVertexPositions(mris, ORIGINAL_VERTICES) ;
   // read in white and pial surfaces
@@ -273,6 +279,7 @@ main(int argc, char *argv[])
 
   MRIScomputeMetricProperties(mris) ;
 #if SHOW_WHITE_MATTER_VOLUME
+  printf("Computing WM volume\n");
   double wm_volume = MRISmeasureTotalWhiteMatterVolume(mri_wm) ;
 #endif
 #if 0
@@ -282,6 +289,8 @@ main(int argc, char *argv[])
   MRISreadVertexPositions(mris, fname) ;
 #else
   MRISreadCurvatureFile(mris, thickness_name) ;
+  msecTime = mytimer.milliseconds();
+  if(0) printf("Time3 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   if (nsmooth > 0)
   {
@@ -319,7 +328,13 @@ main(int argc, char *argv[])
   MRIScopyCurvatureToImagValues(mris) ;   /* save thickness measures */
 
   MRISsetNeighborhoodSizeAndDist(mris, 2) ;
+  msecTime = mytimer.milliseconds();
+  if(0) printf("Time4 %g\n",msecTime/(1000.0));  fflush(stdout);
+
+  // Takes a few seconds
   MRIScomputeSecondFundamentalForm(mris) ;
+  msecTime = mytimer.milliseconds();
+  if(0) printf("Time4b %g\n",msecTime/(1000.0));  fflush(stdout);
 
   if (annotation_name)
   {
@@ -350,7 +365,10 @@ main(int argc, char *argv[])
       names[index] = mris->ct->entries[index]->name ;
       //printf("idx=%d, name=%s\n",index,names[index]);
     }
+
   }
+  msecTime = mytimer.milliseconds();
+  if(0) printf("Time5 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   if (histo_flag)
   {
@@ -469,6 +487,8 @@ main(int argc, char *argv[])
     names[0] = mris->fname ;
   }
 
+  msecTime = mytimer.milliseconds();
+  if(0) printf("Time6 %g\n",msecTime/(1000.0));  fflush(stdout);
   if (tabular_output_flag)
   {
     fprintf(stdout, "\n");
@@ -521,66 +541,91 @@ main(int argc, char *argv[])
     fprintf(fp,"# TotalWhiteMatterVolume  %2.0f mm^3\n",wm_volume) ;
 #endif
 
+    msecTime = mytimer.milliseconds();
     num_cortex_vertices = mris->nvertices;
     total_cortex_area = mris->total_area;
     // if -cortex option selected, then count vertices and area only in cortex
-    if (cortex_label)
-    {
+    if (cortex_label) {
       /* calculate "area" and thickness of the vertices labeled as cortex */
       num_cortex_vertices = 0;
       total_cortex_area = 0;
       mean_cortex_thickness = 0;
       int vno;
-      for (vno = 0 ; vno < mris->nvertices ; vno++)
-      {
-        VERTEX_TOPOLOGY const * const vt = &mris->vertices_topology[vno];
-        VERTEX          const * const v  = &mris->vertices         [vno];
-        
-        if (v->ripflag)
-        {
-          continue ;
+
+#if 0
+	// This is the old slow way of doing it. It goes through all the vertices,
+        // then through the cortex label points until it hits a vertex. So something
+        // like 2x times through the vertices. This can be deleted.
+	int nmiss = 0, nhit = 0, nhere1=0, nhere2=0;
+	for (vno = 0 ; vno < mris->nvertices ; vno++) {
+	  VERTEX_TOPOLOGY const * const vt = &mris->vertices_topology[vno];
+	  VERTEX          const * const v  = &mris->vertices         [vno];
+	  if(v->ripflag) continue ;
+	  nhere1++;
+	  
+	  // skip vertices that dont have an annotation so that the sum of
+	  // annotated ROIs equals this cortex label sum
+	  if (annotation_name && v->annotation <= 0) continue;
+	  nhere2++;
+	  
+	  int lno, hit=0;
+	  for (lno = 0 ; lno < cortex_label->n_points ; lno++) {
+	    if (cortex_label->lv[lno].vno == vno)  {
+	      float area = 0.0 ;
+	      int fno;
+	      for (fno = 0 ; fno < vt->num ; fno++) {
+		FACE *face = &mris->faces[vt->f[fno]];
+		if (face->ripflag) continue;
+		area += face->area/VERTICES_PER_FACE;
+	      }
+	      total_cortex_area += area;
+	      num_cortex_vertices++;
+	      // thickness measures were saved to v->imag_val earlier by the
+	      // call to MRIScopyCurvatureToImagValues(mris)
+	      mean_cortex_thickness += v->imag_val;
+	      hit = 1;
+	      break;
+	    }
+	  } // loop over cortex label
+	  if(hit == 0) nmiss++;
+	  if(hit) nhit++;
+	} // loop over vertices
+	printf("nhits=%d nmisses=%d nvert=%d nctx=%d\n",nhit,nmiss,mris->nvertices,cortex_label->n_points);
+	printf("nhere1=%d nhere2=%d\n",nhere1,nhere2);
+#else
+	// This is the new way where the marked2 elemet is set, and then a vertex
+	// is just skipped if marked2 is not set (when it is not in the label). Note
+	// that I just found out that the vertices in the label can be replicated,
+	// so can't just go through all the points in the label. 
+	LabelMark2(cortex_label, mris) ;
+	for (vno = 0 ; vno < mris->nvertices ; vno++) {
+	  VERTEX_TOPOLOGY const * const vt = &mris->vertices_topology[vno];
+	  VERTEX          const * const v  = &mris->vertices         [vno];
+	  if(v->ripflag) continue ;
+	  if(!v->marked2) continue ;
+
+	  // skip vertices that dont have an annotation so that the sum of
+	  // annotated ROIs equals this cortex label sum
+	  if (annotation_name && v->annotation <= 0) continue;
+
+	  float area = 0.0 ;
+	  int fno;
+	  for (fno = 0 ; fno < vt->num ; fno++) {
+	    FACE *face = &mris->faces[vt->f[fno]];
+	    if (face->ripflag) continue;
+	    area += face->area/VERTICES_PER_FACE;
+	  }
+	  total_cortex_area += area;
+	  num_cortex_vertices++;
+	  // thickness measures were saved to v->imag_val earlier by the
+	  // call to MRIScopyCurvatureToImagValues(mris)
+	  mean_cortex_thickness += v->imag_val;
         }
-
-        // skip vertices that dont have an annotation so that the sum of
-        // annotated ROIs equals this cortex label sum
-        if (annotation_name && v->annotation <= 0)
-        {
-          continue;
-        }
-
-        int lno;
-        for (lno = 0 ; lno < cortex_label->n_points ; lno++)
-        {
-          if (cortex_label->lv[lno].vno == vno)
-          {
-            float area = 0.0 ;
-            int fno;
-            for (fno = 0 ; fno < vt->num ; fno++)
-            {
-              FACE *face = &mris->faces[vt->f[fno]];
-              if (face->ripflag)
-              {
-                continue;
-              }
-              area += face->area/VERTICES_PER_FACE;
-            }
-            total_cortex_area += area;
-
-            num_cortex_vertices++;
-
-            // thickness measures were saved to v->imag_val earlier by the
-            // call to MRIScopyCurvatureToImagValues(mris)
-            mean_cortex_thickness += v->imag_val;
-
-            break;
-          }
-        }
-      }
+#endif
       if (mean_cortex_thickness && num_cortex_vertices )
-      {
         mean_cortex_thickness /= num_cortex_vertices;
-      }
     }
+
     fprintf(fp,"# Measure Cortex, NumVert, Number of Vertices, %d, unitless\n",
 	    num_cortex_vertices);
     if(strcmp(surf_name,"white")==0)
@@ -600,7 +645,9 @@ main(int argc, char *argv[])
               mean_cortex_thickness);
     }
 
+    msecTime = mytimer.milliseconds();
     if(DoGlobalStats){
+      printf("Global\n");
       char tmpstr[2000];
       double atlas_icv=0;
       double determinant = 0;
@@ -689,6 +736,7 @@ main(int argc, char *argv[])
     memset(thickness_vars, 0, sizeof(thickness_vars)) ;
     v0_index = v1_index = v2_index = 0 ;
 
+    msecTime = mytimer.milliseconds();
     MRIScomputeMetricProperties(mris) ;
 
     // first do white surface
@@ -1024,6 +1072,7 @@ main(int argc, char *argv[])
       printf("INFO: cross-check passed\n");
     }
   }
+  msecTime = mytimer.milliseconds();
 
   if (histo_flag)
   {
@@ -1047,6 +1096,9 @@ main(int argc, char *argv[])
   {
     MRIfree(&SurfaceMap);
   }
+
+  msecTime = mytimer.milliseconds();
+  printf("exec_time_sec %g\n",msecTime/(1000.0));  fflush(stdout);
 
   printf("mris_anatomical_stats done\n");
   exit(0) ;
@@ -1155,12 +1207,14 @@ get_option(int argc, char *argv[])
     printf("INFO: not computing global stats\n");
   }
   else if (!stricmp(option, "th3")){
+    // Note that this should not be necessary anymore (as of 6/16/25) because
+    // ?h.volume is computed with th3
     UseTH3Vol = 1;
     printf("INFO: using TH3 volume calc\n");
   }
   else if (!stricmp(option, "no-th3")){
     UseTH3Vol = 0;
-    printf("INFO: NOT using TH3 volume calc\n");
+    printf("INFO: NOT using TH3 volume calc (unless you passed it a TH3 volume)\n");
   }
   else switch (toupper(*option))
     {
