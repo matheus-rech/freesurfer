@@ -252,7 +252,7 @@ main(int argc, char *argv[])
     MRIfree(&ctxmask);
   }
   msecTime = mytimer.milliseconds();
-  if(0) printf("Time2 %g\n",msecTime/(1000.0));  fflush(stdout);
+  //if(0) printf("Time2 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   MRISsaveVertexPositions(mris, ORIGINAL_VERTICES) ;
   // read in white and pial surfaces
@@ -290,7 +290,7 @@ main(int argc, char *argv[])
 #else
   MRISreadCurvatureFile(mris, thickness_name) ;
   msecTime = mytimer.milliseconds();
-  if(0) printf("Time3 %g\n",msecTime/(1000.0));  fflush(stdout);
+  //if(0) printf("Time3 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   if (nsmooth > 0)
   {
@@ -329,12 +329,12 @@ main(int argc, char *argv[])
 
   MRISsetNeighborhoodSizeAndDist(mris, 2) ;
   msecTime = mytimer.milliseconds();
-  if(0) printf("Time4 %g\n",msecTime/(1000.0));  fflush(stdout);
+  //if(0) printf("Time4 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   // Takes a few seconds
   MRIScomputeSecondFundamentalForm(mris) ;
   msecTime = mytimer.milliseconds();
-  if(0) printf("Time4b %g\n",msecTime/(1000.0));  fflush(stdout);
+  //if(0) printf("Time4b %g\n",msecTime/(1000.0));  fflush(stdout);
 
   if (annotation_name)
   {
@@ -368,7 +368,7 @@ main(int argc, char *argv[])
 
   }
   msecTime = mytimer.milliseconds();
-  if(0) printf("Time5 %g\n",msecTime/(1000.0));  fflush(stdout);
+  //if(0) printf("Time5 %g\n",msecTime/(1000.0));  fflush(stdout);
 
   if (histo_flag)
   {
@@ -488,7 +488,7 @@ main(int argc, char *argv[])
   }
 
   msecTime = mytimer.milliseconds();
-  if(0) printf("Time6 %g\n",msecTime/(1000.0));  fflush(stdout);
+  //if(0) printf("Time6 %g\n",msecTime/(1000.0));  fflush(stdout);
   if (tabular_output_flag)
   {
     fprintf(stdout, "\n");
