@@ -177,7 +177,7 @@ set DoConformWidth256 = 0 # if 1, then conform to 256^3 during
 set NoNormMGZ = 0; # set to 1 when -nosubcortseg or -noaseg flag is used,
                    # which causes norm.mgz not to used during inorm2 step
 set NoWMSA = 0;      # if 1, then -nowmsa flag is added to mri_ca_label
-set TH3Flag = 1;   #  turns on new vertex-wise volume calc for mris_anat_stats and ?h.volume
+set TH3Flag = 0; # turn off now because TH3 hard-coded in vertexvol
 set DoQdecCache = 0; # if 1, then create smoothed fsaverage surface files
 set measurelist = ( thickness area area.pial volume curv sulc \
                     white.K white.H jacobian_white w-g.pct.mgh )
@@ -4836,10 +4836,10 @@ if(1) then
       set areapial = ../surf/$hemi.area.pial$FS_GII
       set vtxvol   = ../surf/$hemi.volume$FS_GII
       echo "cd `$PWD`" |& tee -a $LF |& tee -a $CF
-      #echo $cmd        |& tee -a $LF |& tee -a $CF
       set ud1 = `UpdateNeeded $areamid $areawhite $areapial`
       set ud2 = `UpdateNeeded $vtxvol $pial $white`
-      set cmd = (vertexvol --s $subjid --$hemi -$TH3Opt)
+      set xopts = `fsr-getxopts vertexvol $V8XoptsFile $GlobXOptsFile $XOptsFile `;
+      set cmd = (vertexvol --s $subjid --$hemi --th3 $xopts) # hard-code th3 now
       if($ud1 || $ud2 || $ForceUpdate) then
         if($RunIt) then
           $fs_time $cmd |& tee -a $LF
@@ -8284,6 +8284,7 @@ check_params:
     set ldir = $subjdir/label
     set tdir = $subjdir/touch
 
+    # Note: vertexvol now hard codes --th3
     if($TH3Flag)   set TH3Opt = "-th3"
     if(! $TH3Flag) set TH3Opt = "-no-th3"
 
