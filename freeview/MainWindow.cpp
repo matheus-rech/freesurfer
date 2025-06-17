@@ -2909,6 +2909,10 @@ void MainWindow::CommandSetHeatScaleOptions( const QStringList& sa )
       {
         p->SetHeatScaleTruncate( true );
       }
+      else if (sa[i] == "clearhigher")
+      {
+        p->SetHeatScaleClearHigh(true);
+      }
     }
   }
 }
