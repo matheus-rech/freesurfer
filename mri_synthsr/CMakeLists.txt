@@ -22,5 +22,10 @@ else()
    install_symlinks(TYPE files DESTINATION models synthsr_lowfield_v20_230130.h5)
 endif()
 
-add_test_script(NAME mri_synthsr_test SCRIPT test.sh)
+# this test cannot run to completion on a machine with 16G of RAM
+if(NOT APPLE_ARM64)
+   add_test_script(NAME mri_synthsr_test SCRIPT test.sh)
+else()
+   message(STATUS "For HOST_OS=${HOST_OS} excluding mri_synthsr test")
+endif()
 
