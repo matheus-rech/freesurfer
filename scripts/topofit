@@ -125,6 +125,8 @@ if($ico7) then
     set udmade = 1
   endif
   foreach hemi ($hemilist)
+    # Downsample the surface through the spheres. The native topofit
+    # has 246k and fsaverage has 160k
     set ico7targ = $FREESURFER/subjects/fsaverage/surf/$hemi.sphere.reg
     set sphere = $outdir/sphere-topofit-$hemi.srf
     foreach surf (int ext)
@@ -150,7 +152,6 @@ endif
 
 if($MakeSphere) then
   foreach hemi ($hemilist)
-    # Create the sphere starting with the TF sphere
     set white = $outdir/cortex-int-$hemi$ico7str.srf
     set pial  = $outdir/cortex-ext-$hemi$ico7str.srf
     set sphere = $outdir/sphere-topofit-$hemi$ico7str.srf
@@ -164,6 +165,8 @@ if($MakeSphere) then
         set lrrevarg = ()
         set targsphere = $FREESURFER/subjects/fsaverage/surf/$hemi.sphere.reg
       endif
+      # Create the sphere starting with the fsaverage or TF sphere. It only needs
+      # minimize the distortion
       # -o means "orig" surf
       set cmd = (mris_sphere -threads $threads -o $white -seed 1234 $lrrevarg $targsphere $sphere)
       echo $cmd | tee -a $LF
