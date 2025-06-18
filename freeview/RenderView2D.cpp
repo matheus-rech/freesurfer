@@ -58,6 +58,8 @@
 #include <QInputDialog>
 #include "DialogMovePoint.h"
 #include "LayerEditRef.h"
+#include <QPainter>
+#include <QInputDialog>
 
 RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent )
 {
@@ -863,6 +865,18 @@ void RenderView2D::TriggerContextMenu( QMouseEvent* event )
     menu.addSeparator();
     menu.addAction(mainwnd->ui->actionCopyView);
     menu.addAction(mainwnd->ui->actionSaveScreenshot);
+    menu.addSeparator();
+    QAction* act = new QAction("Show Grid", this);
+    act->setCheckable(true);
+    act->setChecked(GetShowGrid());
+    connect(act, SIGNAL(toggled(bool)), SLOT(ShowGrid(bool)));
+    menu.addAction(act);
+    if (GetShowGrid())
+    {
+      act = new QAction("Set Grid Size", this);
+      connect(act, SIGNAL(triggered(bool)), SLOT(OnSetGridSize()));
+      menu.addAction(act);
+    }
   }
 
   if (!menu.actions().isEmpty())
@@ -1016,4 +1030,35 @@ void RenderView2D::SetNeurologicalView(bool b)
   m_bNeurologicalView = b;
   Reset();
   UpdateAnnotation();
+}
+
+bool RenderView2D::GetShowGrid()
+{
+  return m_annotation2D->GetShowGrid();
+}
+
+double RenderView2D::GetGridSize()
+{
+  return m_annotation2D->GetGridSize();
+}
+
+void RenderView2D::ShowGrid(bool bShow)
+{
+  m_annotation2D->ShowGrid(bShow);
+  RequestRedraw();
+}
+
+void RenderView2D::SetGridSize(double val)
+{
+  m_annotation2D->SetGridSize(val);
+  UpdateAnnotation();
+}
+
+void RenderView2D::OnSetGridSize()
+{
+  bool ok;
+  double d = QInputDialog::getDouble(this, tr("Grid Size"),
+                                     tr("Grid Size in mm:"), GetGridSize(), 0.01, 100, 2, &ok);
+  if (ok)
+    SetGridSize(d);
 }

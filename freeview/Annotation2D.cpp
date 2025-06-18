@@ -32,6 +32,7 @@
 #include "LayerCollection.h"
 #include "MainWindow.h"
 #include "vtkPropCollection.h"
+#include "vtkSmartPointer.h"
 #include "LayerMRI.h"
 #include "LayerPropertyMRI.h"
 #include "MyVTKUtils.h"
@@ -91,6 +92,19 @@ Annotation2D::Annotation2D( QObject* parent ) : QObject( parent )
       SetCoordinateSystemToNormalizedViewport();
   m_actorScaleLine->SetPosition( 0.05, 0.05 );
   m_actorsAll->AddItem( m_actorScaleLine );
+
+  // grid actor
+  m_actorGrid = vtkSmartPointer<vtkActor2D>::New();
+  m_actorGrid->SetMapper( vtkSmartPointer<vtkPolyDataMapper2D>::New() );
+  m_actorGrid->GetProperty()->SetLineWidth(0.5);
+  m_actorGrid->GetProperty()->SetLineStipplePattern(0xf0f0);
+  m_actorGrid->GetProperty()->SetLineStippleRepeatFactor(5);
+  m_actorGrid->GetPositionCoordinate()->
+      SetCoordinateSystemToNormalizedViewport();
+  m_actorGrid->SetVisibility(0);
+  m_actorGrid->GetProperty()->SetColor(0.8, 0.8, 0.8);
+  m_bShowGrid = false;
+  m_dGridSize = 1;
 
   m_actorScaleTitle = vtkSmartPointer<vtkTextActor>::New();
   m_actorScaleTitle->GetPositionCoordinate()->
@@ -361,6 +375,7 @@ void Annotation2D::Update( vtkRenderer* renderer, int nPlane )
   w_pos[ nPlane ] = w_pos2[ nPlane ] = 0;
   double d = 0.5 /
       sqrt( vtkMath::Distance2BetweenPoints( w_pos, w_pos2 ) ) * 10;
+  double d_mm = d/10;
   QString title = "1 cm";
   if ( d >= 0.5 - xy_pos[0] )
   {
@@ -471,6 +486,8 @@ void Annotation2D::Update( vtkRenderer* renderer, int nPlane )
   }
 
   UpdateScaleActors( d, nNumOfTicks,  title.toLatin1().constData() );
+  double* da = renderer->GetAspect();
+  UpdateGridActor(d_mm*m_dGridSize, da[0]);
 }
 
 void Annotation2D::UpdateScaleActors( double length,
@@ -529,6 +546,51 @@ void Annotation2D::UpdateScaleActors( double length,
   m_actorScaleTitle->SetInput( title );
 }
 
+void Annotation2D::UpdateGridActor(double grid_len, double dAspect)
+{
+  vtkSmartPointer<vtkPoints> Pts = vtkSmartPointer<vtkPoints>::New();
+  vtkSmartPointer<vtkCellArray> Lines = vtkSmartPointer<vtkCellArray>::New();
+
+  int n = 0;
+  double dLen = grid_len*dAspect;
+  while (dLen < 1)
+  {
+    Pts->InsertNextPoint(0, dLen, 0);
+    Pts->InsertNextPoint(1, dLen, 0);
+    Lines->InsertNextCell(2);
+    Lines->InsertCellPoint(n++);
+    Lines->InsertCellPoint(n++);
+    dLen += grid_len*dAspect;
+  }
+
+  dLen = grid_len;
+  while (dLen < 1)
+  {
+    Pts->InsertNextPoint(dLen, 0, 0);
+    Pts->InsertNextPoint(dLen, 1, 0);
+    Lines->InsertNextCell(2);
+    Lines->InsertCellPoint(n++);
+    Lines->InsertCellPoint(n++);
+    dLen += grid_len;
+  }
+  vtkSmartPointer<vtkPolyData> poly = vtkSmartPointer<vtkPolyData>::New();
+  poly->SetPoints(Pts);
+  poly->SetLines(Lines);
+
+  vtkSmartPointer<vtkCoordinate> normCoords = vtkSmartPointer<vtkCoordinate>::New();
+  normCoords->SetCoordinateSystemToNormalizedViewport();
+
+  vtkSmartPointer<vtkPolyDataMapper2D> pMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
+#if VTK_MAJOR_VERSION > 5
+  pMapper->SetInputData( poly );
+#else
+  pMapper->SetInput(poly);
+#endif
+  pMapper->SetTransformCoordinate(normCoords);
+
+  m_actorGrid->SetMapper(pMapper);
+}
+
 void Annotation2D::AppendAnnotations( vtkRenderer* renderer, bool bScaleBar )
 {
   if (!bScaleBar)
@@ -543,6 +605,7 @@ void Annotation2D::AppendAnnotations( vtkRenderer* renderer, bool bScaleBar )
     renderer->AddViewProp( m_actorScaleLine );
     renderer->AddViewProp( m_actorScaleTitle );
   }
+  renderer->AddViewProp(m_actorGrid);
 }
 
 void Annotation2D::ShowScaleLine( bool bShow )
@@ -551,9 +614,19 @@ void Annotation2D::ShowScaleLine( bool bShow )
   m_actorScaleTitle->SetVisibility( bShow?1:0 );
 }
 
+void Annotation2D::ShowGrid(bool bShow)
+{
+  m_actorGrid->SetVisibility(bShow?1:0);
+}
+
 bool Annotation2D::GetShowScaleLine()
 {
-  return m_actorScaleLine->GetVisibility() > 0;
+  return m_actorScaleLine->GetVisibility();
+}
+
+bool Annotation2D::GetShowGrid()
+{
+  return m_actorGrid->GetVisibility();
 }
 
 void Annotation2D::Show( bool bShow )
@@ -599,3 +672,10 @@ void Annotation2D::SetColor(const QColor &c)
   }
   emit Updated();
 }
+
+void Annotation2D::SetGridSize(double val)
+{
+  m_dGridSize = val;
+  emit Updated();
+}
+
