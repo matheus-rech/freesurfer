@@ -404,6 +404,17 @@ while( $#argv != 0 )
       set transform_fname = $argv[1]; shift;
       breaksw
 
+    case "--mni152":
+      # Use synthmorph nonlinear reg to mni space
+      if ( $getting_subjects ) then
+        # got em all, from --subjects variable arg loop
+        set getting_subjects = 0;
+        shift;
+      endif
+      set transform_fname = synthmorph.1.0mm.1.0mm/warp.to.mni152.1.0mm.1.0mm.nii.gz
+      set XFORM_FLAG = "-X $transform_fname";
+      breaksw
+
     case "--ctab":
       if ( $getting_subjects ) then
         # got em all, from --subjects variable arg loop
@@ -644,6 +655,7 @@ usage_exit:
   echo "   --out <average subject name>    : default name is 'average'"
   echo "   --topdir topdir : put data here and link to SUBJECTS_DIR"
   echo "   --xform xformname : use mri/transforms/xformname (def is talairach.xfm)"
+  echo "   --mni152 : set xform to synthmorph.1.0mm.1.0mm/warp.to.mni152.1.0mm.1.0mm.nii.gz"
   echo "   --sdir <SUBJECTS_DIR to use instead of the one in the env>"
   echo "   --sd      : same as --sdir"
   echo "   --force   : overwrite existing average subject data"
