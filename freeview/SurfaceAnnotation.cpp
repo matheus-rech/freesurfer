@@ -38,6 +38,7 @@
 #include <vtkProperty.h>
 #include <QDebug>
 #include "mri.h"
+#include "mri_identify.h"
 
 SurfaceAnnotation::SurfaceAnnotation ( LayerSurface* surf ) :
   QObject( surf ),
@@ -49,7 +50,9 @@ SurfaceAnnotation::SurfaceAnnotation ( LayerSurface* surf ) :
   m_bShowOutline(false),
   m_dOpacity(1.0),
   m_nHighlightedLabel(-1),
-  m_data(NULL)
+  m_data(NULL),
+  m_nActiveFrame(0),
+  m_nNumberOfFrames(1)
 {
   m_nIndexSize = surf->GetNumberOfVertices();
   m_data = new int[m_nIndexSize];
@@ -115,6 +118,7 @@ bool SurfaceAnnotation::LoadAnnotation( const QString& fn)
     {
       ret = return_code;
     }
+
     if ( ret != 0 )
     {
       cerr << "Could not load annotation from file " << qPrintable(fn) << ".\n";
@@ -124,6 +128,13 @@ bool SurfaceAnnotation::LoadAnnotation( const QString& fn)
     {
       m_lut = CTABdeepCopy(mris->ct);
       UpdateColorList();
+
+      int mritype = mri_identify(fn.toLatin1().data());
+      if (mritype != MGH_ANNOT)
+      {
+        return LoadFromSegmentation(fn);
+      }
+
       for (int i = 0; i < m_nIndexSize; i++)
         m_data[i] = mris->vertices[i].annotation;
       UpdateData();
@@ -143,35 +154,42 @@ bool SurfaceAnnotation::LoadFromSegmentation(const QString &fn)
        MRIfree(&mri);
        return false;
    }
+   m_nNumberOfFrames = mri->depth;
+   if (m_data)
+     delete[] m_data;
+   m_data = new int[m_nIndexSize*m_nNumberOfFrames];
    for (int i = 0; i < m_nIndexSize; i++)
    {
+     for (int j = 0; j < m_nNumberOfFrames; j++)
+     {
        int n = -1;
        switch ( mri->type )
        {
        case MRI_UCHAR:
-         n = MRIseq_vox( mri, i, 0, 0, 0);
+         n = MRIseq_vox( mri, i, 0, 0, j);
          break;
        case MRI_INT:
-         n = MRIIseq_vox( mri, i, 0, 0, 0);
+         n = MRIIseq_vox( mri, i, 0, 0, j);
          break;
        case MRI_LONG:
-         n = (int)MRILseq_vox( mri, i, 0, 0, 0);
+         n = (int)MRILseq_vox( mri, i, 0, 0, j);
          break;
        case MRI_FLOAT:
-         n = (int)MRIFseq_vox( mri, i, 0, 0, 0);
+         n = (int)MRIFseq_vox( mri, i, 0, 0, j);
          break;
        case MRI_SHORT:
-         n = MRIseq_vox( mri, i, 0, 0, 0);
+         n = MRIseq_vox( mri, i, 0, 0, j);
          break;
        case MRI_USHRT:
-         n = (int)MRIUSseq_vox( mri, i, 0, 0, 0);
+         n = (int)MRIUSseq_vox( mri, i, 0, 0, j);
          break;
        default:
          break;
        }
        int annot = -1;
        if (CTABannotationAtIndex(m_lut, n, &annot) == 0)
-           m_data[i] = annot;
+           m_data[i+j*m_nIndexSize] = annot;
+     }
    }
    UpdateData();
    SetSelectAllLabels();
@@ -916,4 +934,10 @@ void SurfaceAnnotation::CleanUpColorTable()
       }
     }
   }
+}
+
+void SurfaceAnnotation::SetActiveFrame(int n)
+{
+  m_nActiveFrame = n;
+  UpdateData();
 }

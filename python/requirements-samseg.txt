@@ -1,1 +1,3 @@
-samseg@git+https://github.com/freesurfer/samseg.git@54864dce1ac44ae48e46c8c25b7c84a0dd20fed5
+# samseg@git+https://github.com/freesurfer/samseg.git@54864dce1ac44ae48e46c8c25b7c84a0dd20fed5
+# no numpy 2 requirement
+samseg@git+https://github.com/freesurfer/samseg.git@9ceddd23495544a6c38cae205c8ff908c51beb21

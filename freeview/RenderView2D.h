@@ -132,6 +132,10 @@ public:
     return m_bNeurologicalView;
   }
 
+  bool GetShowGrid();
+
+  double GetGridSize();
+
 public slots:
   void RefreshAllActors(bool bForScreenShot = false);
   void StopSelection();
@@ -146,6 +150,8 @@ public slots:
   void OnMoveAllPointsToLocalMaximum();
   void SetNeurologicalView(bool b);
   void OnInsertPointAfter();
+  void ShowGrid(bool bShow);
+  void SetGridSize(double val);
 
 signals:
   void RegionSelected( Region2D* );
@@ -163,6 +169,7 @@ protected slots:
   void OnCopyVoxelValue();
   void OnCopyLabelStats();
   void OnCopyRegionValue();
+  void OnSetGridSize();
 
 protected:
   virtual void resizeEvent(QResizeEvent *event);

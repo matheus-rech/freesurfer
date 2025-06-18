@@ -13,7 +13,8 @@ if(UV_INSTEAD_OF_PIP_INSTALL)
    ## 04/2024 allow option for uv package installer (added to fspython base distro)
    # set(PIP_SUBSTRING "uv pip install -v")
    set(PIP_SUBSTRING "uv pip install")
-   set(PIP_NODEP_ARG "--no-deps")
+   # set(PIP_NODEP_ARG "--no-deps")
+   set(PIP_NODEP_ARG "")
    set(PIP_NOVER_ARG "")
    set(PIP_LAST_ARG "--python ${CMAKE_INSTALL_PREFIX}/python")
    set(pip_target_option "--target")
@@ -21,7 +22,8 @@ else()
    # set(PIP_SUBSTRING "pip install -v")
    # set(PIP_SUBSTRING "pip install --no-cache-dir -vvv")
    set(PIP_SUBSTRING "pip install")
-   set(PIP_NODEP_ARG "--no-dependencies")
+   # set(PIP_NODEP_ARG "--no-dependencies")
+   set(PIP_NODEP_ARG "")
    set(PIP_NOVER_ARG "--disable-pip-version-check")
    set(PIP_LAST_ARG "")
    set(pip_target_option "--target")
@@ -212,9 +214,7 @@ function(integrate_samseg)
   endif()
   set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${SAMSEG_PKG_TARGET} ${PIP_LAST_ARG}")
 
-  ## NOTE - this would not be necessary if it worked to install samseg by listing its spec from requirements-samseg.txt in the requirements-build.txt file.
-  ## That install currently does not work because samseg reports requirung nunpy >= 2.0 which conflicts with other package requirements.
-  # pip install samseg
+  # pip install samseg via separate command
   install(CODE "
     message(STATUS \" for HOST_OS=${HOST_OS} \")
     message(STATUS \" ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} \")
