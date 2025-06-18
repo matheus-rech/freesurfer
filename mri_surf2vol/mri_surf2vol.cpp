@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
 
   check_options();
 
-  if(narray > 0){
+  if(narray > 0){ // New method
     if(ribbon == NULL){
       sprintf(tmpstr,"%s/%s/mri/ribbon.mgz",fsenv->SUBJECTS_DIR,subject);
       printf("Loading %s\n",tmpstr);
@@ -720,13 +720,13 @@ static void usage_exit(void) {
 static void print_usage(void) {
   printf("USAGE: %s \n",Progname) ;
   printf("  \n");
-  printf("  Method 1\n");
-  printf("  --so surface overlay : path to surface and matching overlay \n");
-  printf("  --lta ltafile : registration file\n");
+  printf("  Method 1 (see below for options that apply to both; also see examples)\n");
+  printf("  --so surface overlay : path to surface and matching overlay (multiple --so ok, eg lh and rh)\n");
   printf("  --o outfile : path to output volume\n");
-  printf("  --subject subject : when not specifying LTA or ribbon\n");
-  printf("  --ribbon ribbonfile : when not specifying LTA or subject\n");
+  printf("  --lta ltafile : registration file\n");
+  printf("  --ribbon ribbonfile : when not specifying LTA or subject (must be in surface space (eg, conf)\n");
   printf("  --merge vol : merge with this vol, replacing surface values\n");
+  printf("  --subject subject : when not specifying LTA or ribbon\n");
   printf("  \n");
   printf("\n");
   printf("  Method 2\n");
@@ -751,7 +751,7 @@ static void print_usage(void) {
   printf("  Applies to both methods\n");
   printf("  --mask-to-cortex : mask to ?h.cortex.label\n");
   printf("  --mask-to-label labelfile : mask to the passed label file\n");
-  printf("  --mask surfacemask: mask to the passed mask\n");
+  printf("  --mask surfacemask: mask to surfacemask\n");
   printf("  --add const : add constant value to each non-zero output voxel\n");
   printf("  --copy-ctab : setenv FS_COPY_HEADER_CTAB 1\n");
   printf("  --sd subjectsdir : FreeSurfer subjects' directory\n");
