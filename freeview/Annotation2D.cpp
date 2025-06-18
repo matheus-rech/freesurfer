@@ -97,12 +97,12 @@ Annotation2D::Annotation2D( QObject* parent ) : QObject( parent )
   m_actorGrid = vtkSmartPointer<vtkActor2D>::New();
   m_actorGrid->SetMapper( vtkSmartPointer<vtkPolyDataMapper2D>::New() );
   m_actorGrid->GetProperty()->SetLineWidth(0.5);
-  m_actorGrid->GetProperty()->SetLineStipplePattern(0xf0f0);
-  m_actorGrid->GetProperty()->SetLineStippleRepeatFactor(5);
+  m_actorGrid->GetProperty()->SetLineStipplePattern(0xaaaa);
+  m_actorGrid->GetProperty()->SetLineStippleRepeatFactor(1);
   m_actorGrid->GetPositionCoordinate()->
       SetCoordinateSystemToNormalizedViewport();
   m_actorGrid->SetVisibility(0);
-  m_actorGrid->GetProperty()->SetColor(0.8, 0.8, 0.8);
+  m_actorGrid->GetProperty()->SetColor(0.9, 0.9, 0.9);
   m_bShowGrid = false;
   m_dGridSize = 1;
 
