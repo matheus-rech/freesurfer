@@ -123,6 +123,10 @@ then
   echo ""
   echo "  --k_regularizer_nonlin3d K_REGULARIZER_NONLIN3D"
   echo "                        (Advanced) Weight of regularizer of 3D nonlinear deformatin of reference"
+  echo ""
+  echo "  --k_regularizer_sz K_REGULARIZER_SZ"
+  echo "                        (Advanced) Weight of regularizer of stretch in AP direction"
+  echo ""               
 exit 0
 fi
  
