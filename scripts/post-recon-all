@@ -568,6 +568,7 @@ while( $#argv != 0 )
       set DoQAStats = 1
       breaksw
     case "--no-qa-stats":
+    case "--no-qastats":
       set DoQAStats = 1
       breaksw
 
@@ -691,7 +692,7 @@ usage_exit:
   echo " --no-vsinus : do not run seg of venous sinuses"
   echo " --no-synthstrip : do not run synthstrip"
   echo " --no-synthseg : do not run synthseg"
-  echo " --no-qastats : do not run qastats"
+  echo " --no-qa-stats : do not run qastats"
   echo " --no-samseg : do not run samseg"
   echo " --no-xhemi : do not run xhemi"
   echo " --threads nthreads (or setenv FS_OMP_NUM_THREADS)"
