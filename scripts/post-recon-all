@@ -77,7 +77,9 @@ echo "" | tee -a $LF
 echo "Starting post-recon-all" | tee -a $LF
 date |& tee -a $LF
 
-echo "pwd `pwd`" | tee -a $LF
+echo "cd `pwd`"  | tee -a $LF
+echo $0 $inputargs | tee -a $LF
+ls -l $0  | tee -a $LF
 echo "FS_OMP_NUM_THREADS $FS_OMP_NUM_THREADS " | tee -a $LF
 echo "SUBJECTS_DIR $SUBJECTS_DIR" | tee -a $LF
 
@@ -244,8 +246,8 @@ if($DoSCLimbic) then
 endif
 
 if($DoHThSU) then
-  set hthsu = $mdir/hypothalamic_subunits_nu_resampled_1mm.v1.mgz
-  set ud = (`UpdateNeeded $sclimbic $nu`)
+  set hthsu = $mdir/hypothalamic_subunits_seg.v1.mgz
+  set ud = (`UpdateNeeded $hthsu $nu`)
   if($ud || $ForceUpdate) then
     set cmd = (mri_segment_hypothalamic_subunits --s $subject --threads $threads)
     echo $cmd | tee -a $LF
@@ -259,6 +261,11 @@ if($DoHThSU) then
       echo $cmd > $sd/scripts/post-recon-all.hthsu.hardfailure.txt
       @ ExitStatus = $ExitStatus + 1
     endif
+    # For embed the colortable
+    set ctab = $FREESURFER/FreeSurferColorLUT.txt
+    set cmd = (mri_convert --ctab $ctab $hthsu $hthsu)
+    echo $cmd | tee -a $LF
+     $cos7run $cmd | tee -a $LF
   endif
 endif
 
