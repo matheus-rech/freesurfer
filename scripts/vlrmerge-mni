@@ -70,7 +70,7 @@ mkdir -p $tmpdir
 # Set up log file
 if($#LF == 0) set LF = $outvol.vlrmerge.log
 if($LF != /dev/null) rm -f $LF
-echo "Log file for vlrmerge2" >> $LF
+echo "Log file for vlrmerge-mni" >> $LF
 date  | tee -a $LF
 echo "" | tee -a $LF
 echo "setenv SUBJECTS_DIR $SUBJECTS_DIR" | tee -a $LF
@@ -195,11 +195,11 @@ set tRunHours = `echo $tSecRun/3600|bc -l`
 set tRunHours = `printf %5.2f $tRunHours`
 echo "Started at $StartTime " |& tee -a $LF
 echo "Ended   at `date`" |& tee -a $LF
-echo "Vlrmerge2-Run-Time-Sec $tSecRun" |& tee -a $LF
-echo "Vlrmerge2-Run-Time-Min $tRunMin" |& tee -a $LF
-echo "Vlrmerge2-Run-Time-Hours $tRunHours" |& tee -a $LF
+echo "Vlrmerge-Mni-Run-Time-Sec $tSecRun" |& tee -a $LF
+echo "Vlrmerge-Mni-Run-Time-Min $tRunMin" |& tee -a $LF
+echo "Vlrmerge-Mni-Run-Time-Hours $tRunHours" |& tee -a $LF
 echo " " |& tee -a $LF
-echo "vlrmerge2 Done" |& tee -a $LF
+echo "vlrmerge-mni Done" |& tee -a $LF
 exit 0
 
 ###############################################
