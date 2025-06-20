@@ -22,6 +22,7 @@ set vreg = ()
 set sreg = ()
 set scgmmask = ()
 set DoCorrection = 0;
+set DoSCGMMask = 1
 
 set ForceUpdate = 0
 
@@ -68,7 +69,7 @@ endif
 mkdir -p $tmpdir
 
 # Set up log file
-if($#LF == 0) set LF = $outvol.vlrmerge.log
+if($#LF == 0) set LF = $outvol.vlrmerge-mni.log
 if($LF != /dev/null) rm -f $LF
 echo "Log file for vlrmerge-mni" >> $LF
 date  | tee -a $LF
@@ -99,7 +100,7 @@ if($ud || $ForceUpdate) then
   echo $cmd | tee -a $LF
   $cmd  | tee -a $LF
   if($status) exit 1
-  if($#scgmmask) then
+  if($DoSCGMMask && $#scgmmask) then
     set cmd = (mri_mask $tscgmvol $scgmmask $tscgmvol)
     echo $cmd | tee -a $LF
     $cmd  | tee -a $LF
@@ -283,6 +284,14 @@ while( $#argv != 0 )
      set DoMNI152 = 1
      breaksw
 
+    case "--scgm-mask":
+     set DoSCGMMask = 1
+     breaksw
+
+    case "--no-scgm-mask":
+     set DoSCGMMask = 0
+     breaksw
+
     case "--correct":
       # Bonferroni correction for multiple comparsisons across 3 spaces
       # Assumes that inputs have already been corrected
@@ -410,6 +419,7 @@ usage_exit:
   echo "    if the surface overlays are already on fsmni152, specify --surf-s fsmni152"
   echo " --correct : bonferroni correct across 3 spaces (for p-values)"
   echo " --d outputdir : mainly for debuggin'"
+  echo " --no-scgm-mask : do not apply the basic SCGM mask"
   if($DoMNI152 == 0) echo " --mni152 : sets targetsubject to fs-mni152"
   if($DoMNI152 == 1) then
     echo " --no-mni152 : do not assume mn152 (must set --s targetsubject)"
@@ -437,7 +447,8 @@ voxels). The assumption is that surfaces have been analyzed on
 fsaverage and that the volumes have been analayzed in mni152.
 
 Typical usage: Analyze subcortical in the volume, preferably with a
-subcortical mask. Somehow get it into MNI152 space (eg, using the warp
+subcortical mask (though one is applied by this script unless
+--no-scgm-mask). Somehow get it into MNI152 space (eg, using the warp
 from synthmorph), then compute a group average for the subcortical
 gray matter (SCGM). Analyze surface data on fsaverge. Then run
 something like:
