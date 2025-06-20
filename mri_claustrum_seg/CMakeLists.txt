@@ -19,5 +19,5 @@ install(PROGRAMS model/claustrum-seg.py DESTINATION "${claustrum_python}/scripts
 install(FILES model/claustrum_seg_20250616.h5 DESTINATION "${claustrum_models}")
 
 # isntall the atlas dir
-install_directories(claustrum_seg DESTINATION average)
+install_tarball(claustrum_seg DESTINATION average)
 
