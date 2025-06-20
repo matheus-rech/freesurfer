@@ -1,0 +1,462 @@
+#!/bin/tcsh -f
+# vlrmerge-mni - sources
+if(-e $FREESURFER_HOME/sources.csh) then
+  source $FREESURFER_HOME/sources.csh
+endif
+
+set VERSION = '$Id$';
+set scriptname = `basename $0`
+
+setenv FSMNI152DIR $FREESURFER/average/mni_icbm152_nlin_asym_09c
+
+set targetsubject = ()
+set surfsubject = (fsaverage)
+set outvol = ()
+set outdir = ()
+set scgmvol = ()
+set tempvol = ()
+set surfoverlays = ()
+set hemilist = ()
+set DoMNI152 = 1
+set vreg = ()
+set sreg = ()
+set scgmmask = ()
+set DoCorrection = 0;
+
+set ForceUpdate = 0
+
+set tmpdir = ();
+set cleanup = 1;
+set LF = ();
+
+set inputargs = ($argv);
+set PrintHelp = 0;
+if($#argv == 0) goto usage_exit;
+set n = `echo $argv | grep -e -help | wc -l` 
+if($n != 0) then
+  set PrintHelp = 1;
+  goto usage_exit;
+endif
+set n = `echo $argv | grep -e -version | wc -l` 
+if($n != 0) then
+  echo $VERSION
+  exit 0;
+endif
+goto parse_args;
+parse_args_return:
+goto check_params;
+check_params_return:
+
+set StartTime = `date`;
+set tSecStart = `date '+%s'`;
+set year  = `date +%Y`
+set month = `date +%m`
+set day   = `date +%d`
+set hour   = `date +%H`
+set min    = `date +%M`
+
+set outdir = `dirname $outvol`
+mkdir -p $outdir
+pushd $outdir > /dev/null
+set outdir = `pwd`;
+popd > /dev/null
+
+if($#tmpdir == 0) then
+  if(-dw /scratch)   set tmpdir = /scratch/tmpdir.vlrmerge-mni.$$
+  if(! -dw /scratch) set tmpdir = $outdir/tmpdir.vlrmerge-mni.$$
+endif
+mkdir -p $tmpdir
+
+# Set up log file
+if($#LF == 0) set LF = $outvol.vlrmerge.log
+if($LF != /dev/null) rm -f $LF
+echo "Log file for vlrmerge2" >> $LF
+date  | tee -a $LF
+echo "" | tee -a $LF
+echo "setenv SUBJECTS_DIR $SUBJECTS_DIR" | tee -a $LF
+echo "cd `pwd`"  | tee -a $LF
+echo $0 $inputargs | tee -a $LF
+ls -l $0  | tee -a $LF
+echo "" | tee -a $LF
+cat $FREESURFER_HOME/build-stamp.txt | tee -a $LF
+echo $VERSION | tee -a $LF
+uname -a  | tee -a $LF
+echo "pid $$" | tee -a $LF
+if($?PBS_JOBID) then
+  echo "pbsjob $PBS_JOBID"  >> $LF
+endif
+if($?SLURM_JOB_ID) then
+  echo SLURM_JOB_ID $SLURM_JOB_ID >> $LF
+endif
+
+#========================================================
+set tscgmvol = $tmpdir/scgmvol.nii.gz
+set ud = `UpdateNeeded $tscgmvol $scgmvol $vreg`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_vol2vol --cubic --mov $scgmvol --o $tscgmvol)
+  if($#tempvol) set cmd = ($cmd --targ $tempvol --regheader)
+  if($#vreg)    set cmd = ($cmd --reg $vreg)
+  echo $cmd | tee -a $LF
+  $cmd  | tee -a $LF
+  if($status) exit 1
+  if($#scgmmask) then
+    set cmd = (mri_mask $tscgmvol $scgmmask $tscgmvol)
+    echo $cmd | tee -a $LF
+    $cmd  | tee -a $LF
+    if($status) exit 1
+  endif
+endif
+
+set mergevol = $tmpdir/merge.vol.nii.gz
+@ n = 0
+foreach hemi ($hemilist)
+  @ n = $n + 1
+  if($#surfsubject) then
+    if($surfsubject == fsaverage || $surfsubject == fsmni152) then
+      set srcsph = $FREESURFER/subjects/$surfsubject/surf/$hemi.sphere.reg
+    else
+      set srcsph = $SUBJECTS_DIR/$surfsubject/surf/$hemi.sphere.reg
+    endif
+    if($targetsubject == fsmni152 || $targetsubject == fsaverage) then
+      set trgsph = $FREESURFER/subjects/$targetsubject/surf/$hemi.sphere.reg
+    else
+      set trgsph = $SUBJECTS_DIR/$targetsubject/surf/$hemi.sphere.reg
+    endif
+    set ovsurf = $tmpdir/ov.$targetsubject.$hemi.nii.gz
+    set ud = `UpdateNeeded $ovsurf $surfoverlays[$n]`
+    if($ud || $ForceUpdate) then
+      set cmd = (mris_apply_reg --st $srcsph $trgsph --sval $surfoverlays[$n] --tval $ovsurf)
+    echo $cmd | tee -a $LF
+    $cmd | tee -a $LF
+    if($status) exit 1
+  else
+    set ovsurf = $surfoverlays[$n]
+  endif
+
+  # Map surface overlay into the full volume. Use the scgm vol as the merge
+  # volume; the geom of the merge volume must agree with the
+  # lta. Setting it up like this means that any place where the scgm and
+  # surf overlap the surf will get priority
+  if($n == 1) then
+    set invol = $tscgmvol
+    set s2voutvol = $mergevol
+  endif
+  if($n == 2) then
+    set invol = $mergevol
+    set s2voutvol = $outvol
+  endif
+  set ud = (`UpdateNeeded $s2voutvol $ovsurf $mergevol`)
+  if($ud || $ForceUpdate) then
+    if($targetsubject == fsmni152) then
+      set white  = $FREESURFER/subjects/fsmni152/surf/$hemi.white
+      set ribbon = $FREESURFER/subjects/fsmni152/mri/ribbon.mgz
+    else
+      set white = $SUBJECTS_DIR/$targetsubject/surf/$hemi.sphere.reg
+      set ribbon = $SUBJECTS_DIR/$targetsubject/mri/ribbon.mgz
+    endif
+    set cmd = (mri_surf2vol --so $white $ovsurf --ribbon $ribbon \
+      --merge $invol --hemi $hemi --o $s2voutvol)
+    if($#sreg) set cmd = ($cmd --lta $sreg)
+    echo $cmd | tee -a $LF
+    $cmd | tee -a $LF
+    if($status) exit 1
+  endif
+
+end # hemi
+
+if($DoCorrection) then
+  # Bonferroni correct for multiple comparisons across the 3
+  # spaces. Assumes that correction within a space have already been
+  # done
+  set cmd = (fscalc $outvol bcor 3 -o $outvol)
+  echo $cmd | tee -a $LF
+  $cmd | tee -a $LF
+  if($status) exit 1;
+endif
+
+set mni = $FREESURFER/average/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz
+set fvcmd = (freeview -neuro-view -rotate-around-cursor --hide-3d-slices -v $mni ${outvol}:colormap=heat)
+echo "" | tee -a $LF
+echo $fvcmd | tee -a $LF
+echo "" | tee -a $LF
+
+#========================================================
+
+# Cleanup
+if($cleanup) rm -rf $tmpdir
+
+# Done
+echo " " |& tee -a $LF
+set tSecEnd = `date '+%s'`;
+@ tSecRun = $tSecEnd - $tSecStart;
+set tRunMin = `echo $tSecRun/50|bc -l`
+set tRunMin = `printf %5.2f $tRunMin`
+set tRunHours = `echo $tSecRun/3600|bc -l`
+set tRunHours = `printf %5.2f $tRunHours`
+echo "Started at $StartTime " |& tee -a $LF
+echo "Ended   at `date`" |& tee -a $LF
+echo "Vlrmerge2-Run-Time-Sec $tSecRun" |& tee -a $LF
+echo "Vlrmerge2-Run-Time-Min $tRunMin" |& tee -a $LF
+echo "Vlrmerge2-Run-Time-Hours $tRunHours" |& tee -a $LF
+echo " " |& tee -a $LF
+echo "vlrmerge2 Done" |& tee -a $LF
+exit 0
+
+###############################################
+
+############--------------##################
+error_exit:
+echo "ERROR:"
+
+exit 1;
+###############################################
+
+############--------------##################
+parse_args:
+set cmdline = ($argv);
+while( $#argv != 0 )
+
+  set flag = $argv[1]; shift;
+  
+  switch($flag)
+
+    case "--o":
+      if($#argv < 1) goto arg1err;
+      set outvol = $argv[1]; shift;
+      breaksw
+
+    case "--d":
+      if($#argv < 1) goto arg1err;
+      set tmpdir = $argv[1]; shift;
+      set outvol = $tmpdir/vlrmerge.nii.gz
+      set cleanup = 0;
+      breaksw
+
+    case "--s":
+      if($#argv < 1) goto arg1err;
+      set targetsubject = $argv[1]; shift;
+      breaksw
+
+    case "--surf-s":
+    case "--surf-subject":
+      if($#argv < 1) goto arg1err;
+      set surfsubject = $argv[1]; shift;
+      breaksw
+
+    case "--sd":
+      if($#argv < 1) goto arg1err;
+      setenv SUBJECTS_DIR $argv[1]; shift;
+      breaksw
+
+    case "--lh":
+      if($#argv < 1) goto arg1err;
+      set surfoverlays = ($surfoverlays $argv[1]); shift
+      set hemilist = ($hemilist lh)
+      breaksw
+
+    case "--rh":
+      if($#argv < 1) goto arg1err;
+      set surfoverlays = ($surfoverlays $argv[1]); shift
+      set hemilist = ($hemilist rh)
+      breaksw
+
+    case "--scgm":
+      if($#argv < 1) goto arg1err;
+      set scgmvol = $argv[1]; shift
+      breaksw
+
+    case "--v-reg":
+      if($#argv < 1) goto arg1err;
+      set vreg = $argv[1]; shift
+      breaksw
+
+    case "--s-reg":
+      if($#argv < 1) goto arg1err;
+      set sreg = $argv[1]; shift
+      breaksw
+
+    case "--no-mni152":
+     set DoMNI152 = 1
+     breaksw
+
+    case "--mni152":
+     set DoMNI152 = 1
+     breaksw
+
+    case "--correct":
+      # Bonferroni correction for multiple comparsisons across 3 spaces
+      # Assumes that inputs have already been corrected
+      set DoCorrection = 1; 
+      breaksw
+
+    case "--force":
+     set ForceUpdate = 1
+     breaksw
+    case "--no-force":
+     set ForceUpdate = 0
+     breaksw
+
+    case "--log":
+      if($#argv < 1) goto arg1err;
+      set LF = $argv[1]; shift;
+      breaksw
+
+    case "--nolog":
+    case "--no-log":
+      set LF = /dev/null
+      breaksw
+
+    case "--tmp":
+    case "--tmpdir":
+      if($#argv < 1) goto arg1err;
+      set tmpdir = $argv[1]; shift;
+      set cleanup = 0;
+      breaksw
+
+    case "--nocleanup":
+      set cleanup = 0;
+      breaksw
+
+    case "--cleanup":
+      set cleanup = 1;
+      breaksw
+
+    case "--debug":
+      set verbose = 1;
+      set echo = 1;
+      breaksw
+
+    default:
+      echo ERROR: Flag $flag unrecognized. 
+      echo $cmdline
+      exit 1
+      breaksw
+  endsw
+
+end
+
+goto parse_args_return;
+############--------------##################
+
+############--------------##################
+check_params:
+
+if($#outdir) then
+  if($#outvol == 0) set outvol = $outdir/vlrmerge.nii.gz
+endif
+if($#outvol == 0) then
+  echo "ERROR: must spec output volume"
+  exit 1
+endif
+if($#scgmvol == 0) then
+  echo "ERROR: must spec scgm overlay"
+  exit 1;
+endif
+if($#surfoverlays == 0) then
+  echo "ERROR: must spec surf overlays"
+  exit 1;
+endif
+if($#targetsubject == 0 && $DoMNI152 == 0) then
+  echo "ERROR: must spec target subject"
+  exit 1;
+endif
+if($#targetsubject != 0 && $DoMNI152 != 0) then
+  echo "ERROR: cannot spec --s and --mni152"
+  exit 1;
+endif
+if($DoMNI152) then
+  set targetsubject = fsmni152
+  set sreg = $FREESURFER/subjects/fsmni152/mri/rawavg2orig.lta
+  set tempvol = $FREESURFER/subjects/fsmni152/mri/rawavg.mgz
+  set scgmmask = $FSMNI152DIR/synthseg.t1.subcortgm.mask.nii.gz
+endif
+if($#surfsubject == 0) set surfsubject = $targetsubject 
+foreach s ($targetsubject $surfsubject)
+  if($s == fsmni152 || $s == fsaverage) continue;
+  if(-e $SUBJECTS_DIR/$s/mri/ribbon.mgz) continue
+  echo "ERROR: cannot find $SUBJECTS_DIR/$s/mri/ribbon.mgz"
+  exit 1
+end
+foreach f ($vreg $sreg)
+  if( -e $f) continue
+  echo "ERROR: cannot find $f"
+  exit 1
+end
+
+if($#outdir == 0) set outdir = `dirname $outvol`
+
+goto check_params_return;
+############--------------##################
+
+############--------------##################
+arg1err:
+  echo "ERROR: flag $flag requires one argument"
+  exit 1
+############--------------##################
+arg2err:
+  echo "ERROR: flag $flag requires two arguments"
+  exit 1
+############--------------##################
+
+############--------------##################
+usage_exit:
+  echo ""
+  echo "vlrmerge-mni - merge surface and subcort maps into a volume map"
+  echo " --o outvol : output volume"
+  echo " --lh lhoverlay : overlay for left hemi on surf-s subject"
+  echo " --rh rhoverlay : overlay for right hemi on surf-s subject"
+  echo " --scgm scgmvoloverlay : subcortical gray matter overlay"
+  echo " --surf-s surfsubject (surf overlays are on this subject, eg, fsaverage)"
+  echo "    if the surface overlays are already on fsmni152, specify --surf-s fsmni152"
+  echo " --correct : bonferroni correct across 3 spaces (for p-values)"
+  echo " --d outputdir : mainly for debuggin'"
+  if($DoMNI152 == 0) echo " --mni152 : sets targetsubject to fs-mni152"
+  if($DoMNI152 == 1) then
+    echo " --no-mni152 : do not assume mn152 (must set --s targetsubject)"
+    echo " --s targetsubject (get ribbon and sphere.reg if needed) with --no-mni152"
+    echo " --v-reg volume reg for scgmvol into output space  with --no-mni152"
+    echo " --s-reg volume reg for surf into output space  with --no-mni152"
+  endif
+  echo ""
+
+  if(! $PrintHelp) exit 1;
+  echo $VERSION
+  cat $0 | awk 'BEGIN{prt=0}{if(prt) print $0; if($1 == "BEGINHELP") prt = 1 }'
+exit 1;
+
+#---- Everything below here is printed out as part of help -----#
+BEGINHELP
+
+
+vlrmerge-mni - merge surface and subcort maps into a volume map for
+making figures, etc, of the final group regults. This is often used
+when one has done an fMRI analysis in FSFAST or a PET analysis in
+PETsurfer where the analysis is done in three parts: left hemi, right
+hemi, and subcortical GM (this is only meant for analysis of GM
+voxels). The assumption is that surfaces have been analyzed on
+fsaverage and that the volumes have been analayzed in mni152.
+
+Typical usage: Analyze subcortical in the volume, preferably with a
+subcortical mask. Somehow get it into MNI152 space (eg, using the warp
+from synthmorph), then compute a group average for the subcortical
+gray matter (SCGM). Analyze surface data on fsaverge. Then run
+something like:
+
+vlrmerge-mni --o merged.nii.gz --scgm mean.mni152-1.0mm.nii.gz \
+   --lh mean.fsaverage.lh.nii.gz --rh mean.fsaverage.rh.nii.gz 
+
+If these are significance (-log10(pvalue)) maps, then you can use 
+the --correct option to correct for 3 comparisons (ie, the 3 spaces).
+
+The subcortical GM volume can be in any MNI152 space (eg, SPM, FSL,
+AFNI, 1.0mm, 1.5mm, 2.0mm) as long as the geometry stored in the
+volume makes it align with fsmni152.
+
+If the surface maps are already in fsmni152 (and not fsverage), then 
+specify -s-surf fsmni152.
+
+See also vlrmerge in FSFAST
+
+
+
+
