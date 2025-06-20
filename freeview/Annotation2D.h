@@ -44,6 +44,13 @@ public:
 
   bool GetShowScaleLine();
 
+  bool GetShowGrid();
+
+  double GetGridSize()
+  {
+    return m_dGridSize;
+  }
+
   void Show( bool bShow );
   bool IsVisible();
 
@@ -56,17 +63,23 @@ public:
 public slots:
   void ShowScaleLine( bool bShow );
   void SetColor(const QColor& c);
+  void ShowGrid(bool bShow);
+  void SetGridSize(double val);
 
 Q_SIGNALS:
   void Updated();
 
 private:
   void UpdateScaleActors( double length, int nNumOfTicks, const char* title );
+  void UpdateGridActor(double grid_len, double dAspect = 1);
 
   vtkSmartPointer<vtkTextActor> m_actorCoordinates[6];
   vtkSmartPointer<vtkActor2D>  m_actorScaleLine;
+  vtkSmartPointer<vtkActor2D>  m_actorGrid;
   vtkSmartPointer<vtkTextActor> m_actorScaleTitle;
   vtkSmartPointer<vtkPropCollection> m_actorsAll;
+  bool m_bShowGrid;
+  double m_dGridSize;
 };
 
 #endif

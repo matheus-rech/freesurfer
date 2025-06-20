@@ -398,9 +398,11 @@ endif
 if($inittal) then
   set lta = $SUBJECTS_DIR/$subject/mri/transforms/talairach.xfm.lta
 endif
-if($#lta && ! -e $lta) then
-  echo "ERROR: cannot find $lta"
-  exit 1
+if($#lta) then
+  if(! -e $lta) then
+    echo "ERROR: cannot find $lta"
+    exit 1
+  endif
 endif
 
 if($MakeLinks) then

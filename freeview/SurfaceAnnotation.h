@@ -192,6 +192,16 @@ public:
 
   void CleanUpColorTable();
 
+  int GetActiveFrame()
+  {
+    return m_nActiveFrame;
+  }
+
+  int GetNumberOfFrames()
+  {
+    return m_nNumberOfFrames;
+  }
+
 signals:
   void Modified();
 
@@ -204,6 +214,8 @@ public slots:
   void Undo();
   void Redo();
   void SaveForUndo();
+
+  void SetActiveFrame(int n);
 
 protected:
   void Reset();
@@ -223,6 +235,8 @@ private:
   int*          m_nCenterVertices;  // center vertex of each annotation
   int*          m_data;
   QList<int>    m_listAnnotations;
+  int           m_nNumberOfFrames;
+  int           m_nActiveFrame;
 
   QString       m_strName;
   COLOR_TABLE*  m_lut;
