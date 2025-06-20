@@ -36,8 +36,8 @@ parser.add_argument('--masked', help='Pre-masked input image. Providing this wil
 parser.add_argument('--mask', help='Pre-masked input image. Providing this will skip the skull-stripping step. Unlike --masked, will do all volume normalizations to the provided mask.')
 parser.add_argument('--segfile', help='Volumetric segmentation from another source. Unless --forceskullstrip is set, a masked' \
                     ' input image is also expected along with and matching this input.')
-#parser.add_argument('--t2', action='store_true', help='Enable T2 processing.')
-#parser.add_argument('--t2file', help='Input file - T2 image.')
+parser.add_argument('--t2', action='store_true', help='Enable T2 processing. (NOT YET IMPLEMENTED)')
+parser.add_argument('--t2file', help='Input file - T2 image. (NOT YET IMPLEMENTED)')
 
 # Training subject options
 parser.add_argument('--newborn', action='store_true', help='Indicate that the subject is a newborn. All five newborn subjects' \
@@ -119,7 +119,7 @@ if not args.keep_going and not args.force and os.path.exists(os.path.join(outdir
 if not args.outdir and not subjsdir or not os.path.isdir(subjsdir):
     sf.system.fatal('Must set SUBJECTS_DIR or use --outdir flag to indicate a valid data location.')
 
-if not os.path.isfile(os.path.join(subjsdir, subj, 'mprage.nii.gz')):
+if not os.path.exists(os.path.join(subjsdir, subj, 'mprage.nii.gz')):
     if not input_t1 or not input_masked:
         sf.system.fatal('Must provide input. Either have mprage.nii.gz in the output_dir; or define it explicitely T1 with --inputfile or --masked flag.')
 
