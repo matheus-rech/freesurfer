@@ -8757,6 +8757,8 @@ check_params:
     exit 1
   endif
 
+  if($DoAntsN3) set DoAntsN4 = 0
+
   if(! $DoCleanTal && ! $DoCleanCP && ! $DoCleanBM && ! $DoConvertInput && \
      ! $DoCleanASeg && ! $DoCleanWM && ! $DoCleanFilled && ! $DoCleanSeed && ! $DoCleanCW256 && \
      ! $DoCortParc && ! $DoCortParc2 && ! $DoGCAReg && \
