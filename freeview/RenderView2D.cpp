@@ -222,7 +222,7 @@ void RenderView2D::UpdateViewByWorldCoordinate()
     cam->SetPosition( wcenter[0], wcenter[1], m_bNeurologicalView? (wcenter[2] + len):(wcenter[2] - len) );
     break;
   }
-  //  m_renderer->ResetCameraClippingRange();
+  m_renderer->ResetCameraClippingRange();
   cam->SetParallelScale( qMax( qMax(m_dWorldSize[0], m_dWorldSize[1]), m_dWorldSize[2])/2 );
   Update2DOverlay();
 }
