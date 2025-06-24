@@ -704,11 +704,13 @@ void ToolWindowEdit::OnButtonGeoSegGo()
       }
       else if (ui->actionScribblePrompt->isChecked())
       {
+#ifdef SCRIBBLE_PROMPT
         if (m_scribble->GetModelFilename().isEmpty())
         {
           QMessageBox::warning(this, "No Model", "No SP model was selected.");
           return;
         }
+#endif
         mri_fill->ClearVoxels();
         MainWindow* mainwnd = MainWindow::GetMainWindow();
         BrushProperty* bp = mainwnd->GetBrushProperty();
