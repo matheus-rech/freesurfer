@@ -192,12 +192,10 @@ function(integrate_samseg)
   set(STANDALONE_SAMSEG_PATH ${requirements_samseg})
 
   # set samseg package install location
-  set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/packages")
-  set(SAMSEG_PKG_TARGET "${pip_target_option}=${SAMSEG_INSTALL_DIR}")  
+  set(SAMSEG_PKG_TARGET "")  
   if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
     set(STANDALONE_SAMSEG_PATH "${USER_SAMSEG_PATH}")
-    # for editable install to work, unset SAMSEG_PKG_TARGET, so the .pth will be python/lib/pythonX.Y/site-packages
-    set(SAMSEG_PKG_TARGET "")
+    # for editable install to work, the .pth needs to be python/lib/pythonX.Y/site-packages
     # editable samseg install doesn't work in the following build environments:
     # 1. if DISTRIBUTE_FSPYTHON=OFF,
     #       module samseg cannot be found
@@ -221,6 +219,7 @@ function(integrate_samseg)
 
     # no check/install samseg dependencies, all dependencies will be handled in requirement files
     if(NOT ${USER_SAMSEG_PATH} STREQUAL \"\")
+      set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/lib/python3.8/site-packages")
       message(STATUS \" removing previous install ${SAMSEG_INSTALL_DIR}/*samseg* ... \")
       execute_process(COMMAND bash -c \"rm -rf ${SAMSEG_INSTALL_DIR}/*samseg*\")
     endif()
@@ -316,7 +315,6 @@ if(NOT DISTRIBUTE_FSPYTHON AND NOT INSTALL_PYTHON_DEPENDENCIES)
    # Use an existing 3rd party python instead of base python distribution
    # install C bindings, etc. under python/packages
    # NO pre-installed site-packages, add fspython wrapper
-   # set PKG_TARGET, this is needed for integrate_samseg()
    if(INTEGRATE_SAMSEG)
       integrate_samseg()
       # rm_fspython_packages_bin()
