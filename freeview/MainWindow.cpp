@@ -6975,6 +6975,11 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
         double worigin[3], wsize[3];
         sf->GetWorldOrigin(mri_origin);
         sf->GetWorldSize(mri_size);
+        // for (int i = 0; i < 3; i++)
+        // {
+        //   mri_origin[i] -= mri_size[i]/4;
+        //   mri_size[i] += mri_size[i]/2;
+        // }
         lc_surface->GetWorldOrigin( worigin );
         lc_surface->GetWorldSize( wsize );
         lc_surface->GetWorldVoxelSize(vs);
@@ -6997,7 +7002,7 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
         lc_surface->AddLayer(sf);
         for ( int i = 0; i < 4; i++ )
         {
-          this->m_views[i]->SetWorldCoordinateInfo( worigin, wsize );
+          m_views[i]->SetWorldCoordinateInfo(worigin, wsize);
         }
       }
       else
@@ -7092,7 +7097,7 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
       lc_odf->SetWorldSize( wsize );
       lc_odf->SetWorldVoxelSize( vs );
       lc_odf->AddLayer( odf );
-      lc_odf->SetSlicePosition( lc_mri->GetSlicePosition() );
+      lc_odf->SetSlicePosition(lc_mri->GetSlicePosition());
     }
   }
   else if (jobtype == ThreadIOWorker::JT_LoadConnectome && layer->IsTypeOf("CMAT"))
