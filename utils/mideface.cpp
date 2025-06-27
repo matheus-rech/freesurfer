@@ -229,6 +229,7 @@ int MiDeface::Deface(void)
 
 int MiDeface::FaceIntensityStats(void)
 {
+  // Uses frame 0
   if(faceseg == NULL) MiDeface::SegFace();
   printf("MiDeface::FaceIntensityStats()\n");
 
@@ -264,15 +265,36 @@ int MiDeface::FaceIntensityStats(void)
       }
     }
   }
+  if(min1 == max1){
+    printf("ERROR: inside face min=max=%g\n",min1);
+    return(1);
+  }
+  if(min2 == max2){
+    printf("ERROR: outside face min=max=%g\n",min2);
+    return(1);
+  }
+
   gmean1 = sum1 / nface1vox;
   gstddev1 = sqrt(sumsq1 / nface1vox - (gmean1) * (gmean1));
   gmean2 = sum2 / nface2vox;
   gstddev2 = sqrt(sumsq2 / nface2vox - (gmean2) * (gmean2));
 
-  // Compute the mode of the outside voxels because there can 
-  // be a lot of crud out there.
-  HISTO *h2 = HISTOalloc((int)ceil(max2)+1) ;
-  HISTOinit(h2, h2->nbins, 0, ceil(max2)) ;
+  // Compute the mode of the outside voxels because there can be a lot
+  // of crud out there. mode is more robust than mean.  It is a little
+  // tricky. The original version did not perform well under arbitrary
+  // float conditions. It was basically expecting ints because data
+  // off the scanner. It might be a good idea to just compute the
+  // median instead then don't have to worry about the bins.
+  int nbins;
+  if(invol->type == MRI_FLOAT){
+    printf("nperbin=%d nbinsmax=%d\n",this->nperbin,this->nbinsmax);
+    nbins = ceil((double)nface1vox/this->nperbin);
+    if(nbins > this->nbinsmax) nbins = this->nbinsmax;
+  }
+  else nbins = (int)ceil(max2-min2)+1;
+  HISTO *h2 = HISTOalloc(nbins);
+  HISTOinit(h2, h2->nbins, floor(min2), ceil(max2)) ;
+  printf("h2->nbins = %d %g %g\n",h2->nbins,h2->max,h2->min);
   float bin_size = (h2->max - h2->min)/((float)h2->nbins - 1);
   for(c=0; c < invol->width; c++){
     int r,s;
@@ -297,14 +319,16 @@ int MiDeface::FaceIntensityStats(void)
       bmax = b;
     }
   }
+  //HISTOwriteTxt(h2,"histo.dat");
+
   printf("Mode2 %d %g  %g\n",bmax,h2->bins[bmax],h2->counts[bmax]);
   mode2 = h2->bins[bmax];
-  HISTOfree(&h2);
   printf("nface1vox %d  gmean %g  gstddev %g  min %g max %g\n",nface1vox,gmean1,gstddev1,min1,max1);
   printf("nface2vox %d  gmean %g  gstddev %g  min %g max %g mode %g\n",nface2vox,gmean2,gstddev2,min2,max2,mode2);
   printf("gmeanratio %g %g\n",gmean1/gmean2,gmean1/mode2);
-
   fflush(stdout);
+
+  HISTOfree(&h2);
   return(0);
 }
 
