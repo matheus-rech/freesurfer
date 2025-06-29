@@ -176,7 +176,8 @@ if($DoCorrection) then
 endif
 
 set mni = $FREESURFER/average/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz
-set fvcmd = (freeview -neuro-view -rotate-around-cursor --hide-3d-slices -v $mni ${outvol}:colormap=heat)
+set fvcmd = (fsvglrun freeview -neuro-view -rotate-around-cursor \
+   --hide-3d-slices -v $mni ${outvol}:colormap=heat)
 echo "" | tee -a $LF
 echo $fvcmd | tee -a $LF
 echo "" | tee -a $LF
@@ -285,10 +286,14 @@ while( $#argv != 0 )
      breaksw
 
     case "--scgm-mask":
-     set DoSCGMMask = 1
+      if($#argv < 1) goto arg1err;
+      set scgmmask = $argv[1]; shift
      breaksw
 
-    case "--no-scgm-mask":
+    case "--mask":
+     set DoSCGMMask = 1
+     breaksw
+    case "--no-mask":
      set DoSCGMMask = 0
      breaksw
 
@@ -377,7 +382,7 @@ if($DoMNI152) then
   set targetsubject = fsmni152
   set sreg = $FREESURFER/subjects/fsmni152/mri/rawavg2orig.lta
   set tempvol = $FREESURFER/subjects/fsmni152/mri/rawavg.mgz
-  set scgmmask = $FSMNI152DIR/synthseg.t1.subcortgm.mask.nii.gz
+  if($#scgmmask == 0) set scgmmask = $FSMNI152DIR/synthseg.t1.subcortgm.mask.nii.gz
 endif
 if($#surfsubject == 0) set surfsubject = $targetsubject 
 foreach s ($targetsubject $surfsubject)
@@ -419,7 +424,8 @@ usage_exit:
   echo "    if the surface overlays are already on fsmni152, specify --surf-s fsmni152"
   echo " --correct : bonferroni correct across 3 spaces (for p-values)"
   echo " --d outputdir : mainly for debuggin'"
-  echo " --no-scgm-mask : do not apply the basic SCGM mask"
+  echo " --scgm-mask maskvol : apply this mask instead of the default (eg, see scgm-mask script)"
+  echo " --no-mask : do not apply the a SCGM mask (eg, if data already masksed)"
   if($DoMNI152 == 0) echo " --mni152 : sets targetsubject to fs-mni152"
   if($DoMNI152 == 1) then
     echo " --no-mni152 : do not assume mn152 (must set --s targetsubject)"
