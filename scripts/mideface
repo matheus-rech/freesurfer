@@ -47,6 +47,7 @@ set UseOrMask = 0
 set InitReg = ()
 set tmpdir = ();
 set cleanup = 1;
+set statframe = 0
 set LF = ();
 
 set UseXvfb = 1
@@ -326,7 +327,7 @@ set stats   = $tmpdir/stats.dat
 #set facemask = $tmpdir/face.mask.mgz
 set ud = (`UpdateNeeded $outvol $templatesurfsubj $invol $headmask $xmask $labellist $watermark`)
 if($ud || $ForceUpdate) then
-  set cmd = (mri_defacer --i $invol --ts $templatesurfsubj \
+  set cmd = (mri_defacer --statframe $statframe --i $invol --ts $templatesurfsubj \
    --min $minsurf --max $maxsurf --m $facemask --o $outvol \
    --hm $headmask --distdat $distdat --stats $stats \
    --w $watermark $dwatermark) # --distbounds $distlab 
@@ -556,6 +557,11 @@ while( $#argv != 0 )
       set invol = $argv[1]; shift;
       breaksw
 
+    case "--statframe":
+      if($#argv < 1) goto arg1err;
+      set statframe = $argv[1]; shift;
+      breaksw
+
     case "--threads":
       if($#argv < 1) goto arg1err;
       set threads = $argv[1]; shift;
@@ -753,7 +759,7 @@ while( $#argv != 0 )
       if($reg == regheader) set udreg = ()
       set ud = `UpdateNeeded $output $vol $facemask $udreg`
       if($ud) then
-        set cmd = (mri_defacer --apply $vol $facemask $reg $output)
+        set cmd = (mri_defacer --statframe $statframe --apply $vol $facemask $reg $output)
         echo $cmd 
         $cmd
         exit $status
@@ -943,6 +949,7 @@ usage_exit:
   echo " --imconvert /path/to/convert : path to imagemagik convert binary (for pics)"
   echo " --no-post : do not make a head surface after defacing"
   echo " --threads nthreads"
+  echo " --statframe statframe : 0-based frame to get stats from (default is $statframe); use BEFORE --apply"
   echo " --force : force reprocessing (not applicable if --odir has not been used)"
   echo " --nii : use nifti format as output (only when output files are not specified)"
   echo " --nii.gz : use compressed nifti format as output (only when output files are not specified)"

@@ -543,6 +543,11 @@ static int parse_commandline(int argc, char **argv) {
       sscanf(pargv[0],"%d",&defacer.nbinsmax);
       nargsused = 1;
     }
+    else if(!strcasecmp(option, "--statframe")){
+      if(nargc < 1) CMDargNErr(option,1);
+      sscanf(pargv[0],"%d",&defacer.statframe);
+      nargsused = 1;
+    }
     else if(!strcasecmp(option, "--apply")){
       // input facemask reg out
       if(nargc < 4) CMDargNErr(option,4);
@@ -628,8 +633,10 @@ static void print_usage(void) {
   printf("   --ots outputtempsurf : after any watermark and/or ripple\n");
   printf("   --nperbin nperbin : for finding the mode of outside voxels with float images\n");
   printf("   --nbinsmax nbinsmax : for finding the mode of outside voxels with float images\n");
+  printf("   --statframe frame: 0-based frame for computing stats when applying (default is 0)\n");
   printf("\n");
   printf("   --apply vol facemask reg output : apply to another volume (use regheader if no reg needed)\n");
+  printf("     Note: when using --apply, put --nperbin, --nbinsmax, and/or --statframe before --apply\n");
   printf("   --ripple-center R A S\n");
   printf("   --apply-ripple insurf axis amp period label outsurf\n");
   printf("\n");

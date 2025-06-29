@@ -229,9 +229,9 @@ int MiDeface::Deface(void)
 
 int MiDeface::FaceIntensityStats(void)
 {
-  // Uses frame 0
+  // Uses statframe, which is 0 by default
   if(faceseg == NULL) MiDeface::SegFace();
-  printf("MiDeface::FaceIntensityStats()\n");
+  printf("MiDeface::FaceIntensityStats() frame=%d\n",this->statframe);
 
   int c;
   double sum1=0, sumsq1=0, sum2=0, sumsq2=0;
@@ -246,7 +246,7 @@ int MiDeface::FaceIntensityStats(void)
 	int m = MRIgetVoxVal(faceseg,c,r,s,0);
 	if(m == 1){ 
 	  // inside template surface and in the head mask (ie, in tissue)
-	  double v = MRIgetVoxVal(invol,c,r,s,0);
+	  double v = MRIgetVoxVal(invol,c,r,s,this->statframe);
 	  sum1 += v;
 	  sumsq1 += (v * v);
 	  nface1vox++;
@@ -255,7 +255,7 @@ int MiDeface::FaceIntensityStats(void)
 	}
 	if(m == 4){
 	  // outside template surface and not in the head mask (ie, in background)
-	  double v = MRIgetVoxVal(invol,c,r,s,0);
+	  double v = MRIgetVoxVal(invol,c,r,s,this->statframe);
 	  sum2 += v;
 	  sumsq2 += (v * v);
 	  nface2vox++;
@@ -303,7 +303,7 @@ int MiDeface::FaceIntensityStats(void)
 	int m = MRIgetVoxVal(faceseg,c,r,s,0);
 	if(m == 4){
 	  // outside template surface and not in the head mask (in background)
-	  double v = MRIgetVoxVal(invol,c,r,s,0);
+	  double v = MRIgetVoxVal(invol,c,r,s,this->statframe);
 	  int bn = nint((v - h2->min) / bin_size);
 	  h2->counts[bn]++;
 	  // Note: should use HISTOaddSample() but it appears to be broken when binsize=1
