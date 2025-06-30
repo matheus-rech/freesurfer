@@ -8,7 +8,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 add_subdirectories(
   jpeg
   expat
-  tiff
   glut
   xml2
   minc
@@ -22,3 +21,6 @@ add_subdirectories(
   gifti
   svm
 )
+if(NOT TIFF_SYSLIBS)
+  add_subdirectories(tiff)
+endif()

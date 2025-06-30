@@ -71,7 +71,7 @@ if(con.rmprestim)
   WDelay = ones(1,length(taxis));
   TW = psdmax-psdmin;
   % R is matrix for a single condition
-  R = fast_condctrstmtx(dpsd,TW,-psdmin,con.sumevreg,WDelay,1);
+  R = fast_condctrstmtx(dpsd,TW,-psdmin,con.sumevreg,WDelay,con.rmprestim);
   % Number of rows in final C
   J = size(R,1);
   % Now determine C

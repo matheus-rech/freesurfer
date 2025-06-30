@@ -2,13 +2,22 @@ project(vtkutils)
 
 if(VTK_FOUND)
 
-  include_directories(
-    ${FS_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/packages/tiff
-    ${VTK_INCLUDE_DIRS}
-    ${X11_INCLUDE_DIR}
-  )
+  if(NOT TIFF_SYSLIBS)
+    include_directories(
+      ${FS_INCLUDE_DIRS}
+      ${CMAKE_CURRENT_SOURCE_DIR}
+      ${CMAKE_SOURCE_DIR}/packages/tiff      
+      ${VTK_INCLUDE_DIRS}
+      ${X11_INCLUDE_DIR}
+    )
+  else()
+    include_directories(
+      ${FS_INCLUDE_DIRS}
+      ${CMAKE_CURRENT_SOURCE_DIR}
+      ${VTK_INCLUDE_DIRS}
+      ${X11_INCLUDE_DIR}
+    )    
+  endif()
 
   set(SOURCES
     vtkFreesurferLookupTable.cxx

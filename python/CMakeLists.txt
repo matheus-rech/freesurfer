@@ -192,12 +192,10 @@ function(integrate_samseg)
   set(STANDALONE_SAMSEG_PATH ${requirements_samseg})
 
   # set samseg package install location
-  set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/packages")
-  set(SAMSEG_PKG_TARGET "${pip_target_option}=${SAMSEG_INSTALL_DIR}")  
   if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
+    set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/lib/python3.8/site-packages")
     set(STANDALONE_SAMSEG_PATH "${USER_SAMSEG_PATH}")
-    # for editable install to work, unset SAMSEG_PKG_TARGET, so the .pth will be python/lib/pythonX.Y/site-packages
-    set(SAMSEG_PKG_TARGET "")
+    # for editable install to work, the .pth needs to be python/lib/pythonX.Y/site-packages
     # editable samseg install doesn't work in the following build environments:
     # 1. if DISTRIBUTE_FSPYTHON=OFF,
     #       module samseg cannot be found
@@ -211,15 +209,15 @@ function(integrate_samseg)
   if(APPLE)
     set(APPLE_BUILD_SETTING "APPLE=ON APPLE_ARM64=${APPLE_ARM64}")
   endif()
-  set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${SAMSEG_PKG_TARGET} ${PIP_LAST_ARG}")
+  set(INTEGRATE_SAMSEG_COMMAND "ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} ${APPLE_BUILD_SETTING} ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} ${PIP_INSTALL_FLAGS} ${STANDALONE_SAMSEG_PATH} ${PKG_TARGET} ${PIP_LAST_ARG}")
 
   # pip install samseg via separate command
   install(CODE "
     message(STATUS \" for HOST_OS=${HOST_OS} \")
     message(STATUS \" ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} \")
-    message(STATUS \" PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} PYTHON_INSTALL=${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 SAMSEG_PKG_TARGET=${SAMSEG_PKG_TARGET} \")
+    message(STATUS \" PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} PYTHON_INSTALL=${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 PKG_TARGET=${PKG_TARGET} \")
 
-    # no check/install samseg dependencies, all dependencies will be handled in requirement files
+    # all dependencies should be already satisfied at this point
     if(NOT ${USER_SAMSEG_PATH} STREQUAL \"\")
       message(STATUS \" removing previous install ${SAMSEG_INSTALL_DIR}/*samseg* ... \")
       execute_process(COMMAND bash -c \"rm -rf ${SAMSEG_INSTALL_DIR}/*samseg*\")
@@ -252,10 +250,6 @@ if(DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    # install packages under python/lib/python<rev>/site-packages, add fspython wrapper
    # install a copy of the requirements-build.txt file if the build was set to use it for the revs of pkgs to install
    python_3_8_base_install()
-   if(INTEGRATE_SAMSEG)
-      integrate_samseg()
-      # rm_fspython_packages_bin()
-   endif()
    packages_install()
    sitepackages_install()
    fspython_script_install()
@@ -263,6 +257,10 @@ if(DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    if(NOT FSPYTHON_INSTALL_CUDA)
       prune_cuda()
    endif()
+   if(INTEGRATE_SAMSEG)
+      integrate_samseg()
+      # rm_fspython_packages_bin()
+   endif()    
    if(PATCH_FSPYTHON)
       fspython_patch()
    endif()
@@ -275,11 +273,11 @@ if(DISTRIBUTE_FSPYTHON AND NOT INSTALL_PYTHON_DEPENDENCIES)
    # install C bindings, etc. under python/packages
    # NO pre-installed site-packages, add fspython wrapper
    python_3_8_base_install()
+   packages_install()
    if(INTEGRATE_SAMSEG)
       integrate_samseg()
       # rm_fspython_packages_bin()
    endif()
-   packages_install()
    fspython_script_install()
 endif()
 
@@ -293,16 +291,16 @@ if(NOT DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    # install a copy of the requirements-build.txt file if the build was set to use it for the revs of pkgs to install
    set(PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
    message(STATUS For "HOST_OS=${HOST_OS} PKG_TARGET=${PKG_TARGET}")
-   if(INTEGRATE_SAMSEG)
-      integrate_samseg()
-      # rm_fspython_packages_bin()
-   endif()
    packages_install()
    sitepackages_install()
    fspython_script_install()
    requirements_file_install()
    if(NOT FSPYTHON_INSTALL_CUDA)
       prune_cuda()
+   endif()
+   if(INTEGRATE_SAMSEG)
+      integrate_samseg()
+      # rm_fspython_packages_bin()
    endif()
    if(PATCH_FSPYTHON)
       fspython_patch()
@@ -316,14 +314,13 @@ if(NOT DISTRIBUTE_FSPYTHON AND NOT INSTALL_PYTHON_DEPENDENCIES)
    # Use an existing 3rd party python instead of base python distribution
    # install C bindings, etc. under python/packages
    # NO pre-installed site-packages, add fspython wrapper
-   # set PKG_TARGET, this is needed for integrate_samseg()
+   set(PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
+   message(STATUS For "HOST_OS=${HOST_OS} PKG_TARGET=${PKG_TARGET}")
+   packages_install()
    if(INTEGRATE_SAMSEG)
       integrate_samseg()
       # rm_fspython_packages_bin()
    endif()
-   set(PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
-   message(STATUS For "HOST_OS=${HOST_OS} PKG_TARGET=${PKG_TARGET}")
-   packages_install()
    fspython_script_install()
 endif()
 
