@@ -33,7 +33,8 @@ parser.add_argument('-o', '--outdir', help='Name of the output directory where a
                     ' is $SUBJECTS_DIR/subject.')
 parser.add_argument('--age', type=int, help='Age of the subject in months.')
 parser.add_argument('--masked', help='Pre-masked input image. Providing this will skip the skull-stripping step.')
-parser.add_argument('--mask', help='Pre-masked input image. Providing this will skip the skull-stripping step. Unlike --masked, will do all volume normalizations to the provided mask.')
+parser.add_argument('--mask', help='Pre-Computed binary mask of the input image. Providing this will skip the skull-stripping \
+                    step. Unlike --masked, will do all volume normalizations to the provided input image.')
 parser.add_argument('--segfile', help='Volumetric segmentation from another source. Unless --forceskullstrip is set, a masked' \
                     ' input image is also expected along with and matching this input.')
 parser.add_argument('--t2', action='store_true', help='Enable T2 processing. (NOT YET IMPLEMENTED)')
@@ -187,6 +188,8 @@ if input_masked:
     # Masked input was provided on the commandline
     cmd = f'mri_convert --conform-dc {input_masked} {masked}'
     pl.run(cmd, inputs=input_masked, outputs=masked)
+    cmd = 'mkdir -p work'
+    pl.run(cmd)
 
 else:
 
@@ -236,9 +239,9 @@ else:
         commands.append(f'mri_synthstrip -i {conf} -o work/synthstrip/synthstrip_skullstrip.nii.gz --model {args.model}')
 
         commands.append(f'mri_mask {conf} work/synthstrip/synthstrip_skullstrip.nii.gz {masked}')
-    # if --mask was passed, copy it
+    # if --mask was passed create norm using it
     else:
-        commands.append(f'cp {external_mask} {masked}')
+        commands.append(f'mri_mask {conf} {external_mask} {masked}')
     
     if not args.no_cleanup:
         commands.append('rm -rf work/*')
