@@ -11,24 +11,44 @@ endif()
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
 configure_file(version_info.h.in version_info.h)
 
-include_directories(
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/packages/jpeg
-  ${CMAKE_SOURCE_DIR}/packages/tiff
-  ${CMAKE_SOURCE_DIR}/packages/xml2
-  ${CMAKE_SOURCE_DIR}/packages/minc
-  ${CMAKE_SOURCE_DIR}/packages/netcdf
-  ${CMAKE_SOURCE_DIR}/packages/nrrdio
-  ${CMAKE_SOURCE_DIR}/packages/dicom
-  ${CMAKE_SOURCE_DIR}/packages/dcm2niix
-  ${CMAKE_SOURCE_DIR}/packages/cephes
-  ${CMAKE_SOURCE_DIR}/packages/nifti
-  ${CMAKE_SOURCE_DIR}/packages/gifti
-  SYSTEM
-  ${ITK_INCLUDE_DIRS}
-  ${OpenSSL_INCLUDE_DIR}
-)
+if(NOT TIFF_SYSLIBS)
+  include_directories(
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/packages/jpeg
+    ${CMAKE_SOURCE_DIR}/packages/tiff    
+    ${CMAKE_SOURCE_DIR}/packages/xml2
+    ${CMAKE_SOURCE_DIR}/packages/minc
+    ${CMAKE_SOURCE_DIR}/packages/netcdf
+    ${CMAKE_SOURCE_DIR}/packages/nrrdio
+    ${CMAKE_SOURCE_DIR}/packages/dicom
+    ${CMAKE_SOURCE_DIR}/packages/dcm2niix
+    ${CMAKE_SOURCE_DIR}/packages/cephes
+    ${CMAKE_SOURCE_DIR}/packages/nifti
+    ${CMAKE_SOURCE_DIR}/packages/gifti
+    SYSTEM
+    ${ITK_INCLUDE_DIRS}
+    ${OpenSSL_INCLUDE_DIR}
+  )
+else()
+  include_directories(
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/packages/jpeg
+    ${CMAKE_SOURCE_DIR}/packages/xml2
+    ${CMAKE_SOURCE_DIR}/packages/minc
+    ${CMAKE_SOURCE_DIR}/packages/netcdf
+    ${CMAKE_SOURCE_DIR}/packages/nrrdio
+    ${CMAKE_SOURCE_DIR}/packages/dicom
+    ${CMAKE_SOURCE_DIR}/packages/dcm2niix
+    ${CMAKE_SOURCE_DIR}/packages/cephes
+    ${CMAKE_SOURCE_DIR}/packages/nifti
+    ${CMAKE_SOURCE_DIR}/packages/gifti
+    SYSTEM
+    ${ITK_INCLUDE_DIRS}
+    ${OpenSSL_INCLUDE_DIR}
+  )
+endif()
 
 add_library(utils STATIC
   afni.cpp
@@ -223,23 +243,42 @@ add_library(utils STATIC
   xVoxel.cpp
 )
 
-target_link_libraries(utils
-  jpeg
-  tiff
-  xml2
-  minc
-  netcdf
-  nrrdio
-  dicom
-  cephes
-  nifti
-  dcm2niixfs
-  gifti
-  expat
-  ${ZLIB_LIBRARIES}
-  ${ITKVNL_LIBRARIES}
-  ${OMP_CXX_LIBRARIES}
-)
+if(NOT TIFF_SYSLIBS)
+  target_link_libraries(utils
+    jpeg
+    tiff    
+    xml2
+    minc
+    netcdf
+    nrrdio
+    dicom
+    cephes
+    nifti
+    dcm2niixfs
+    gifti
+    expat
+    ${ZLIB_LIBRARIES}
+    ${ITKVNL_LIBRARIES}
+    ${OMP_CXX_LIBRARIES}
+  )
+else()
+  target_link_libraries(utils
+    jpeg
+    xml2
+    minc
+    netcdf
+    nrrdio
+    dicom
+    cephes
+    nifti
+    dcm2niixfs
+    gifti
+    expat
+    ${ZLIB_LIBRARIES}
+    ${ITKVNL_LIBRARIES}
+    ${OMP_CXX_LIBRARIES}
+  )  
+endif()
 
 if(FIPS_SUPPORT)
    if(NOT APPLE)
@@ -253,9 +292,17 @@ else()
 endif()
 
 if(NOT APPLE)
-  target_link_libraries(utils crypt ${crypto_lib} rt)
-else() 
-  target_link_libraries(utils ${crypto_lib})
+  if(NOT TIFF_SYSLIBS)
+    target_link_libraries(utils crypt ${crypto_lib} rt)
+  else()
+    target_link_libraries(utils crypt ${crypto_lib} rt tiff)
+  endif()
+else()
+  if(NOT TIFF_SYSLIBS)
+    target_link_libraries(utils ${crypto_lib})
+  else()
+    target_link_libraries(utils ${crypto_lib} tiff)
+  endif()
 endif()
 
 # utils binaries
