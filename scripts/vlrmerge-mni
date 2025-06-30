@@ -355,6 +355,25 @@ goto parse_args_return;
 ############--------------##################
 check_params:
 
+if($DoMNI152) then
+  if(! -e $FREESURFER/subjects/fsmni152) then
+    set url = "https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/average/fsmni152.tar.gz"
+    echo "ERROR: you do not have fsmni152 installed in FreeSurfer"
+    echo "You can download it with this command:" 
+    echo "   wget $url"
+    if(-w $FREESURFER/subjects) then
+      echo "You can then install it with these commands:"
+    else
+      echo "However, you do not have permission to install it"
+      echo "Talk to your system administator and ask them to run these commands:"
+    endif
+    echo "    cd $FREESURFER/subjects"
+    echo "    tar xvfz /path/to/downloaded/fsmni152.tar.gz"
+    echo " After that is done, try running this program again"
+    exit 1
+  endif
+endif
+
 if($#outdir) then
   if($#outvol == 0) set outvol = $outdir/vlrmerge.nii.gz
 endif
