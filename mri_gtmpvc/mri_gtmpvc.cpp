@@ -1789,8 +1789,10 @@ static void print_usage(void) {
   printf("   --mg-ref-cerebral-wm : set MG RefIds to 2 and 41\n");
   printf("   --mg-ref-lobes-wm : set MG RefIds to those for lobes when using wm subseg\n");
   printf("   --mgx gmxthresh : GLM-based Mueller-Gaertner PVC, gmxthresh is min gm pvf bet 0 and 1\n");
-  printf("   --km-ref RefId1 RefId2 ... : compute reference TAC for KM as mean of given RefIds\n");
-  printf("   --km-hb  RefId1 RefId2 ... : compute HiBinding TAC for KM as mean of given RefIds\n");
+  printf("   --km-ref RefId1 RefId2 ... : compute reference TAC for KM as mean of given RefIds (for csv)\n");
+  printf("   --km-hb  RefId1 RefId2 ... : compute HiBinding TAC for KM as mean of given RefIds (for csv)\n");
+  printf("   --tmin time-min : time (minutes) vector (for csv)\n");
+  printf("   --tsec time-sec : time (seconds) vector, will be converted to minutes (for csv)\n");
   printf("   --ss bpc scale dcf : steady-state analysis spec blood plasma concentration, unit scale\n");
   printf("     and decay correction factor. You must also spec --km-ref. Turns off rescaling\n");
   printf("\n");
@@ -1931,6 +1933,12 @@ static void check_options(void)
     mritmp = MRISeqchangeType(gtm->yvol, MRI_FLOAT, 0, 0, 0);
     MRIfree(&gtm->yvol);
     gtm->yvol = mritmp;
+  }
+  if(TimeMin){
+    if(TimeMin->rows != gtm->nframes){
+      printf("ERROR: input has %d frames, but time has %d rows\n",gtm->nframes,TimeMin->rows);
+      exit(1);
+    }
   }
 
   if(regidentity){
@@ -2647,9 +2655,9 @@ int WriteBetaSV(GTM *gtm, MATRIX *TimeMin, char *OutBetaSVFile, char *sep)
 {
   FILE *fp = fopen(OutBetaSVFile,"w");
   char *c = (char*)"";
-  char *units;
+  char *units=(char*)"";
   if(gtm->rescale) units = (char*) " RSUV";
-  else units = (char*)"unknown"; // or use kBq/cc
+  else units = (char*)""; // or use kBq/cc
   if(TimeMin) {
     fprintf(fp,"start[min]%send[%s]",sep,units);
     c = sep;
