@@ -28,11 +28,12 @@ class ThreadIOWorker : public QThread
 public:
   explicit ThreadIOWorker(QObject *parent = 0);
 
-  enum JobType { JT_LoadVolume = 0, JT_SaveVolume, JT_LoadSurface, JT_SaveSurface, JT_LoadSurfaceOverlay, JT_LoadTrack,
+  enum JobType { JT_LoadVolume = 0, JT_SaveVolume, JT_ExportVolume, JT_LoadSurface, JT_SaveSurface, JT_LoadSurfaceOverlay, JT_LoadTrack,
                  JT_LoadConnectome, JT_LoadFCD, JT_LoadODF, JT_TransformVolume };
 
   void LoadVolume( Layer* layer, const QVariantMap& args = QVariantMap() );
   void SaveVolume( Layer* layer, const QVariantMap& args = QVariantMap() );
+  void ExportVolume( Layer* layer, const QVariantMap& args = QVariantMap() );
   void LoadSurface( Layer* layer, const QVariantMap& args = QVariantMap() );
   void SaveSurface( Layer* layer, const QVariantMap& args = QVariantMap() );
   void LoadSurfaceOverlay( Layer* layer, const QVariantMap& args = QVariantMap() );

@@ -224,6 +224,9 @@ public:
     m_bIgnoreHeader = b;
   }
 
+  bool IsRGB();
+  bool ExportToGrayScale(MRI* src, const QString& fn);
+
 Q_SIGNALS:
   void ProgressChanged( int n );
 

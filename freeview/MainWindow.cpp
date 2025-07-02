@@ -6034,8 +6034,15 @@ bool MainWindow::SaveVolumeAs()
   }
   else if ( !layer_mri->IsVisible() )
   {
-    QMessageBox::warning( this, "Error", "Current volume layer is not visible. Please turn it on before saving." );
+    QMessageBox::warning( this, "Error", "Current volume is not visible. Please turn it on before saving." );
     return false;
+  }
+
+  if (layer_mri->IsRGB())
+  {
+    if (QMessageBox::question(this, "Export to Grayscale", "Selected volume can only be exported as a grayscale volume. Do you want to continue?") !=
+        QMessageBox::Yes)
+      return false;
   }
 
   QString fn;
@@ -6055,8 +6062,17 @@ bool MainWindow::SaveVolumeAs()
                                        "Volume files (*.mgz *.mgh *.nii *.nii.gz *.img *.mnc);;All files (*)");
   if ( !fn.isEmpty() )
   {
-    layer_mri->SetFileName( fn );
-    OnSaveVolume();
+    if (layer_mri->IsRGB())
+    {
+      QVariantMap args;
+      args["export_filename"] = fn;
+      m_threadIOWorker->ExportVolume(layer_mri, args);
+    }
+    else
+    {
+      layer_mri->SetFileName( fn );
+      OnSaveVolume();
+    }
     ui->widgetAllLayers->UpdateWidgets();
     return true;
   }
@@ -6788,7 +6804,7 @@ void MainWindow::OnIOError( Layer* layer, int jobtype )
   QString msg = QString("Failed to load %1 ").arg(layer->GetEndType());
   if (jobtype != ThreadIOWorker::JT_LoadSurfaceOverlay)
   {
-    if ( jobtype == ThreadIOWorker::JT_SaveVolume )
+    if ( jobtype == ThreadIOWorker::JT_SaveVolume || jobtype == ThreadIOWorker::JT_ExportVolume )
     {
       msg = "Failed to save volume to " + layer->property("saved_name").toString();
     }
@@ -6798,7 +6814,8 @@ void MainWindow::OnIOError( Layer* layer, int jobtype )
     }
     if (!bQuit)
       QMessageBox::warning( this, "Error", msg);
-    if ( jobtype != ThreadIOWorker::JT_SaveVolume && jobtype != ThreadIOWorker::JT_SaveSurface )
+    if ( jobtype != ThreadIOWorker::JT_SaveVolume && jobtype != ThreadIOWorker::JT_SaveSurface &&
+         jobtype != ThreadIOWorker::JT_ExportVolume)
       delete layer;
   }
   else
@@ -7133,7 +7150,7 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
 
   m_bProcessing = false;
 
-  if ( jobtype == ThreadIOWorker::JT_SaveVolume)
+  if ( jobtype == ThreadIOWorker::JT_SaveVolume || jobtype == ThreadIOWorker::JT_ExportVolume )
   {
     std::cout << qPrintable(layer->property("saved_name").toString()) << " saved successfully.\n";
   }

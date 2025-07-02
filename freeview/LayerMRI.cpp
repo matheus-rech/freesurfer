@@ -643,6 +643,13 @@ bool LayerMRI::SaveVolume()
   return bSaved;
 }
 
+bool LayerMRI::ExportToGrayscale(const QString &fn)
+{
+  bool ret = m_volumeSource->ExportToGrayScale(m_volumeSource->GetMRI(), fn);
+  setProperty("saved_name", fn);
+  return ret;
+}
+
 bool LayerMRI::IsTransformed()
 {
   vtkMatrix4x4* mat = vtkTransform::SafeDownCast( mReslice[0]->GetResliceTransform() )->GetMatrix();
@@ -4697,4 +4704,9 @@ void LayerMRI::OnSetDisplayInNeurologicalView()
 {
   OnSlicePositionChanged(1);
   OnSlicePositionChanged(2);
+}
+
+bool LayerMRI::IsRGB()
+{
+  return m_volumeSource && m_volumeSource->IsRGB();
 }
