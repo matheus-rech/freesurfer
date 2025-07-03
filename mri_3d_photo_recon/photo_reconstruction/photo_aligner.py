@@ -52,6 +52,7 @@ class photo_aligner(nn.Module):
         k_regularizer=0.0003,
         k_regularizer_nonlin=0.0003,
         k_regularizer_nonlin3d=0.0001,
+        k_regularizer_sz=0.001,
         pad_ignore=None,
         device='cpu'
     ):
@@ -96,6 +97,7 @@ class photo_aligner(nn.Module):
         self.k_regularizer = k_regularizer
         self.k_regularizer_nonlin = k_regularizer_nonlin
         self.k_regularizer_nonlin3d = k_regularizer_nonlin3d
+        self.k_regularizer_sz = k_regularizer_sz
 
         # Photo parameters
         if t_ini is not None:
@@ -677,6 +679,7 @@ class photo_aligner(nn.Module):
                 + self.k_regularizer * loss_aff_regularizer
                 + self.k_regularizer_nonlin * cost_field
                 + self.k_regularizer_nonlin3d * cost_field3d
+                + self.k_regularizer_sz * self.sz * self.sz
                 + TINY * (torch.mean(torch.square((self.t - self.DELTA))))
                 + TINY * (torch.mean(torch.square((self.theta))))
                 + TINY * (torch.mean(torch.square((self.shear))))
