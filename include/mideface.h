@@ -58,6 +58,7 @@ public:
   MRI *EmbedCode(MRI *input, MRI *output);
   int EmbedCodeCheck(const MRI *vol);
   int embeddebug=0;
+  int nperbin=20, nbinsmax = 200, statframe=0;
 };
 
 #endif

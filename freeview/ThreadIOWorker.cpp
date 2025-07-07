@@ -48,6 +48,14 @@ void ThreadIOWorker::SaveVolume( Layer* layer, const QVariantMap& args )
   start();
 }
 
+void ThreadIOWorker::ExportVolume( Layer* layer, const QVariantMap& args )
+{
+  m_layer = layer;
+  m_nJobType = JT_ExportVolume;
+  m_args = args;
+  start();
+}
+
 void ThreadIOWorker::TransformVolume( Layer* layer, const QVariantMap& args )
 {
   m_layer = layer;
@@ -191,6 +199,22 @@ void ThreadIOWorker::run()
       return;
     }
     if ( !mri->SaveVolume() )
+    {
+      emit Error( m_layer, m_nJobType );
+    }
+    else
+    {
+      emit Finished( m_layer, m_nJobType );
+    }
+  }
+  else if (m_nJobType == JT_ExportVolume)
+  {
+    LayerMRI* mri = qobject_cast<LayerMRI*>( m_layer );
+    if ( !mri )
+    {
+      return;
+    }
+    if ( !mri->ExportToGrayscale(m_args["export_filename"].toString()) )
     {
       emit Error( m_layer, m_nJobType );
     }

@@ -179,7 +179,8 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
   m_widgetsScribbleOnly << ui->labelBoxColor
                         << ui->colorPickerBox
                         << ui->labelSPModel
-                        << ui->comboBoxSPModel;
+                        << ui->comboBoxSPModel
+                        << ui->checkBoxIncludeExisting;
 
   QTimer* timer = new QTimer( this );
   connect( timer, SIGNAL(timeout()), this, SLOT(OnIdle()) );
@@ -703,6 +704,14 @@ void ToolWindowEdit::OnButtonGeoSegGo()
       }
       else if (ui->actionScribblePrompt->isChecked())
       {
+#ifdef SCRIBBLE_PROMPT
+        if (m_scribble->GetModelFilename().isEmpty())
+        {
+          QMessageBox::warning(this, "No Model", "No SP model was selected.");
+          return;
+        }
+#endif
+        mri_fill->ClearVoxels();
         MainWindow* mainwnd = MainWindow::GetMainWindow();
         BrushProperty* bp = mainwnd->GetBrushProperty();
         vtkImageData* imageData = mri_fill->GetImageData();
@@ -716,7 +725,8 @@ void ToolWindowEdit::OnButtonGeoSegGo()
         }
         int nPlane = mainwnd->GetMainViewId();
 #ifdef SCRIBBLE_PROMPT
-        m_scribble->Compute((LayerMRI*)bp->GetReferenceLayer(), mri_fill, mri_draw, nPlane, n[nPlane], bp->GetFillValue());
+        m_scribble->Compute((LayerMRI*)bp->GetReferenceLayer(), mri_fill, mri_draw, nPlane, n[nPlane], bp->GetFillValue(),
+                            ui->checkBoxIncludeExisting->isChecked(), mri);
 #endif
       }
       ui->pushButtonGeoGo->setEnabled(false);

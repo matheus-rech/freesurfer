@@ -137,6 +137,8 @@ public:
 
   bool SaveVolume();
 
+  bool ExportToGrayscale(const QString& fn);
+
   void SetResampleToRAS( bool bResample );
 
   bool GetResampleToRAS()
@@ -379,6 +381,8 @@ public:
   {
     OutlineResampleFactor = n;
   }
+
+  bool IsRGB();
 
 public slots:
   virtual void SetModified();

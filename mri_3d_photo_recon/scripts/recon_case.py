@@ -28,7 +28,7 @@ def main():
     # Get arguments from command line and decide what transforms to allow and with what regularizers, control
     # point spacings, etc. We also play a little trick to help the first/last few slices remain in the mesh
     arguments, allow_z_stretch, allow_affine_mri = utils.adjust_settings(utils.get_arguments())
-    arguments.slice_thickness = (0.8*arguments.slice_thickness) if allow_z_stretch else arguments.slice_thickness
+    # arguments.slice_thickness = (0.8*arguments.slice_thickness) if allow_z_stretch else arguments.slice_thickness
 
     # only import packages if arguments are correct
     from nibabel.freesurfer import write_geometry
@@ -237,6 +237,7 @@ def main():
                 k_dif_slice_loss=arguments.k_dif_slice_loss,
                 k_mesh_loss=arguments.k_mesh_loss,
                 k_regularizer=arguments.k_regularizer,
+                k_regularizer_sz=arguments.k_regularizer_sz,
                 k_regularizer_nonlin=arguments.k_regularizer_nonlin,
                 k_regularizer_nonlin3d=arguments.k_regularizer_nonlin3d,
                 pad_ignore=PAD_AP,
@@ -376,6 +377,7 @@ def main():
                     k_dif_slice_loss=arguments.k_dif_slice_loss,
                     k_mesh_loss=arguments.k_mesh_loss,
                     k_regularizer=arguments.k_regularizer,
+                    k_regularizer_sz=arguments.k_regularizer_sz,
                     k_regularizer_nonlin=arguments.k_regularizer_nonlin,
                     k_regularizer_nonlin3d=arguments.k_regularizer_nonlin3d,
                     pad_ignore=PAD_AP,

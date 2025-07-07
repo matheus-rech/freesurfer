@@ -48,7 +48,7 @@ option(PROFILING "Complile binaries for profiling with gprof" OFF)
 option(INSTALL_PYTHON_DEPENDENCIES "Install python package dependencies" ON)
 option(BUILD_FORTRAN "Build subdirs with source using gfortran" ON)
 option(PATCH_FSPYTHON "Build subdirs with source using gfortran" OFF)
-option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" OFF)
+option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" ON)
 option(FSL_INSTALL "force install of FSL binaries for linux platforms only" OFF)
 option(TEST_WITH_CUDA "Allow tests to run that use cuda libs and require install of cuda drivers" OFF)
 option(INTEGRATE_SAMSEG "Integrate standalone SAMSEG" ON)
@@ -56,6 +56,7 @@ option(FIPS_SUPPORT "allow FS license to be read on FIPS system" OFF)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
 option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house builds only" OFF)
+option(TIFF_SYSLIBS "Link with system libtiff library" OFF)
 option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/qt" OFF)
 option(VTK_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/vtk" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
@@ -93,6 +94,7 @@ if (DISABLE_LINEPROF)
    message(STATUS "For HOST_OS=${HOST_OS} lineprof disabled")
 endif()
 
+message(STATUS "For HOST_OS=${HOST_OS} TIFF_SYSLIBS=${TIFF_SYSLIBS}")
 message(STATUS "For HOST_OS=${HOST_OS} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG}")
 if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
   message(STATUS "User defined SAMSEG sandbox ${USER_SAMSEG_PATH}")
@@ -866,7 +868,7 @@ if(NOT MINIMAL)
     mri_ca_tissue_parms
     mri_ca_train
     mri_cal_renormalize_gca
-    #mri_claustrum_seg - removed until package discrepancies are resolved
+    #mri_claustrum_seg - removed until the python package descrepancies are resolved
     mri_cnr
     mri_compile_edits
     mri_compute_change_map

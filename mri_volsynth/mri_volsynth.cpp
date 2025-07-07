@@ -947,7 +947,7 @@ static void print_usage(void) {
   printf("   --fwhm fwhm_mm : smooth by FWHM mm\n");
   printf("   --sum2 fname   : save sum vol^2 into fname (implies "
          "delta,nf=1,no-output)\n");
-  printf("   --dim-surf : set dim to nvertices x 1 x 1 \n");
+  printf("   --dim-surf surf : set dim to nvertices x 1 x 1 \n");
   printf("   --ctab colortable : embed ctab\n");
   printf("\n");
 }

@@ -122,6 +122,8 @@ def get_arguments():
                         help="(Advanced) Weight of regularizer of 2D nonlinear deformation of photos")
     parser.add_argument("--k_regularizer_nonlin3d", type=float, default=None,
                         help="(Advanced) Weight of regularizer of 3D nonlinear deformatin of reference")
+    parser.add_argument("--k_regularizer_sz", type=float, default=None,
+                        help="(Advanced) Weight of regularizer of stretch in AP direction")
 
     arguments = parser.parse_args()
 
@@ -309,6 +311,9 @@ def adjust_settings(arguments):
     # Affine regularizer: 0.1 seems pretty good
     k_regularizer = 0.1
 
+    # A-P stretch regularizer: 0.001 seems reasonable by default
+    k_regularizer_sz = 0.001
+
     if fresh:
         print('  Fresh tissue: using small control point spacing and deformation penalties for photos')
         cp_spacing_2d = 10
@@ -359,6 +364,7 @@ def adjust_settings(arguments):
     arguments.k_lncc_mri = arguments.k_lncc_mri if arguments.k_lncc_mri is not None else k_lncc_mri
     arguments.k_dice_mri = arguments.k_dice_mri if arguments.k_dice_mri is not None else k_dice_mri
     arguments.k_regularizer_nonlin3d = arguments.k_regularizer_nonlin3d if arguments.k_regularizer_nonlin3d is not None else k_regularizer_nonlin3d
+    arguments.k_regularizer_sz = arguments.k_regularizer_sz if arguments.k_regularizer_sz is not None else k_regularizer_sz
 
 
     print('Summary of settings:')

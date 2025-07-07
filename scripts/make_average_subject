@@ -264,6 +264,10 @@ check_params:
     echo "ERROR: FREESURFER_HOME $FREESURFER_HOME does not exist."
     exit 1;
   endif
+  if($#average_subject == 0) then
+    echo "ERROR: must spect average subject name with --out"
+    exit 1
+  endif
   if($#sdout == 0) set sdout = $SUBJECTS_DIR
   set outdir = $sdout/$average_subject
   if(-e $outdir && ! $Force) then
@@ -308,7 +312,9 @@ usage_exit:
   echo "   --sdir <SUBJECTS_DIR to use instead of the one in the env>"
   echo "   --sd      : same as --sdir"
   echo "   --ico <ico order> : change order of icosahedron (default=7)"
-  echo "   --xform <transform_fname>   : filename of transform file"
+  echo "   --xform <transform_fname>   : filename of vol/coordinate transform file"
+  echo "   --mni152 : set xform to synthmorph.1.0mm.1.0mm/warp.to.mni152.1.0mm.1.0mm.nii.gz"
+  echo "        should be able to use warp.to.mni152.1.0mm.1.0mm.inv.nii.gz, but ..."
   echo "   --surf-reg <surface name>   : alternative registration surface"
   echo "                                 default: sphere.reg"
   echo "   --no-surf : do not make average surfaces"

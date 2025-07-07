@@ -34,23 +34,27 @@ ScribblePromptWorker::~ScribblePromptWorker()
 void ScribblePromptWorker::DoInitialization(const QString &fn)
 {
   m_module->Load(fn);
+  m_strModelFilename = fn;
 }
 
-void ScribblePromptWorker::Compute(LayerMRI *mri, LayerMRI* seg, LayerMRI* seeds, int nPlane, int nSlice, double fill_val)
+void ScribblePromptWorker::Compute(LayerMRI *mri_ref, LayerMRI* seg, LayerMRI* seeds, int nPlane, int nSlice, double fill_val, bool include_existing, LayerMRI* mri_exit)
 {
-  m_mri = mri;
+  m_ref = mri_ref;
   m_seg = seg;
   m_seeds = seeds;
   m_nInputPlane = nPlane;
   m_nInputSlice = nSlice;
   m_dFillValue = fill_val;
+  m_bIncludeExisting = include_existing;
+  m_curEdit = mri_exit;
   emit ComputeTriggered();
 }
 
-void ScribblePromptWorker::Apply(LayerMRI *seg, LayerMRI *filled)
+void ScribblePromptWorker::Apply(LayerMRI *seg, LayerMRI *filled, double fill_val)
 {
   m_seg = seg;
   m_filled = filled;
+  m_dFillValue = fill_val;
   emit ApplyTriggered();
 }
 
@@ -173,13 +177,35 @@ void ScribblePromptWorker::DoCompute()
   QElapsedTimer timer;
   timer.start();
   vtkSmartPointer<vtkImageCast> cast = vtkSmartPointer<vtkImageCast>::New();
-  cast->SetInputData(m_mri->GetSliceImageData(m_nInputPlane));
+  cast->SetInputData(m_ref->GetSliceImageData(m_nInputPlane));
   cast->SetOutputScalarTypeToFloat();
   cast->Update();
-  vtkImageData* img_mri = cast->GetOutput();
+  vtkSmartPointer<vtkImageData> img_mri = cast->GetOutput();
+  vtkSmartPointer<vtkImageData> mri_seed = vtkSmartPointer<vtkImageData>::New();
+  mri_seed->DeepCopy(m_seeds->GetSliceImageData(m_nInputPlane));
   int* dim = img_mri->GetDimensions();
+  if (m_bIncludeExisting)
+  {
+    cast = vtkSmartPointer<vtkImageCast>::New();
+    cast->SetInputData(m_curEdit->GetSliceImageData(m_nInputPlane));
+    cast->SetOutputScalarTypeToFloat();
+    cast->Update();
+    vtkSmartPointer<vtkImageData> mri_cur = cast->GetOutput();
+    float* cur_seg_ptr = (float*)mri_cur->GetScalarPointer();
+    unsigned char* seeds_ptr = (unsigned char*)mri_seed->GetScalarPointer();
+    for (int i = 0; i < dim[0]; i++)
+    {
+      for (int j = 0; j < dim[1]; j++)
+      {
+        if (cur_seg_ptr[j*dim[0]+i] == m_dFillValue)
+        {
+          seeds_ptr[j*dim[0]+i] = 1;
+        }
+      }
+    }
+  }
   float* mri_ptr = (float*)img_mri->GetScalarPointer();
-  unsigned char* seeds_ptr = (unsigned char*)m_seeds->GetSliceImageData(m_nInputPlane)->GetScalarPointer();
+  unsigned char* seeds_ptr = (unsigned char*)mri_seed->GetScalarPointer();
   bool bOverSize = (dim[0] > 128 || dim[1] > 128);
   int x_range[2] = {1000000,-1000000}, y_range[2] = {1000000,-1000000};
   int start_x = 0, start_y = 0;

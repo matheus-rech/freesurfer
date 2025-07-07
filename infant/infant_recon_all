@@ -33,11 +33,12 @@ parser.add_argument('-o', '--outdir', help='Name of the output directory where a
                     ' is $SUBJECTS_DIR/subject.')
 parser.add_argument('--age', type=int, help='Age of the subject in months.')
 parser.add_argument('--masked', help='Pre-masked input image. Providing this will skip the skull-stripping step.')
-parser.add_argument('--mask', help='Pre-masked input image. Providing this will skip the skull-stripping step. Unlike --masked, will do all volume normalizations to the provided mask.')
+parser.add_argument('--mask', help='Pre-Computed binary mask of the input image. Providing this will skip the skull-stripping \
+                    step. Unlike --masked, will do all volume normalizations to the provided input image.')
 parser.add_argument('--segfile', help='Volumetric segmentation from another source. Unless --forceskullstrip is set, a masked' \
                     ' input image is also expected along with and matching this input.')
-#parser.add_argument('--t2', action='store_true', help='Enable T2 processing.')
-#parser.add_argument('--t2file', help='Input file - T2 image.')
+parser.add_argument('--t2', action='store_true', help='Enable T2 processing. (NOT YET IMPLEMENTED)')
+parser.add_argument('--t2file', help='Input file - T2 image. (NOT YET IMPLEMENTED)')
 
 # Training subject options
 parser.add_argument('--newborn', action='store_true', help='Indicate that the subject is a newborn. All five newborn subjects' \
@@ -76,6 +77,8 @@ args = parser.parse_args()
 subj = args.s
 subjsdir = os.environ.get('SUBJECTS_DIR')
 outdir = os.path.abspath(args.outdir) if args.outdir else os.path.abspath(os.path.join(subjsdir, subj))
+output_subj = outdir.rsplit('/', 1)[-1] # useful for different output dir than SUBJECTS_DIR
+output_subdir = outdir.rsplit('/', 1)[0] # useful for different output dir than SUBJECTS_DIR
 
 # Check if FS is set
 #fshome = fs.fshome()
@@ -119,9 +122,11 @@ if not args.keep_going and not args.force and os.path.exists(os.path.join(outdir
 if not args.outdir and not subjsdir or not os.path.isdir(subjsdir):
     sf.system.fatal('Must set SUBJECTS_DIR or use --outdir flag to indicate a valid data location.')
 
-if not os.path.isfile(os.path.join(subjsdir, subj, 'mprage.nii.gz')):
-    if not input_t1 or not input_masked:
-        sf.system.fatal('Must provide input. Either have mprage.nii.gz in the output_dir; or define it explicitely T1 with --inputfile or --masked flag.')
+if not input_t1 and not input_masked:
+    if os.path.exists(os.path.join(subjsdir, subj, 'mprage.nii.gz')):
+        input_t1 = os.path.join(subjsdir, subj, 'mprage.nii.gz')
+    else: # input_t1 does not exists
+        sf.system.fatal('Must provide input. Either have mprage.nii.gz in the output_dir; or define it explicitely with --inputfile or --masked flag.')
 
 if input_masked and args.forceskullstrip:
     sf.system.fatal('Cannot force skullstripping while providing skullstripped input.')
@@ -153,19 +158,19 @@ if input_masked and input_seg:
 
 
 # ---- Start pipeline ----
-
-
-# Let's start operating from within the output directory, so make sure
-# absolute paths to any inputs have been resolved by now
-os.makedirs(os.path.join(outdir, subj), exist_ok=True)
-os.chdir(os.path.join(outdir,subj))
-os.environ['SUBJECTS_DIR'] = os.path.dirname(outdir)
-
 pl = fsp.CommandPipeline(
     name='Infant Recon', 
     log='log/recon.log',
     keep_going=args.keep_going,
 )
+
+# Let's start operating from within the output directory, so make sure
+# absolute paths to any inputs have been resolved by now
+if not os.path.exists(outdir):
+    pl.print(f'Making directory {outdir}')
+os.makedirs(outdir, exist_ok=True)
+pl.print(f'Change Working Directory: {os.path.join(output_subdir, output_subj)}')
+os.chdir(os.path.join(output_subdir, output_subj))
 
 pl.print(f'Processing subject: {subj}')
 
@@ -183,6 +188,8 @@ if input_masked:
     # Masked input was provided on the commandline
     cmd = f'mri_convert --conform-dc {input_masked} {masked}'
     pl.run(cmd, inputs=input_masked, outputs=masked)
+    cmd = 'mkdir -p work'
+    pl.run(cmd)
 
 else:
 
@@ -232,9 +239,9 @@ else:
         commands.append(f'mri_synthstrip -i {conf} -o work/synthstrip/synthstrip_skullstrip.nii.gz --model {args.model}')
 
         commands.append(f'mri_mask {conf} work/synthstrip/synthstrip_skullstrip.nii.gz {masked}')
-    # if --mask was passed, copy it
+    # if --mask was passed create norm using it
     else:
-        commands.append(f'cp {external_mask} {masked}')
+        commands.append(f'mri_mask {conf} {external_mask} {masked}')
     
     if not args.no_cleanup:
         commands.append('rm -rf work/*')
@@ -438,7 +445,7 @@ pl.copy(xfm, 'mri/transforms/talairach.auto.xfm')
 
 # Optionally segment CC
 if args.ccseg:
-    cmd = f'mri_cc -aseg aseg.mgz -o aseg_CCseg.mgz {subj}'
+    cmd = f'mri_cc -sdir {output_subdir} -aseg aseg.mgz -o aseg_CCseg.mgz {output_subj}'
     pl.run(cmd, inputs='mri/aseg.mgz', outputs='mri/aseg_CCseg.mgz')
 
 # Check for GM/WM in final segmentation
@@ -476,89 +483,94 @@ we need them, and set things back once the pipeline finshes
 
 s_dir_cache = os.environ['SUBJECTS_DIR']
 pwd_dir_cache = os.environ['PWD']
-os.environ['SUBJECTS_DIR'] = outdir
 
-# originally --s {subj}
-pl.run(f'create_wm_surfaces_mprage_subject.csh --s {subj}', inputs, outputs)
+try:
+    os.environ['SUBJECTS_DIR'] = output_subdir 
+    # originally --s {subj}
+    pl.run(f'create_wm_surfaces_mprage_subject.csh --s {output_subj}', inputs, outputs)
 
-# Build pial surfaces
-inputs = ['surf/lh.white', 'surf/rh.white']
-outputs = ['surf/lh.pial', 'surf/rh.pial']
-# originally --s {subj}
-pl.run(f'create_pial_surfaces_mprage_subject.csh --s {subj}', inputs, outputs)
+    # Build pial surfaces
+    inputs = ['surf/lh.white', 'surf/rh.white']
+    outputs = ['surf/lh.pial', 'surf/rh.pial']
+    # originally --s {subj}
+    pl.run(f'create_pial_surfaces_mprage_subject.csh --s {output_subj}', inputs, outputs)
 
-# ---- Step 5: Compute stats ----
+    # ---- Step 5: Compute stats ----
 
-if not args.no_stats:
+    if not args.no_stats:
 
-    pl.copy('mri/aseg.mgz', 'mri/aseg.presurf.mgz')
+        pl.copy('mri/aseg.mgz', 'mri/aseg.presurf.mgz')
 
-    cmd = (
-        'mris_volmask --label_left_white 2 --label_left_ribbon 3 '
-        '--label_right_white 41 --label_right_ribbon 42 '
-        f'--save_ribbon --save_distance {subj}'
-    )
+        cmd = (
+            'mris_volmask --label_left_white 2 --label_left_ribbon 3 '
+            '--label_right_white 41 --label_right_ribbon 42 '
+            f'--save_ribbon --save_distance {output_subj}'
+        )
+        inputs = [
+            'mri/aseg.mgz',
+            'surf/lh.white', 'surf/rh.white',
+            'surf/lh.pial', 'surf/rh.pial',
+        ]
+        outputs = ['mri/ribbon.mgz', 'mri/lh.ribbon.mgz', 'mri/rh.ribbon.mgz']
+        pl.run(cmd, inputs, outputs)
+
+        for hemi in ('lh', 'rh'):
+            inputs = [
+                'mri/aseg.presurf.mgz', 'mri/wm.mgz',
+                'surf/lh.white', 'surf/lh.pial',
+                'surf/rh.white', 'surf/rh.pial'
+            ]
+            statsfile = f'stats/{hemi}.aparc.stats'
+            outputs = [statsfile, 'label/aparc.annot.ctab']
+            cmd = f'mris_anatomical_stats -th3 -mgz -f {statsfile} -b -a aparc.annot -c label/aparc.annot.ctab {output_subj} {hemi}'
+            pl.run(cmd, inputs, outputs)
+
+        # Base options for mri_segstats
+        options = '--seg mri/aseg.mgz --sum stats/aseg.stats --pv mri/norm.mgz --empty --brainmask mri/brainmask.mgz --brain-vol-from-seg' \
+        ' --excludeid 0 --excl-ctxgmwm --supratent --subcortgray --in mri/norm.mgz --in-intensity-name norm --in-intensity-units MR' \
+        ' --surf-wm-vol --surf-ctx-vol --totalgray --euler --ctab $FREESURFER_HOME/ASegStatsLUT.txt --subject ' + output_subj
+
+        inputs = [
+            'mri/norm.mgz',
+            'mri/brainmask.mgz',
+            'mri/aseg.mgz',
+        ]
+        outputs = 'stats/aseg.stats'
+
+        # TODO: Needs further testing (12/06/2020)
+        if subj_age is None or subj_age < 12:
+            etiv = 'stats/eTIV.txt'
+            template = '$FREESURFER_HOME/average/all_c_robtemplate_affine_mean.05.01.2018.nii.gz'
+            base = 'mri/transforms/subj_2_common'
+            detfile = 'mri/transforms/det.txt'
+            mult = '400321.078176'  # see wiki for explanation
+            commands = [
+                f'reg_aladin -ref {template} -flo {masked} -aff {base}.txt -res {base}.nii.gz -voff',
+                f'lta_convert --inniftyreg {base}.txt --outlta {base}.lta --outmni {base}.xfm --src {masked} --trg {template}',
+                f'lta_diff {base}.lta --dist 5 >> {detfile}',
+                f'echo `tail -n 1 {detfile}` \* {mult} | bc -l >> {etiv}',
+            ]
+            pl.run(commands, inputs=masked, outputs=etiv)
+
+            pl.run(f'mri_segstats {options}', inputs, outputs)
+        else:
+            pl.run(f'mri_segstats --etiv {options}', inputs, outputs)
+
+
+    # Compute aparc + aseg
     inputs = [
-        'mri/aseg.mgz',
+        'mri/aseg.mgz', 'mri/ribbon.mgz',
+        'label/lh.aparc.annot', 'label/rh.aparc.annot',
         'surf/lh.white', 'surf/rh.white',
         'surf/lh.pial', 'surf/rh.pial',
     ]
-    outputs = ['mri/ribbon.mgz', 'mri/lh.ribbon.mgz', 'mri/rh.ribbon.mgz']
-    pl.run(cmd, inputs, outputs)
+    outputs = 'mri/aparc+aseg.mgz'
+    pl.run(f'mri_aparc2aseg --s {output_subj} --new-ribbon', inputs, outputs)
 
-    for hemi in ('lh', 'rh'):
-        inputs = [
-            'mri/aseg.presurf.mgz', 'mri/wm.mgz',
-            'surf/lh.white', 'surf/lh.pial',
-            'surf/rh.white', 'surf/rh.pial'
-        ]
-        statsfile = f'stats/{hemi}.aparc.stats'
-        outputs = [statsfile, 'label/aparc.annot.ctab']
-        cmd = f'mris_anatomical_stats -th3 -mgz -f {statsfile} -b -a aparc.annot -c label/aparc.annot.ctab {subj} {hemi}'
-        pl.run(cmd, inputs, outputs)
-
-    # Base options for mri_segstats
-    options = '--seg mri/aseg.mgz --sum stats/aseg.stats --pv mri/norm.mgz --empty --brainmask mri/brainmask.mgz --brain-vol-from-seg' \
-    ' --excludeid 0 --excl-ctxgmwm --supratent --subcortgray --in mri/norm.mgz --in-intensity-name norm --in-intensity-units MR' \
-    ' --surf-wm-vol --surf-ctx-vol --totalgray --euler --ctab $FREESURFER_HOME/ASegStatsLUT.txt --subject ' + subj
-
-    inputs = [
-        'mri/norm.mgz',
-        'mri/brainmask.mgz',
-        'mri/aseg.mgz',
-    ]
-    outputs = 'stats/aseg.stats'
-
-    # TODO: Needs further testing (12/06/2020)
-    if subj_age is None or subj_age < 12:
-        etiv = 'stats/eTIV.txt'
-        template = '$FREESURFER_HOME/average/all_c_robtemplate_affine_mean.05.01.2018.nii.gz'
-        base = 'mri/transforms/subj_2_common'
-        detfile = 'mri/transforms/det.txt'
-        mult = '400321.078176'  # see wiki for explanation
-        commands = [
-            f'reg_aladin -ref {template} -flo {masked} -aff {base}.txt -res {base}.nii.gz -voff',
-            f'lta_convert --inniftyreg {base}.txt --outlta {base}.lta --outmni {base}.xfm --src {masked} --trg {template}',
-            f'lta_diff {base}.lta --dist 5 >> {detfile}',
-            f'echo `tail -n 1 {detfile}` \* {mult} | bc -l >> {etiv}',
-        ]
-        pl.run(commands, inputs=masked, outputs=etiv)
-
-        pl.run(f'mri_segstats {options}', inputs, outputs)
-    else:
-        pl.run(f'mri_segstats --etiv {options}', inputs, outputs)
-
-
-# Compute aparc + aseg
-inputs = [
-    'mri/aseg.mgz', 'mri/ribbon.mgz',
-    'label/lh.aparc.annot', 'label/rh.aparc.annot',
-    'surf/lh.white', 'surf/rh.white',
-    'surf/lh.pial', 'surf/rh.pial',
-]
-outputs = 'mri/aparc+aseg.mgz'
-pl.run(f'mri_aparc2aseg --s {subj} --new-ribbon', inputs, outputs)
-
+except:
+    print('infant_recon_all run FAILED, resetting SUBJECTS_DIR and PWD envvars')
+    os.environ['SUBJECTS_DIR'] = s_dir_cache
+    os.environ['PWD'] = pwd_dir_cache
 
 # ---- Cleanup ----
 

@@ -2,8 +2,8 @@ project(mri_claustrum_seg)
 
 # handle FSPYTHON tree split install
 if (FSPYTHON_INSTALL_TREE)
-    set(claustrum_python "\.\./fspython")
-    set(claustrum_models "\.\./fspython/models")
+    set(claustrum_python "${FSPYTHON_INSTALL_PREFIX}/python")
+    set(claustrum_models "${FSPYTHON_INSTALL_PREFIX}/models")
 else()
     set(claustrum_python "python")
     set(claustrum_models "models")
@@ -16,8 +16,12 @@ install(PROGRAMS mri_claustrum_seg DESTINATION bin)
 install(PROGRAMS model/claustrum-seg.py DESTINATION "${claustrum_python}/scripts")
 
 # install the model file
-install(FILES model/claustrum_seg_20250616.h5 DESTINATION "${claustrum_models}")
+if (FSPYTHON_INSTALL_TREE)
+   install_symlinks_fspython_tree(TYPE files DESTINATION "${claustrum_models}" model/claustrum_seg_20250616.h5)
+else()
+   install_symlinks(TYPE files DESTINATION "${claustrum_models}" model/claustrum_seg_20250616.h5)
+endif()
 
-# isntall the atlas dir
-install_tarball(claustrum_seg DESTINATION average)
+## isntall the atlas dir
+# install_tarball(claustrum_seg DESTINATION average)
 

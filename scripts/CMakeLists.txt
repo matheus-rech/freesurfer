@@ -279,6 +279,7 @@ install_configured(
   UpdateNeeded
   usbtree
   vertexvol
+  vlrmerge-mni
   vno_match_check
   vol2segavg
   vol2subfield

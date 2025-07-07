@@ -66,7 +66,7 @@ void DialogLoadVolume::OnOpen()
   else if (!fn.isEmpty())
     fn =  QFileInfo(fn).absolutePath();
   QStringList filenames = QFileDialog::getOpenFileNames( this, "Select volume files",
-                                                         fn.isEmpty()?m_strLastDir:MainWindow::AutoSelectLastDir( m_strLastDir, "mri" ),
+                                                         fn.isEmpty()?fn:MainWindow::AutoSelectLastDir(fn, "mri" ),
                                                          "Volume files (*.mgz *.mgh *.nii *.nii.gz *.img *.mnc);;All files (*)");
   if ( !filenames.isEmpty() )
   {

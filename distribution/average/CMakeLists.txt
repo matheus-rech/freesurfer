@@ -131,18 +131,37 @@ if(NOT MINIMAL)
     NMR_ONLY
   )
 
-  # unpack subjects
   install(PROGRAMS predict_v1.sh DESTINATION bin)
+
+  # Install image in fresurfer is getting too large to be packaged,
+  # SO BEWARE ADDINZG LARGE FILES HERE may break packaging.
+  #
+  # unpack subjects = install these into the freesurfer image
+
+  ## uncompressed adds 276M
   install_tarball(cvs_avg35.tar.gz DESTINATION subjects)
+  ## uncompressed adds 255M
   install_tarball(cvs_avg35_inMNI152.tar.gz DESTINATION subjects)
+  ## uncompressed adds 108M lh
+  ## uncompressed adds 84M rh
   install_tarball(EC_average.tar.gz DESTINATION subjects)
+  ## uncompressed adds 67M
   install_tarball(fsaverage3.tar.gz DESTINATION subjects)
+  ## uncompressed adds 69M
   install_tarball(fsaverage4.tar.gz DESTINATION subjects)
+  ## uncompressed adds 75M
   install_tarball(fsaverage5.tar.gz DESTINATION subjects)
+  ## uncompressed adds 101M
   install_tarball(fsaverage6.tar.gz DESTINATION subjects)
+  ## uncompressed adds 196M
   install_tarball(fsaverage_sym.tar.gz DESTINATION subjects)
+  ## uncompressed adds 156M
   install_tarball(V1_average.tar.gz DESTINATION subjects)
+  ## uncompressed adds 1300M (1.3g)
   install_tarball(mult-comp-cor.tar.gz DESTINATION average)
+  ## uncompressed adds 72M
   install_tarball(Yeo_Brainmap_MNI152.tar.gz DESTINATION average)
+  ## uncompressed adds 992M
+  # install_tarball(fsmni152.tar.gz DESTINATION subjects)
 
 endif()
