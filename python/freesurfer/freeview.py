@@ -1,6 +1,7 @@
 import os
 import tempfile
 import numpy as np
+import torch
 
 from . import error, run, Image, Overlay, Volume, Surface, Geometry, collect_output
 from .deprecations import deprecate, replace, unsure, notneeded, notimplemented
@@ -250,6 +251,10 @@ class Freeview:
                 error('volume file %s does not exist' % volume)
                 return None
             return volume
+        
+        # check if input is a torch.Tensor, if so detach gradients
+        if isinstance(volume, torch.Tensor):
+            volume = volume.detach().cpu().squeeze()
 
         # check if input is a numpy-convertible tensor
         if hasattr(volume, 'numpy'):
