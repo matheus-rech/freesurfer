@@ -41,6 +41,7 @@ SOURCES += \
     FSSurface.cpp \
     FSVolume.cpp \
     GenericRenderView.cpp \
+    GifWriterWrapper.cpp \
     InfoTreeWidget.cpp \
     Interactor.cpp \
     Interactor2D.cpp \
@@ -237,6 +238,7 @@ HEADERS  += \
     FSSurface.h \
     FSVolume.h \
     GenericRenderView.h \
+    GifWriterWrapper.h \
     InfoTreeWidget.h \
     Interactor.h \
     Interactor2D.h \

@@ -65,6 +65,8 @@ public:
   Layer* GetLayer(const QString& type);
   QList<Layer*> GetLayers(const QString& type);
 
+  QList<Layer*>GetUnlockedLayers();
+
   Layer* GetLayerByName( const QString& name );
 
   Layer* GetLayerById( int nId );

@@ -28,6 +28,7 @@
 #include "SurfaceOverlayProperty.h"
 #include "LayerTrack.h"
 #include "LayerPropertyTrack.h"
+#include "LayerCollection.h"
 #include <QTimer>
 #include <QApplication>
 #include "MyVTKUtils.h"
@@ -51,11 +52,15 @@
 #include "MyUtils.h"
 #include <QDir>
 #include <QFileInfo>
+#include "GifWriterWrapper.h"
+#include <QDateTime>
+#include <QInputDialog>
+#include <QFileDialog>
 
 #define SCALE_FACTOR  200
 
 RenderView::RenderView( QWidget* parent ) : GenericRenderView( parent),
-  m_bNeedRedraw( false ),
+  m_bNeedRedraw( false ), m_gifWriter(NULL),
   m_nInteractionMode( IM_Navigate )
 {
   m_interactor = new Interactor( this );
@@ -721,4 +726,54 @@ void RenderView::SetParallelProjection(bool bParallel)
   if (cam->GetParallelScale() == 1)
     cam->SetParallelScale( qMax( qMax(m_dWorldSize[0], m_dWorldSize[1]), m_dWorldSize[2])/2 );
   Render();
+}
+
+void RenderView::CycleScreenshotToGif(const QString &fn, const QSize& sz, int nDelay)
+{
+  if (!m_gifWriter)
+    m_gifWriter = new GifWriterWrapper;
+  m_gifWriter->Initialize(fn, sz, nDelay);
+  AddScreenshotToGif();
+}
+
+void RenderView::AddScreenshotToGif()
+{
+  QString fn = QDir::tempPath() + "/freeview-temp-" + QString::number(QDateTime::currentMSecsSinceEpoch()) + ".png";
+  SaveScreenShot(fn, false);
+  m_gifWriter->AddToGif(fn);
+  int nCnt = property("gif_count").toInt();
+  if (nCnt <= 0)
+  {
+    m_gifWriter->EndGif();
+    delete m_gifWriter;
+    m_gifWriter = NULL;
+    LayerCollection* lc = MainWindow::GetMainWindow()->GetLayerCollection("MRI");
+    lc->CycleLayer(true, false);
+  }
+  else
+  {
+    setProperty("gif_count", nCnt-1);
+    LayerCollection* lc = MainWindow::GetMainWindow()->GetLayerCollection("MRI");
+    lc->CycleLayer(true, false);
+    RequestRedraw();
+    QTimer::singleShot(100, this, SLOT(AddScreenshotToGif()));
+  }
+}
+void RenderView::OnCycleToGif()
+{
+  bool bOK;
+  int nDelay = QInputDialog::getInt(this, "Set Delay", "Set Delay in ms", 100, 1, 10000, 50, &bOK);
+  if (!bOK)
+    return;
+
+  QString fn = QFileDialog::getSaveFileName(this, "Save to GIF",
+                                            "",
+                                            "GIF files (*.gif)");
+  if (fn.isEmpty())
+    return;
+
+  LayerCollection* lc = MainWindow::GetMainWindow()->GetLayerCollection("MRI");
+  QList<Layer*> unlocked = lc->GetUnlockedLayers();
+  setProperty("gif_count", unlocked.size()-1);
+  CycleScreenshotToGif(fn, size()*devicePixelRatio(), nDelay);
 }

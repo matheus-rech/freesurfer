@@ -353,6 +353,19 @@ bool LayerCollection::MoveToTop( Layer* layer )
   return false;
 }
 
+QList<Layer*> LayerCollection::GetUnlockedLayers()
+{
+  QList<Layer*> unlocked_layers;
+  for ( int i = 0; i < m_layers.size(); i++ )
+  {
+    if ( !m_layers[i]->IsLocked() )
+    {
+      unlocked_layers.push_back( m_layers[i] );
+    }
+  }
+  return unlocked_layers;
+}
+
 bool LayerCollection::CycleLayer( bool bMoveUp, bool bChangeActiveLayer )
 {
   if ( (int)m_layers.size() > 1 )
@@ -360,14 +373,7 @@ bool LayerCollection::CycleLayer( bool bMoveUp, bool bChangeActiveLayer )
     int nActive = GetLayerIndex( m_layerActive );
 
     // first get unlocked layers only
-    QList<Layer*> unlocked_layers;
-    for ( int i = 0; i < m_layers.size(); i++ )
-    {
-      if ( !m_layers[i]->IsLocked() )
-      {
-        unlocked_layers.push_back( m_layers[i] );
-      }
-    }
+    QList<Layer*> unlocked_layers = GetUnlockedLayers();
 
     // record the visibilities of each layer before cycling
     bool* bVisibility = new bool[m_layers.size()];
