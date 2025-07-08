@@ -883,7 +883,7 @@ void RenderView2D::TriggerContextMenu( QMouseEvent* event )
   if (unlocked.size() > 1)
   {
     menu.addSeparator();
-    QAction* act = new QAction("Cycle Through Volumes and Save as Gif...", this);
+    QAction* act = new QAction("Cycle Through Volumes and Copy to Clipboard as Gif...", this);
     connect(act, SIGNAL(triggered(bool)), SLOT(OnCycleToGif()));
     menu.addAction(act);
   }

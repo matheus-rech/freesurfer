@@ -1,6 +1,7 @@
 #include "GifWriterWrapper.h"
 #include "gif.h"
 #include <QImage>
+#include <QDebug>
 
 GifWriterWrapper::GifWriterWrapper()
 {
@@ -20,11 +21,12 @@ void GifWriterWrapper::Initialize(const QString &fn, const QSize &sz, int nDelay
   GifBegin((GifWriter*)m_gifWriter, qPrintable(fn), sz.width(), sz.height(), m_nDelay);
 }
 
-void GifWriterWrapper::AddToGif(const QImage &img, int nDelay_in)
+void GifWriterWrapper::AddToGif(const QImage &img_in, int nDelay_in)
 {
   int nDelay = m_nDelay;
   if (nDelay_in > 0)
     nDelay = nDelay_in/10;
+  QImage img = img_in.convertToFormat(QImage::Format_RGBA8888);
   GifWriter* gw = (GifWriter*)m_gifWriter;
   GifWriteFrame(gw, img.bits(), img.width(), img.height(), nDelay);
 }

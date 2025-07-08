@@ -56,6 +56,8 @@
 #include <QDateTime>
 #include <QInputDialog>
 #include <QFileDialog>
+#include <QClipboard>
+#include <QMimeData>
 
 #define SCALE_FACTOR  200
 
@@ -749,6 +751,10 @@ void RenderView::AddScreenshotToGif()
     m_gifWriter = NULL;
     LayerCollection* lc = MainWindow::GetMainWindow()->GetLayerCollection("MRI");
     lc->CycleLayer(true, false);
+    QClipboard* cb = QApplication::clipboard();
+    QMimeData *mimeData = new QMimeData();
+    mimeData->setUrls({QUrl::fromLocalFile(property("gif_path").toString())});
+    cb->setMimeData(mimeData);
   }
   else
   {
@@ -762,18 +768,17 @@ void RenderView::AddScreenshotToGif()
 void RenderView::OnCycleToGif()
 {
   bool bOK;
-  int nDelay = QInputDialog::getInt(this, "Set Delay", "Set Delay in ms", 100, 1, 10000, 50, &bOK);
+  int nDelay = QInputDialog::getInt(this, "Gif Interval", "Set Gif interval in ms", 100, 1, 10000, 50, &bOK);
   if (!bOK)
     return;
 
-  QString fn = QFileDialog::getSaveFileName(this, "Save to GIF",
-                                            "",
-                                            "GIF files (*.gif)");
+  QString fn = QDir::tempPath() + "/freeview-temp-" + QString::number(QDateTime::currentMSecsSinceEpoch()) + ".gif";
   if (fn.isEmpty())
     return;
 
   LayerCollection* lc = MainWindow::GetMainWindow()->GetLayerCollection("MRI");
   QList<Layer*> unlocked = lc->GetUnlockedLayers();
   setProperty("gif_count", unlocked.size()-1);
+  setProperty("gif_path", fn);
   CycleScreenshotToGif(fn, size()*devicePixelRatio(), nDelay);
 }
