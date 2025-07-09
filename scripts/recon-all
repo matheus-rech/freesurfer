@@ -2047,7 +2047,7 @@ endif
 
 #-----------                         -----------#
 #----------- Nu Intensity Correction -----------#
-##----------     -nuintensitycor     -----------#
+##----------     -nuintensitycor  (see also -skip-nu-intensity-cor) -----------#
 #----------- Creates nu.mgz          -----------#
 if($DoNuIntensityCor) then
   echo "#--------------------------------------------"  |& tee -a $LF |& tee -a $CF
@@ -2106,17 +2106,16 @@ if($DoNuIntensityCor) then
   endif
   # done:
   date > $touchdir/nu.touch
+endif
 
-# The "else" clause below was added on 4/7/25 but caused a bug when
-# recon-all was run a 2nd time, from the middle, eg, after edits. This
-# bug was included in the v8 patch. So commenting it out here. Will
-# delete it later.
-#else
-  # link nu.mgz to orig.mgz
-#  pushd $subjdir/mri 
-#  rm -f nu.mgz
-#  ln -sf orig.mgz nu.mgz
-#  popd
+if($SkipNuIntensityCor) then
+  # -skip-nu-intensity-cor. If this is set, then DoNuIntensityCor is
+  # going to be set to 0
+  # Create a link nu.mgz to orig.mgz
+  pushd $subjdir/mri 
+  rm -f nu.mgz
+  ln -sf orig.mgz nu.mgz
+  popd
 endif
 
 #-----------                          -----------#
@@ -8761,6 +8760,8 @@ check_params:
     echo "ERROR: --fix-ento-wm is necessary with --fix-ga"
     exit 1
   endif
+
+  if($SkipNuIntensityCor) set DoNuIntensityCor = 0;
 
   if($DoAntsN3) set DoAntsN4 = 0
 
