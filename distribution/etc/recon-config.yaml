@@ -16,6 +16,12 @@ DoAntsN3:
     action: enable
     descr: Use ANTS N3BiasFieldCorrection instead of MNI N3
 
+SkipNuIntensityCor:
+    value: False
+    flags: -skip-nu-intensity-cor
+    action: enable
+    descr: Turns off -nuintensitycor and forces nu.mgz to be a link to orig.mgz
+
 #Removed this because it is overridden below (no repeats allowed)
 #DoAntsN4:
 #    value: True
