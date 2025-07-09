@@ -879,6 +879,15 @@ void RenderView2D::TriggerContextMenu( QMouseEvent* event )
     }
   }
 
+  QList<Layer*> unlocked = mainwnd->GetLayerCollection("MRI")->GetUnlockedLayers();
+  if (unlocked.size() > 1)
+  {
+    menu.addSeparator();
+    QAction* act = new QAction("Cycle Through Volumes and Copy to Clipboard as Gif...", this);
+    connect(act, SIGNAL(triggered(bool)), SLOT(OnCycleToGif()));
+    menu.addAction(act);
+  }
+
   if (!menu.actions().isEmpty())
     menu.exec(event->globalPos());
 }

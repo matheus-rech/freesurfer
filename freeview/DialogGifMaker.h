@@ -7,6 +7,8 @@ namespace Ui {
 class DialogGifMaker;
 }
 
+class GifWriterWrapper;
+
 class DialogGifMaker : public QDialog
 {
   Q_OBJECT
@@ -31,7 +33,7 @@ private:
   Ui::DialogGifMaker *ui;
   int m_nNumberOfFrames;
 
-  void* m_gif;
+  GifWriterWrapper* m_gif;
   QString  m_strTempFilename;
 };
 

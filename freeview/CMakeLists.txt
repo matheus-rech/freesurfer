@@ -215,6 +215,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     DialogLoadODF.cpp
     LayerEditRef.cpp
     DialogGifMaker.cpp
+    GifWriterWrapper.cpp
     freeview.qrc
   )
 

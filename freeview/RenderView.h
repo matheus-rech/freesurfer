@@ -33,6 +33,7 @@ class vtkActor2D;
 class vtkScalarBarActor;
 class vtkProp;
 class Layer;
+class GifWriterWrapper;
 
 class RenderView : public GenericRenderView
 {
@@ -104,6 +105,7 @@ public slots:
   void AlignViewToNormal(double* v);
   virtual void UpdateScalarBar();
   void SetParallelProjection(bool bParallel);
+  void OnCycleToGif();
 
 protected:
   virtual void paintEvent(QPaintEvent *event);
@@ -115,6 +117,8 @@ protected slots:
     Q_UNUSED(bCenterView);
     RequestRedraw();
   }
+  void CycleScreenshotToGif(const QString& fn, const QSize& sz, int nDelay);
+  void AddScreenshotToGif();
 
 protected:
   bool    m_bNeedRedraw;
@@ -127,6 +131,7 @@ protected:
   vtkSmartPointer<vtkActor2D>   m_actorFocusFrame;
   vtkSmartPointer<vtkScalarBarActor>  m_actorScalarBar;
   QPointer<Layer>        m_layerScalarBar;
+  GifWriterWrapper*   m_gifWriter;
 };
 
 #endif // RENDERVIEW_H

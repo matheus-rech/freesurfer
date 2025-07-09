@@ -6,7 +6,7 @@
 #include <QFile>
 #include <QDateTime>
 #include "RenderView.h"
-#include "gif.h"
+#include "GifWriterWrapper.h"
 #include <QMessageBox>
 
 
@@ -17,13 +17,13 @@ DialogGifMaker::DialogGifMaker(QWidget *parent) :
   ui->setupUi(this);
   this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
 
-  m_gif = new GifWriter;
+  m_gif = new GifWriterWrapper;
   Reset();
 }
 
 DialogGifMaker::~DialogGifMaker()
 {
-  delete (GifWriter*)m_gif;
+  delete m_gif;
   delete ui;
 }
 
@@ -45,15 +45,14 @@ void DialogGifMaker::OnButtonAdd()
   }
   w = img.width();
   h = img.height();
-  int ndelay = ui->spinBoxDelay->value()/10;
-  GifWriter* gw = (GifWriter*)m_gif;
+  int ndelay = ui->spinBoxDelay->value();
   if (m_nNumberOfFrames == 0)
   {
     m_strTempFilename = QDir::tempPath() + "/freeview-temp-" + QString::number(QDateTime::currentMSecsSinceEpoch()) + ".gif";
-    GifBegin(gw, qPrintable(m_strTempFilename), w, h, ndelay);
+    m_gif->Initialize(m_strTempFilename, img.size(), ndelay);
     ui->pushButtonSave->setEnabled(true);
   }
-  GifWriteFrame(gw, img.bits(), w, h, ndelay);
+  m_gif->AddToGif(img, ndelay);
   m_nNumberOfFrames++;
   ui->checkBoxRescale->setEnabled(false);
   ui->spinBoxWidth->setEnabled(false);
@@ -63,7 +62,7 @@ void DialogGifMaker::OnButtonAdd()
 void DialogGifMaker::Reset()
 {
   if (m_nNumberOfFrames > 0)
-    GifEnd((GifWriter*)m_gif);
+    m_gif->EndGif();
   m_nNumberOfFrames = 0;
   ui->checkBoxRescale->setEnabled(true);
   ui->spinBoxWidth->setEnabled(ui->checkBoxRescale->isChecked());
@@ -79,11 +78,10 @@ void DialogGifMaker::OnButtonSave()
   if (!fn.isEmpty())
   {
     if (m_nNumberOfFrames > 0)
-      GifEnd((GifWriter*)m_gif);
+      Reset();
     if (QFile::exists(fn))
       QFile::remove(fn);
     QFile::copy(m_strTempFilename, fn);
-    Reset();
     hide();
   }
 }
