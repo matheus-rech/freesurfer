@@ -34,6 +34,7 @@
 #include "DialogAddPointSetStat.h"
 #include "DialogControlPointComment.h"
 #include "ToolWindowLesionPopup.h"
+#include "DialogWayPointsAngle.h"
 #ifdef Q_OS_MAC
 #include "MacHelper.h"
 #endif
@@ -97,6 +98,11 @@ PanelPointSet::PanelPointSet(QWidget *parent) :
   connect(ui->textEditOverallQuality, SIGNAL(textChanged()), SLOT(OnTextOverallQualityChanged()));
   connect(ui->checkBoxFixed, SIGNAL(toggled(bool)), SLOT(OnCheckBoxFixed(bool)));
   connect(ui->pushButtonLesionPopup, SIGNAL(clicked(bool)), SLOT(OnButtonLesionPopup()));
+
+  m_dlgPointAngle = new DialogWayPointsAngle(this);
+  m_dlgPointAngle->hide();
+  connect(mainwnd->GetLayerCollection("PointSet"), SIGNAL(ActiveLayerChanged(Layer*)), m_dlgPointAngle,
+          SLOT(SetPointSet(Layer*)), Qt::QueuedConnection);
 }
 
 PanelPointSet::~PanelPointSet()
@@ -797,4 +803,10 @@ void PanelPointSet::OnButtonLesionPopup()
 {
   m_toolLesionPopup->show();
   m_toolLesionPopup->raise();
+}
+
+void PanelPointSet::OnButtonPointAngle()
+{
+  m_dlgPointAngle->show();
+  m_dlgPointAngle->raise();
 }

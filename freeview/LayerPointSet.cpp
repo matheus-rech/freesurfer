@@ -1026,14 +1026,17 @@ std::vector<double> LayerPointSet::GetPoints()
   return list;
 }
 
-void LayerPointSet::GetPoint(int nIndex, double *pt_out)
+bool LayerPointSet::GetPoint(int nIndex, double *pt_out)
 {
-  if (nIndex < m_points.size())
+  if (nIndex >= 0 && nIndex < m_points.size())
   {
     pt_out[0] = m_points[nIndex].pt[0];
     pt_out[1] = m_points[nIndex].pt[1];
     pt_out[2] = m_points[nIndex].pt[2];
+    return true;
   }
+  else
+    return false;
 }
 
 ControlPoint LayerPointSet::GetPoint(int nIndex)
