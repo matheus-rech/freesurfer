@@ -253,6 +253,8 @@ void PanelPointSet::DoUpdateWidgets()
 
   m_toolLesionPopup->UpdateUI(layer);
 
+  m_dlgPointAngle->SetPointSet(layer);
+
   BlockAllSignals( false );
 }
 
