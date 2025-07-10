@@ -13,12 +13,9 @@ set VERSION = '$Id$';
 set scriptname = `basename $0`
 
 #get the script full path
-set SCRIPT_DIR = $FREESURFER_HOME_FSPYTHON/scripts
+set SCRIPT_DIR = $FREESURFER_HOME_FSPYTHON/python/scripts
 set ATLAS_DIR = $FREESURFER_HOME/average/claustrum_seg
 set MODEL_DIR = $FREESURFER_HOME_FSPYTHON/models
-cd $SCRIPT_DIR
-set SCRIPT_DIR = `pwd`
-cd -
 
 
 
@@ -56,7 +53,7 @@ set fovdir = ()
 set RequireConda = 0
 set rot = ()
 set trans = ()
-set model = $MODEL_DIR/model.h5; 
+set model = $MODEL_DIR/claustrum_seg_20250616.h5; 
 
 set tmpdir = ();
 set cleanup = 1;
@@ -96,8 +93,9 @@ set outdir = `pwd`;
 popd > /dev/null
 
 if($#tmpdir == 0) then
-  if(-dw /scratch)   set tmpdir = /scratch/tmpdir.mri_claustrum_seg.$$
-  if(! -dw /scratch) set tmpdir = $outdir/tmpdir.mri_claustrum_seg.$$
+  #if(-dw /scratch)   set tmpdir = /scratch/tmpdir.mri_claustrum_seg.$$
+  #if(! -dw /scratch) set tmpdir = $outdir/tmpdir.mri_claustrum_seg.$$
+  set tmpdir = $outdir/tmpdir.mri_claustrum_seg.$$
 endif
 mkdir -p $tmpdir
 
@@ -900,6 +898,8 @@ usage_exit:
   echo " --direct input output : run directly on input/output without preprocessing"
   #echo " --python pythonpath : spec path to python (default is $python)"
   #echo "    you can also set env var SYNTHSEG38"
+  echo " --cleanup/--no-cleanup : remove tmpdir (default $cleanup)"
+  echo " --tempdir tmpdir : use this tmpdir instead of default (default is outdir/tmpdir.mri_claustrum_seg)"
   echo " --rot rotC rotR rotS : rotation about the given axis in degrees"
   echo " --mni-1.0 : set MNI Target res to 1.0 instead of $MNITargetRes (only applies to quality control)"
   echo ""
