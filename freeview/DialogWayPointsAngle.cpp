@@ -61,7 +61,7 @@ void DialogWayPointsAngle::OnSpinBoxValueChanged(int n)
 
 void DialogWayPointsAngle::TriggerMoveToPoint(QObject *obj)
 {
-  QSpinBox* spinbox = qobject_cast<QSpinBox*>(sender());
+  QSpinBox* spinbox = qobject_cast<QSpinBox*>(obj);
   if (spinbox && m_pointset)
   {
     double pt[3];
