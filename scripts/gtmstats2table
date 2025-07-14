@@ -1,0 +1,228 @@
+#!/bin/tcsh -f
+# gtmstats2table - sources
+if(-e $FREESURFER_HOME/sources.csh) then
+  source $FREESURFER_HOME/sources.csh
+endif
+
+set VERSION = '$Id$';
+
+set output = ();
+set gtmdirlist = ();
+set meas = uptake
+
+set inputargs = ($argv);
+set PrintHelp = 0;
+if($#argv == 0) goto usage_exit;
+set n = `echo $argv | grep -e -help | wc -l` 
+if($n != 0) then
+  set PrintHelp = 1;
+  goto usage_exit;
+endif
+set n = `echo $argv | grep -e -version | wc -l` 
+if($n != 0) then
+  echo $VERSION
+  exit 0;
+endif
+goto parse_args;
+parse_args_return:
+goto check_params;
+check_params_return:
+
+set StartTime = `date`;
+set tSecStart = `date '+%s'`;
+set year  = `date +%Y`
+set month = `date +%m`
+set day   = `date +%d`
+set hour   = `date +%H`
+set min    = `date +%M`
+
+set outdir = `dirname $output`
+mkdir -p $outdir
+pushd $outdir > /dev/null
+set outdir = `pwd`;
+popd > /dev/null
+
+#========================================================
+rm -f $output
+set stfile = $gtmdirlist[1]/gtm.stats.dat
+set roilist = `cat $stfile | awk '{print $3}'`
+echo "GTM $roilist" >> $output
+@ nth = 0
+foreach gtmdir ($gtmdirlist)
+  @ nth = $nth + 1
+  set stfile = $gtmdir/gtm.stats.dat
+  switch($meas)
+    case "uptake"
+      set st = `cat $stfile | awk '{print $7}'`
+      breaksw
+    case "voxels"
+      set st = `cat $stfile | awk '{print $5}'`
+      breaksw
+    case "volume"
+      set st0 = `cat $stfile | awk '{print $5}'`
+      set mask = $gtmdir/aux/mask.nii.gz
+      set cmd = (mri_info --voxvol $mask --o /tmp/gtmstats2table.$$.dat)
+      echo $cmd 
+      $cmd
+      if($status) exit 1
+      set voxvol = `cat /tmp/gtmstats2table.$$.dat`
+      rm -f /tmp/gtmstats2table.$$.dat
+      set st = ()
+      foreach m ($st0)
+        set mst = `echo "$m*$voxvol" | bc -l `
+        set st = ($st $mst)
+      end
+      breaksw
+  endsw
+  echo "$nth $st" >> $output
+end
+
+#========================================================
+
+# Done
+echo "gtmstats2table Done"
+exit 0
+
+###############################################
+
+############--------------##################
+error_exit:
+echo "ERROR:"
+
+exit 1;
+###############################################
+
+############--------------##################
+parse_args:
+set cmdline = ($argv);
+while( $#argv != 0 )
+
+  set flag = $argv[1]; shift;
+  
+  switch($flag)
+
+    case "--o":
+      if($#argv < 1) goto arg1err;
+      set output = $argv[1]; shift;
+      breaksw
+
+    case "--gtmdir":
+    case "--g":
+      if($#argv < 1) goto arg1err;
+      set gtmdir = $argv[1]; shift;
+      set gtmdirlist = ($gtmdirlist $gtmdir)
+      breaksw
+
+    case "--f":
+      if($#argv < 1) goto arg1err;
+      set gtmdirfile = $argv[1]; shift;
+      set gtmdirlist = ($gtmdirlist `cat $gtmdirfile`)
+      breaksw
+
+    case "--uptake":
+      set meas = uptake; # default
+      breaksw
+    case "--voxels":
+      set meas = voxels
+      breaksw
+    case "--volume":
+      set meas = volume
+      breaksw
+
+    case "--debug":
+      set verbose = 1;
+      set echo = 1;
+      breaksw
+
+    default:
+      echo ERROR: Flag $flag unrecognized. 
+      echo $cmdline
+      exit 1
+      breaksw
+  endsw
+
+end
+
+goto parse_args_return;
+############--------------##################
+
+############--------------##################
+check_params:
+
+if($#output == 0) then
+  echo "ERROR: must spec output"
+  exit 1;
+endif
+if($#gtmdirlist == 0) then
+  echo "ERROR: must spec list of gtmdirs"
+  exit 1;
+endif
+foreach gtmdir ($gtmdirlist)
+  set stfile = $gtmdir/gtm.stats.dat
+  if(! -e $stfile) then
+    echo "ERROR: cannot find $stfile"
+    exit 1;
+  endif
+end
+
+
+goto check_params_return;
+############--------------##################
+
+############--------------##################
+arg1err:
+  echo "ERROR: flag $flag requires one argument"
+  exit 1
+############--------------##################
+arg2err:
+  echo "ERROR: flag $flag requires two arguments"
+  exit 1
+############--------------##################
+
+############--------------##################
+usage_exit:
+  echo ""
+  echo "gtmstats2table --o outputtable"
+  echo " --gtmdir gtmdir1 <--gtmdir gtmdir2>"
+  echo " --f file : file with a list of gtmdirs"
+  echo " --voxels : report the number of voxels in each ROI instead of uptake"
+  echo " --volume : report the volume (mm3) each ROI instead of uptake"
+  echo ""
+
+  if(! $PrintHelp) exit 1;
+  echo $VERSION
+  cat $0 | awk 'BEGIN{prt=0}{if(prt) print $0; if($1 == "BEGINHELP") prt = 1 }'
+exit 1;
+
+#---- Everything below here is printed out as part of help -----#
+BEGINHELP
+
+This script collects the GTM values (7th column) from the gtm.stats
+file (output of mri_gtmpvc) and saves them in a white-space separated table 
+(similar to the output of asegstats2table and aparcstats2table). There
+are two ways to specify the set of GTM directories to participate:
+
+(1) provide a list on the command line with multiple --gtmdir options, eg,
+
+--gtmdir cumi001/gtm.psf04 --gtmdir cumi002/gtm.psf04
+
+(2) create a text file file with tall the gtmdirs, eg
+echo cumi001/gtm.psf04 cumi002/gtm.psf04 > gtmdirlistfile
+--f gtmdirlistfile
+
+The output will be a table where the first row is the list of ROI
+names.  The subsequent rows will be for each input. The first column
+will be the order number of the input (eg, 1, 2, 3, etc).
+
+The output can be treated just like the outputs of asegstats2table and
+aparcstats2table, eg, 
+
+mri_glmfit --table gtmstatstable --osgm --o glm.gtmstatstable
+
+Alternatively, the number of voxels in each ROI or the volume of each ROI
+can be reported by adding --voxels or --volume to the command line.
+
+
+
+
+
