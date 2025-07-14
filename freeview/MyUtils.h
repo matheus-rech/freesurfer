@@ -41,7 +41,6 @@ public:
   template <class T> static void FreeMatrix(T** p, int ny);
   template <class T> static double Dot( T* v1, T* v2 );
 
-
   static double RoundToGrid( double dvalue );
 
   static bool CalculateOptimalVolume( int* vox, int nsize1, int* vox2, int nsize2,

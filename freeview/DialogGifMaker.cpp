@@ -15,8 +15,8 @@ DialogGifMaker::DialogGifMaker(QWidget *parent) :
   ui(new Ui::DialogGifMaker)
 {
   ui->setupUi(this);
-  this->setWindowFlags( Qt::Tool | Qt::WindowTitleHint | Qt::CustomizeWindowHint );
-
+  this->setWindowFlags( Qt::Window | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint |
+                        Qt::CustomizeWindowHint );
   m_gif = new GifWriterWrapper;
   Reset();
 }

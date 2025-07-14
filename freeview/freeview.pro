@@ -34,6 +34,7 @@ SOURCES += \
     DialogTransformSurface.cpp \
     DialogTransformVolume.cpp \
     DialogVolumeFilter.cpp \
+    DialogWayPointsAngle.cpp \
     DialogWriteMovieFrames.cpp \
     FloatingStatusBar.cpp \
     FSLabel.cpp\
@@ -231,6 +232,7 @@ HEADERS  += \
     DialogTransformSurface.h \
     DialogTransformVolume.h \
     DialogVolumeFilter.h \
+    DialogWayPointsAngle.h \
     DialogWriteMovieFrames.h \
     FloatingStatusBar.h \
     FSLabel.h\
@@ -399,6 +401,7 @@ FORMS    += MainWindow.ui \
     DialogNewAnnotation.ui \
     DialogSaveAllVolumes.ui \
     DialogTransformSurface.ui \
+    DialogWayPointsAngle.ui \
     PanelODF.ui \
     PanelVolume.ui \
     PanelSurface.ui \

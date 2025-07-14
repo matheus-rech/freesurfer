@@ -508,17 +508,17 @@
 810 R_hypothalamus_tubular_superior         20  180 130 0
 
 # sclimbic
-819 Left-HypoThal-noMB           0  80   0 0 2
-820 Right-HypoThal-noMB         15 165   15 0 2
-821 Left-Fornix                  0 255 255 0 3
-822 Right-Fornix                27 187 253 0 3 
-843 Left-MammillaryBody        178 255  80 0 2
-844 Right-MammillaryBody        25 246  80 0 2
-853 Mid-AntCom                  60  58 210 0 3
-865 Left-Basal-Forebrain       170  85   0 0 2
-866 Right-Basal-Forebrain      139  69  19 0 2
-869 Left-SeptalNuc             255 170 255 0 2
-870 Right-SeptalNuc            191 127 191 0 2
+819 Left-HypoThal-noMB           0  80   0 0
+820 Right-HypoThal-noMB         15 165   15 0
+821 Left-Fornix                  0 255 255 0
+822 Right-Fornix                27 187 253 0
+843 Left-MammillaryBody        178 255  80 0
+844 Right-MammillaryBody        25 246  80 0
+853 Mid-AntCom                  60  58 210 0
+865 Left-Basal-Forebrain       170  85   0 0
+866 Right-Basal-Forebrain      139  69  19 0
+869 Left-SeptalNuc             255 170 255 0
+870 Right-SeptalNuc            191 127 191 0
 
 # SAMSEG-CHARM + 400
 901       Air-Internal                     0 170 0 0 
