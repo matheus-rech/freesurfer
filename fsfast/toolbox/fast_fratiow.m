@@ -82,8 +82,18 @@ usematrix = 0;
 %end
 X_fft = fft(X,2*nf);
 if(isempty(nacf))
-  % Covariance matrix of contrast effect size
-  cescvmr = inv(C*inv(X'*X)*C');
+  % Covariance matrix of contrast effect size. This "try" statement
+  % is used because sometimes we just want the ces and not the
+  % p-value, but the design/contrast are ill-conditioned and cause
+  % the this part to fail (eg, Tatiana's FIR). So this is a little
+  % bit of a hack so that things can continue.
+  try
+    cescvmr = inv(C*inv(X'*X)*C');
+    fprintf('fast_fratiow: Warning: C*inv(X*X)*C is badly conditioned\n');
+  catch
+    nC1 = size(C,1);
+    cescvmr = zeros(nC1);
+  end
   if(dof1 ~= 1) F = (sum(ces .* (cescvmr*ces))./rvar)/dof1;
   else          
     F = ((ces.^2)./rvar)*(cescvmr/dof1);
