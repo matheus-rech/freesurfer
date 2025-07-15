@@ -89,8 +89,8 @@ if(isempty(nacf))
   % bit of a hack so that things can continue.
   try
     cescvmr = inv(C*inv(X'*X)*C');
-    fprintf('fast_fratiow: Warning: C*inv(X*X)*C is badly conditioned\n');
   catch
+    fprintf('fast_fratiow: Warning: C*inv(X*X)*C is badly conditioned\n');
     nC1 = size(C,1);
     cescvmr = zeros(nC1);
   end
