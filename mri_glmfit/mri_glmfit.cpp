@@ -1088,7 +1088,7 @@ int main(int argc, char **argv) {
          glmdir/synthseed.dat, and use that for future splits.*/
       // MatrixRandPermRows() creates a random order of frames to exclude, but 
       // this is not important because it keeps the right order with the design matrix
-      MatrixRandPermRows(Ex);
+      MatrixRandPermRows(Ex,1);
     }
 
     ExcludeFrames = (int *) calloc(sizeof(int),nExclude);
@@ -1106,7 +1106,7 @@ int main(int argc, char **argv) {
     ExcludeFrames = (int *) calloc(sizeof(int),nRandExclude);
     Ex = MatrixConstVal(0,mriglm->y->nframes,1,NULL);
     for(n=0; n<nRandExclude; n++) Ex->rptr[n+1][1] = 1;
-    MatrixRandPermRows(Ex);
+    MatrixRandPermRows(Ex,1);
     nExclude = 0;
     for(n=0; n<mriglm->y->nframes; n++){
       if(Ex->rptr[n+1][1]){
@@ -3290,6 +3290,7 @@ printf("   --permute-input : good for testing (not related to sim)\n");
 printf("\n");
 printf("   --pca : perform pca/svd analysis on residual\n");
 printf("   --tar1 : compute and save temporal AR1 of residual\n");
+printf("   --no-rescale-x : do not rescale columns of X before/after inversion (default is to rescale)\n");
 printf("   --save-yhat : flag to save signal estimate\n");
 printf("   --save-cond  : flag to save design matrix condition at each voxel\n");
 printf("   --voxdump col row slice  : dump voxel GLM and exit\n");
@@ -4392,14 +4393,33 @@ int RandPermMatrixAndPVR(MATRIX *X, MRI **pvrs, int npvrs)
   MATRIX *X0;
   extern char *PermuteOutputFile;
 
+  int ncols = X->cols;
+  if(*pvrs) ncols += (*pvrs)->nframes;
+
+  if(ncols == 1){ // OSGM -- do a sign flip
+    rfs = RFspecInit(0, NULL);
+    rfs->name = strcpyalloc("uniform");
+    rfs->params[0] = 0;
+    rfs->params[1] = 1;
+    RFspecSetSeed(rfs, -1);
+    for(int n=0; n < X->rows; n++){
+      double s = RFdrawVal(rfs)-0.5;
+      if(s > 0) s = +1;
+      if(s < 0) s = -1;
+      X->rptr[n+1][1] *= s;
+    }
+    RFspecFree(&rfs);
+    return(0);
+  }
+
   NewRowOrder = RandPerm(X->rows, NULL);
   for (r = 0; r < X->rows; r++) {
     NewRowOrder[r]++;  // Make one-based
   }
   X0 = MatrixCopy(X, NULL);
   MatrixReorderRows(X0, NewRowOrder, X);
-
-  if(PermuteOutputFile){
+  
+  if(PermuteOutputFile && ncols > 1){
     FILE *fp = fopen(PermuteOutputFile,"w");
     for (r = 0; r < X->rows; r++) fprintf(fp,"%3d\n",NewRowOrder[r]);
     fclose(fp);
@@ -4413,11 +4433,13 @@ int RandPermMatrixAndPVR(MATRIX *X, MRI **pvrs, int npvrs)
       double *vect = (double *) calloc(sizeof(double),X->rows);
       for(r=0; r < pvr->height; r++){
 	for(s=0; s < pvr->depth; s++){
-	  for(f=0; f < X->rows; f++) vect[f] = MRIgetVoxVal(pvr,c,r,s,f);
-	  for(f=0; f < X->rows; f++) {
-	    int f2 = NewRowOrder[f] - 1;
-	    MRIsetVoxVal(pvr,c,r,s,f, vect[f2]);
-	  }
+	  if(ncols > 1){
+	    for(f=0; f < X->rows; f++) vect[f] = MRIgetVoxVal(pvr,c,r,s,f);
+	    for(f=0; f < X->rows; f++) {
+	      int f2 = NewRowOrder[f] - 1;
+	      MRIsetVoxVal(pvr,c,r,s,f, vect[f2]);
+	    }
+	  } 
 	}
       }
       free(vect);
