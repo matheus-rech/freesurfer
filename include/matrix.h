@@ -319,7 +319,8 @@ MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G);
 MATRIX *GaussianMatrix2(int len, float std1, float std2, float w1, int norm, MATRIX *G);
 MATRIX *GaussianVector(int len, float mean, float std, int norm, MATRIX *g);
 MATRIX *MatrixReorderRows(MATRIX *X, int *NewRowOrder, MATRIX *XRO);
-int MatrixRandPermRows(MATRIX *X);
+int MatrixRandPermRows(MATRIX *X, int ptype, unsigned long int seed=0);
+std::vector<int> randperm(int ntot, unsigned long int seed=0);
 int MatrixColsAreNotOrthog(MATRIX *X);
 #define VectorSSE(v1, v2)  MatrixSSE(v1, v2)
 #define VectorRMS(v1, v2)  MatrixRMS(v1, v2)
