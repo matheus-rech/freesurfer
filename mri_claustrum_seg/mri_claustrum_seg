@@ -8,6 +8,7 @@ endif
 #if($?SYNTHSEG38 == 0) setenv SYNTHSEG38 /home/miniforge3/envs/synthseg_38
 #set python = $SYNTHSEG38/bin/python
 set python = fspython
+setenv CUDA_VISIBLE_DEVICES ""
 
 set VERSION = '$Id$';
 set scriptname = `basename $0`
@@ -899,7 +900,7 @@ usage_exit:
   #echo " --python pythonpath : spec path to python (default is $python)"
   #echo "    you can also set env var SYNTHSEG38"
   echo " --cleanup/--no-cleanup : remove tmpdir (default $cleanup)"
-  echo " --tempdir tmpdir : use this tmpdir instead of default (default is outdir/tmpdir.mri_claustrum_seg)"
+  echo " --tmpdir tmpdir : use this tmpdir instead of default (default is outdir/tmpdir.mri_claustrum_seg)"
   echo " --rot rotC rotR rotS : rotation about the given axis in degrees"
   echo " --mni-1.0 : set MNI Target res to 1.0 instead of $MNITargetRes (only applies to quality control)"
   echo ""
