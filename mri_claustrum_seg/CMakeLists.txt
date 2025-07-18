@@ -23,4 +23,4 @@ else()
 endif()
 
 ## isntall the atlas dir
-# install_tarball(claustrum_seg DESTINATION average)
+install_tarball(claustrum_seg.tar.gz DESTINATION average)

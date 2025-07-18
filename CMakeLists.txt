@@ -868,7 +868,7 @@ if(NOT MINIMAL)
     mri_ca_tissue_parms
     mri_ca_train
     mri_cal_renormalize_gca
-    #mri_claustrum_seg - removed until the python package descrepancies are resolved
+    mri_claustrum_seg
     mri_cnr
     mri_compile_edits
     mri_compute_change_map
