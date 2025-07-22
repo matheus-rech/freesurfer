@@ -82,14 +82,15 @@ usematrix = 0;
 %end
 X_fft = fft(X,2*nf);
 if(isempty(nacf))
-  % Covariance matrix of contrast effect size. This "try" statement
-  % is used because sometimes we just want the ces and not the
-  % p-value, but the design/contrast are ill-conditioned and cause
-  % the this part to fail (eg, Tatiana's FIR). So this is a little
-  % bit of a hack so that things can continue.
-  try
-    cescvmr = inv(C*inv(X'*X)*C');
-  catch
+  % Covariance matrix of contrast effect size. This condition check is
+  % used because sometimes we just want the ces and not the p-value,
+  % but the design/contrast are ill-conditioned and cause the this
+  % part to fail (eg, Tatiana's FIR). So this is a little bit of a
+  % hack so that things can continue.  See also fast_fratio.m
+  CiXtXC = C*inv(X'*X)*C';
+  if(cond(CiXtXC) < 1e14) % Not sure what the threshold should be
+    cescvmr = inv(CiXtXC);
+  else
     fprintf('fast_fratiow: Warning: C*inv(X*X)*C is badly conditioned\n');
     nC1 = size(C,1);
     cescvmr = zeros(nC1);
