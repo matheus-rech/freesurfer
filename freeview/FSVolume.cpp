@@ -1089,7 +1089,7 @@ bool FSVolume::MRIWrite( const QString& filename, int nSampleMethod, bool resamp
   QString cmd = property("cmdline_to_add").toString();
   if (!cmd.isEmpty())
   {
-    MRIaddCommandLine(m_MRITemp, qPrintable(cmd));
+    MRIaddCommandLine(m_MRITemp, cmd.toStdString());
     setProperty("cmdline_to_add", "");
   }
 
