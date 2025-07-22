@@ -6016,20 +6016,19 @@ void MainWindow::OnSaveVolume()
     {
       fn += ".mgz";
     }
-    layer->GetSourceVolume()->setProperty("original_filename", layer->GetFileName());
     if (GetVolumeCropper()->GetVolume() == layer && layer->GetSourceVolume()->GetCropped())
     {
       int* ext = GetVolumeCropper()->GetExtent();
       QString crop_ext = QString("L-R %1 %2 P-A %3 %4 I-S %5 %6").arg(ext[0]).arg(ext[1])
                                  .arg(ext[2]).arg(ext[3]).arg(ext[4]).arg(ext[5]);
       QString cmd = QString("freeview crop volume %1  Orignal file: %2").arg(crop_ext)
-          .arg(layer->GetFileName());
+          .arg(layer->property("original_filename").toString());
       cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
       layer->GetSourceVolume()->setProperty("cmdline_to_add", cmd);
     }
     if (layer->IsTransformed())
     {
-      QString cmd = QString("freeview transform volume %1  Orignal file: %2").arg(layer->GetTransformString()).arg(layer->GetFileName());
+      QString cmd = QString("freeview transform volume %1  Orignal file: %2").arg(layer->GetTransformString()).arg(layer->property("original_filename").toString());
       cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
       layer->GetSourceVolume()->setProperty("cmdline_to_add", cmd);
     }
@@ -6088,6 +6087,7 @@ bool MainWindow::SaveVolumeAs()
     }
     else
     {
+      layer_mri->setProperty("original_filename", layer_mri->GetFileName());
       layer_mri->SetFileName( fn );
       OnSaveVolume();
     }
