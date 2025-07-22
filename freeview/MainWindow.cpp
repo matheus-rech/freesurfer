@@ -130,6 +130,7 @@
 #include "DialogLoadODF.h"
 #include "LayerEditRef.h"
 #include "DialogGifMaker.h"
+#include "FSVolume.h"
 
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
@@ -6014,6 +6015,23 @@ void MainWindow::OnSaveVolume()
          !fi.completeSuffix().contains("nii.gz"))
     {
       fn += ".mgz";
+    }
+    layer->GetSourceVolume()->setProperty("original_filename", layer->GetFileName());
+    if (GetVolumeCropper()->GetVolume() == layer && layer->GetSourceVolume()->GetCropped())
+    {
+      int* ext = GetVolumeCropper()->GetExtent();
+      QString crop_ext = QString("L-R %1 %2 P-A %3 %4 I-S %5 %6").arg(ext[0]).arg(ext[1])
+                                 .arg(ext[2]).arg(ext[3]).arg(ext[4]).arg(ext[5]);
+      QString cmd = QString("freeview crop volume %1  Orignal file: %2").arg(crop_ext)
+          .arg(layer->GetFileName());
+      cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
+      layer->GetSourceVolume()->setProperty("cmdline_to_add", cmd);
+    }
+    if (layer->IsTransformed())
+    {
+      QString cmd = QString("freeview transform volume %1  Orignal file: %2").arg(layer->GetTransformString()).arg(layer->GetFileName());
+      cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
+      layer->GetSourceVolume()->setProperty("cmdline_to_add", cmd);
     }
     layer->SetFileName( fn );
     m_scripts.append(QStringList("savelayer") << QString::number(layer->GetID()));

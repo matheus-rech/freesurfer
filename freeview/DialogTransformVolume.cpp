@@ -200,6 +200,11 @@ void DialogTransformVolume::UpdateUI( int scope )
       m_sliderRotate[i]->setValue((int)(val*2));
       ChangeLineEditNumber(m_textAngle[i], angle[i], 4);
     }
+    bool flip[3];
+    layer->GetFlip(flip);
+    ui->checkBoxFlipX->setChecked(flip[0]);
+    ui->checkBoxFlipY->setChecked(flip[1]);
+    ui->checkBoxFlipZ->setChecked(flip[2]);
 
     for ( int i = 0; i < allwidgets.size(); i++ )
     {

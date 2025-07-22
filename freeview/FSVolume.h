@@ -227,6 +227,11 @@ public:
   bool IsRGB();
   bool ExportToGrayScale(MRI* src, const QString& fn);
 
+  bool GetCropped()
+  {
+    return m_bCrop;
+  }
+
 Q_SIGNALS:
   void ProgressChanged( int n );
 
