@@ -9280,18 +9280,20 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
 
   if (!read_volume) return (mri);
 
-  int j, k, t;
   if (!doscaling) {
     // no voxel value scaling needed
     void *buf;
-    float *fbuf = (float *)calloc(mri->width, sizeof(float));
-    double *dbuf = (double *)calloc(mri->width, sizeof(double));
-    int nn;
+    float *fbuf = NULL;
+    double *dbuf = NULL;
+    if (hdr->datatype == DT_DOUBLE) {
+      fbuf = (float *)calloc(mri->width, sizeof(float));
+      dbuf = (double *)calloc(mri->width, sizeof(double));
+    }
 
-    int bytesRead = 0;
-    for (t = 0; t < mri->nframes; t++) {
-      for (k = 0; k < mri->depth; k++) {
-        for (j = 0; j < mri->height; j++) {
+    unsigned long bytesRead = 0;
+    for (int t = 0; t < mri->nframes; t++) {
+      for (int k = 0; k < mri->depth; k++) {
+        for (int j = 0; j < mri->height; j++) {
           buf = &MRIseq_vox(mri, 0, j, k, t);
 
           if (hdr->datatype != DT_DOUBLE)
@@ -9310,7 +9312,7 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
             if (bytes_per_voxel == 8) byteswapbuffloat(dbuf, bytes_per_voxel * mri->width);
           }
           if (hdr->datatype == DT_DOUBLE) {
-            for (nn = 0; nn < mri->width; nn++) fbuf[nn] = (float)dbuf[nn];
+            for (int nn = 0; nn < mri->width; nn++) fbuf[nn] = (float)dbuf[nn];
             memcpy(buf, fbuf, 4 * mri->width);
           }
         }  // height
@@ -9319,9 +9321,9 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
     }  // nframes
     free(fbuf);
     free(dbuf);
-  } 
-  else {
-      int bytesRead = 0;
+  }
+  else {  // doscaling
+      unsigned long bytesRead = 0;
 
       if (scaledata)
 	printf("Voxel values scaling (nifti datatype=%d => MRI_FLOAT) ... (Set environment variable 'NII_RESCALE_OFF' to turn off scaling)\n\n", hdr->datatype);
@@ -9349,11 +9351,10 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
 
     // voxel value scaling needed
     unsigned char *buf = (unsigned char *)malloc(mri->width * bytes_per_voxel);
-    int nn;
 
-    for (t = 0; t < mri->nframes; t++) {
-      for (k = 0; k < mri->depth; k++) {
-	for (j = 0; j < mri->height; j++) {
+    for (int t = 0; t < mri->nframes; t++) {
+      for (int k = 0; k < mri->depth; k++) {
+	for (int j = 0; j < mri->height; j++) {
           memcpy(buf, img+bytesRead, bytes_per_voxel*mri->width);
           bytesRead += bytes_per_voxel*mri->width;
 
@@ -9364,7 +9365,7 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
           }
 
           // additional logic to scale voxel values
-          for (nn = 0; nn < mri->width; nn++)
+          for (int nn = 0; nn < mri->width; nn++)
 	  {
 	    float val = 0.0;
             if (hdr->datatype == DT_UNSIGNED_CHAR) {
