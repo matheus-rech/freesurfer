@@ -26,6 +26,3 @@ Werkzeug
 # capping urllib to avoid this conflict with OpenSSL:
 # https://github.com/urllib3/urllib3/issues/2168
 urllib3<=1.26.15
-# adding synths seg repo for mri_claustrum seg
-#SynthSeg@git+https://github.com/BBillot/SynthSeg
-SynthSeg@git+https://github.com/jnolan14/SynthSeg@np-1.24
