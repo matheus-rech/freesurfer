@@ -7775,12 +7775,13 @@ MRI *MRIdownsample2(MRI *mri_src, MRI *mri_dst)
   \param Fs - downsample factor for slices (depth)
   \param KeepType - set to non-0 to keep precision of src, otherwise float
 */
-MRI *MRIdownsampleN(MRI *src, MRI *dst, int Fc, int Fr, int Fs, int KeepType)
+MRI *MRIdownsampleN(MRI *src, MRI *dst, float Fc, float Fr, float Fs, int KeepType)
 {
   int c0, r0, s0, c, r, s, f;
   int width, height, depth, type;
   double val;
 
+#if 0  // the section of codes have been skipped anyway
   if(0){
     // This does not appear to be necessary in that it will run and generate
     // an acceptable downsampled image if these conditions are not met.
@@ -7797,12 +7798,13 @@ MRI *MRIdownsampleN(MRI *src, MRI *dst, int Fc, int Fr, int Fs, int KeepType)
       return (NULL);
     }
   }
+#endif
 
   // Note that this ratio may not be an integer, so there is some
   // secret rounding happening
-  width  = src->width  / Fc;
-  height = src->height / Fr;
-  depth  = src->depth  / Fs;
+  width  = (int)ceil(src->width  / Fc);
+  height = (int)ceil(src->height / Fr);
+  depth  = (int)ceil(src->depth  / Fs);
 
   if (dst == NULL) {
     type = MRI_FLOAT;

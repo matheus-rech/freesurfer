@@ -1266,7 +1266,7 @@ MRI   *MRIzDerivative(MRI *mri_src, MRI *mri_dz) ;
 MRI   *MRIupsample2(MRI *mri_src, MRI *mri_dst) ;
 MRI   *MRIupsampleN(MRI *mri_src, MRI *mri_dst, int N) ;
 MRI   *MRIupsampleNConserve(MRI *mri_src, MRI *mri_dst, int N);
-MRI   *MRIdownsampleN(MRI *src, MRI *dst, int Fc, int Fr, int Fs, int KeepType);
+MRI   *MRIdownsampleN(MRI *src, MRI *dst, float Fc, float Fr, float Fs, int KeepType);
 MRI   *MRIdownsample2(MRI *mri_src, MRI *mri_dst) ;
 MRI   *MRIdownsample2LabeledVolume(MRI *mri_src, MRI *mri_dst) ;
 MRI   *MRIresize(MRI *mri, double xsize, double ysize, double zsize, int nframes);
