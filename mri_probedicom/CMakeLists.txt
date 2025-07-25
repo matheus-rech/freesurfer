@@ -16,7 +16,7 @@ if(OPENGL_FOUND)
   #  # -Wl,-dead_strip already added from top level
   #  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-stack_size -Wl,0x1000000")
   #endif()
-  if(HOST_OS MATCHES "Rocky9")
+  if(HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "Ubuntu24")
      target_link_libraries(mri_probedicom utils ${OPENGL_LIBRARIES} -L/usr/lib64 -lXmu glut ${X11_LIBRARIES})
   else()
      target_link_libraries(mri_probedicom utils ${OPENGL_LIBRARIES} glut ${X11_LIBRARIES})

@@ -31,7 +31,7 @@ if(ITK_FOUND AND VTK_FOUND AND PETSC_FOUND)
   endif()
 
   # if(FREEVIEW_LINEPROF)
-  if(APPLE_ARM64 OR (HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "11"))
+  if(APPLE_ARM64 OR (HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24" AND HOST_OS_GCC_VERSION MATCHES "11"))
     message(STATUS "For HOST_OS ${HOST_OS} skipping lineprof")
   else()
      add_test_executable(lineprof_test LineProfTest.cpp)

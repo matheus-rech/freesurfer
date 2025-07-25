@@ -4,7 +4,7 @@ include_directories(${FLTK_INCLUDE_DIR})
 
 # VTK as well
 if(NOT VTK_FOUND)
-  if(HOST_OS MATCHES "Rocky9")
+  if(HOST_OS MATCHES "Rocky9" OR HOST_OS_MATCHES "Ubuntu24")
      find_package(VTK REQUIRED COMPONENTS CommonCore)
      include_directories(${VTK_INCLUDE_DIRS})
   else()

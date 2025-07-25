@@ -16,7 +16,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
      include_directories(${CMAKE_SOURCE_DIR}/lineprof)
   endif()
 
-  if(HOST_OS MATCHES "Rocky9")
+  if(HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "Ubuntu24")
      include_directories(${VTK_INCLUDE_DIRS})
   else()
      include(${VTK_USE_FILE})
