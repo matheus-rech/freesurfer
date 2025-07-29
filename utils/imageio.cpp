@@ -1443,9 +1443,9 @@ static int TiffWriteImage(IMAGE *I, const char *fname, int frame)
   timage = I->image;
 
   for (frames = 0; frames < I->num_frame; frames++) {
-    TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, (uint32)sample_format);
-    TIFFSetField(out, TIFFTAG_IMAGEWIDTH, (uint32)I->cols);
-    TIFFSetField(out, TIFFTAG_IMAGELENGTH, (uint32)I->rows);
+    TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, sample_format);
+    TIFFSetField(out, TIFFTAG_IMAGEWIDTH, I->cols);
+    TIFFSetField(out, TIFFTAG_IMAGELENGTH, I->rows);
     // orientation is bot-left
     TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT);
     TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, samples_per_pixel);
