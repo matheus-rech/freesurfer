@@ -101,7 +101,7 @@ if(Qt5_FOUND AND NOT APPLE)
        install(FILES ${CMAKE_SOURCE_DIR}/qt/qt.conf DESTINATION bin)
      endif()
   else()
-     if(HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Rocky9")
+     if(HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "Ubuntu24")
         ## The /usr/pubsw/packages qt distro contains soft links pointing to the system Qt5 files,
         ## so install via functions and do not use EXISTS/GLOB tests.
         # install_qt5_lib_links()

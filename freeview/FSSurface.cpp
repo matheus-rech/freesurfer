@@ -367,6 +367,11 @@ vtkTransform* FSSurface::GetSurfaceToRasTransform()
     return m_SurfaceToRASTransform;
 }
 
+vtkTransform* FSSurface::GetTargetToRasTransform()
+{
+  return m_targetToRasTransform;
+}
+
 void FSSurface::UpdateHashTable(int nSet, int coord)
 {
   if (m_HashTable[nSet])

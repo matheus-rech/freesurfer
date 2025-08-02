@@ -4,9 +4,13 @@
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "GetPot.h"
+#if 0
+// these header files are not needed
+// they are causing errors on Ubuntu24 when compiling with native ITK5.3
 #include "itkThresholdMaximumConnectedComponentsImageFilter.h"
 #include "itkCoherenceEnhancingDiffusionImageFilter.h"
 #include "itkGradientAnisotropicDiffusionImageFilter.h"
+#endif
 #include "itkBinaryBallStructuringElement.h"
 #include "itkGrayscaleErodeImageFilter.h"
 #include "itkGrayscaleDilateImageFilter.h"

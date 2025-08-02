@@ -44,6 +44,7 @@
 #include <QDir>
 #include <QDebug>
 #include "ProgressCallback.h"
+#include <QDateTime>
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -1066,6 +1067,7 @@ bool FSVolume::MRIWrite( const QString& filename, int nSampleMethod, bool resamp
       MRIfree( &m_MRITemp );
       m_MRITemp = mri;
     }
+
   }
 
   // check if file is writable
@@ -1084,6 +1086,13 @@ bool FSVolume::MRIWrite( const QString& filename, int nSampleMethod, bool resamp
   }
 
   int err = 0;
+  QString cmd = property("cmdline_to_add").toString();
+  if (!cmd.isEmpty())
+  {
+    // MRIaddCommandLine(m_MRITemp, cmd.toStdString());
+    setProperty("cmdline_to_add", "");
+  }
+
   try
   {
     err = ::MRIwrite( m_MRITemp, filename.toLatin1().data() );

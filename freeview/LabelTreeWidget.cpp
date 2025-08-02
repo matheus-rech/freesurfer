@@ -47,7 +47,7 @@ void LabelTreeWidget::dropEvent(QDropEvent *event)
   if ( !droppedIndex.isValid() )
     return;
 
-  qDebug() << draggedItem << droppedIndex;
+//  qDebug() << draggedItem << droppedIndex;
   if (draggedItem)
   {
     QTreeWidgetItem* dParent = draggedItem->parent();

@@ -170,6 +170,7 @@ protected slots:
   void OnCopyLabelStats();
   void OnCopyRegionValue();
   void OnSetGridSize();
+  void OnSaveSurfaceEdge();
 
 protected:
   virtual void resizeEvent(QResizeEvent *event);

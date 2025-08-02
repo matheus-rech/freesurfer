@@ -72,6 +72,7 @@
 #include <QSet>
 #include "vtkBoundingBox.h"
 #include "MigrationDefs.h"
+#include "vtkPolyDataWriter.h"
 
 LayerSurface::LayerSurface( LayerMRI* ref, QObject* parent ) : LayerEditable( parent ),
   m_surfaceSource( NULL ),
@@ -3292,4 +3293,33 @@ void LayerSurface::OnSetDisplayInNeurologicalView()
 {
   DoSlicePositionChanged(1, true);
   DoSlicePositionChanged(2, true);
+}
+
+bool LayerSurface::SaveEdgeLines(int n, const QString &fn)
+{
+  vtkSmartPointer<vtkPolyDataWriter> writer = vtkSmartPointer<vtkPolyDataWriter>::New();
+  vtkPolyData* polydata_in = vtkPolyData::SafeDownCast(m_sliceActor2D[n]->GetMapper()->GetInput());
+  if (polydata_in)
+  {
+    vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+    polydata->SetPoints(polydata_in->GetPoints());
+    polydata->SetLines(polydata_in->GetLines());
+    vtkSmartPointer<vtkTransformPolyDataFilter> filter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+    filter->SetTransform(m_surfaceSource->GetTargetToRasTransform());
+#if VTK_MAJOR_VERSION > 5
+    filter->SetInputData(polydata);
+#else
+    filter->SetInput(polydata);
+#endif
+    filter->Update();
+#if VTK_MAJOR_VERSION > 5
+    writer->SetInputData(filter->GetOutput());
+#else
+    writer->SetInput(filter->GetOutput());
+#endif
+    writer->SetFileName(qPrintable(fn));
+    return writer->Write();
+  }
+  else
+    return false;
 }
