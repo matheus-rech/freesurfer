@@ -347,7 +347,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   endif()
 
   if(NOT APPLE)
-    target_link_libraries(freeview glut ${X11_LIBRARIES})
+    target_link_libraries(freeview ${GLUT_LIBRARIES} ${X11_LIBRARIES})
   endif()
 
   if(APPLE)

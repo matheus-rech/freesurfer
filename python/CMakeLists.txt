@@ -27,6 +27,13 @@ else()
    set(pip_target_option "--target")
 endif()
 
+if(HOST_OS MATCHES "Ubuntu24")
+   if (NOT PYTHON_EXECUTABLE)
+      set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/3.8/bin/python")
+      message(STATUS "For HOST_OS=${HOST_OS} sey PYTHON_EXEUTABLE to ${PYTHON_EXECUTABLE}")
+   endif()
+endif()
+
 # Definition of FSPYTHON_INSTALL_PREFIX is in top level CMakeLists.txt
 
 function(requirements_file_install)
