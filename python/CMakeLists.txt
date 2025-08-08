@@ -30,7 +30,7 @@ endif()
 if(HOST_OS MATCHES "Ubuntu24")
    if (NOT PYTHON_EXECUTABLE)
       set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/3.8/bin/python")
-      message(STATUS "For HOST_OS=${HOST_OS} sey PYTHON_EXEUTABLE to ${PYTHON_EXECUTABLE}")
+      message(STATUS "For HOST_OS=${HOST_OS} set PYTHON_EXEUTABLE to ${PYTHON_EXECUTABLE}")
    endif()
 endif()
 
