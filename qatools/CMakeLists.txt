@@ -15,6 +15,13 @@ endif()
 # run 'pip install' and direct package installs to freesufer/python/packages
 # requirements are currently defined by python/requirements-extra.txt
 
+if(HOST_OS MATCHES "Ubuntu24")
+   if (NOT PYTHON_EXECUTABLE)
+      set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/3.8/bin/python")
+      message(STATUS "For HOST_OS=${HOST_OS} set PYTHON_EXEUTABLE to ${PYTHON_EXECUTABLE}")
+   endif()
+endif()
+
 install(CODE "
   message(STATUS \"Installing QA tools\")
   execute_process(COMMAND bash -c \"${PYTHON_EXECUTABLE} -m pip install ${CMAKE_CURRENT_SOURCE_DIR} --no-dependencies --upgrade --target=${qatools_dest}\" RESULT_VARIABLE retcode)

@@ -56,10 +56,16 @@ option(FIPS_SUPPORT "allow FS license to be read on FIPS system" OFF)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
 option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house builds only" OFF)
-option(TIFF_SYSLIBS "Link with system libtiff library" ON)
-option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/qt" OFF)
-option(VTK_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/vtk" OFF)
+option(QT_SYSLIBS "link with system Qt libs" OFF)
+option(VTK_SYSLIBS "link with system vtk libs" OFF)
+option(ITK_SYSLIBS "link with system itk libs" OFF)
+option(GLUT_SYSLIBS "link with system glut libs" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
+if(NOT APPLE)
+   option(TIFF_SYSLIBS "link with system tiff libs" ON)
+else()
+   option(TIFF_SYSLIBS "link with system tiff libs" OFF)
+endif()
 
 # include our custom cmake functions (and others)
 include(cmake/functions.cmake)
@@ -87,11 +93,11 @@ endif()
 message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX}")
 # endif()
 
-if (NOT FREEVIEW_LINEPROF)
+if(NOT FREEVIEW_LINEPROF)
    set(DISABLE_LINEPROF ON)
 endif()
 
-if (DISABLE_LINEPROF)
+if(DISABLE_LINEPROF)
    message(STATUS "For HOST_OS=${HOST_OS} lineprof disabled")
 endif()
 
@@ -187,21 +193,37 @@ endif()
 # all custom find-modules are stored in the cmake subdir
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-if(HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "Ubuntu24")
-   set(DISABLE_LINEPROF ON)
+# Newer Linux OS's provide vendor supported versions of 3rd party packages installable
+# via the standard linux sysem tools and online repos.  Freesurfer can/has been updated
+# to work with these native packages (preferbale to supporting our own custom builds per OS).
+
+if(HOST_OS MATCHES "Ubuntu24")
    set(QT_SYSLIBS ON)
    set(VTK_SYSLIBS ON)
-endif()
-if(HOST_OS MATCHES "Rocky8")
+   set(ITK_SYSLIBS ON)
+   set(GLUT_SYSLIBS ON)
+   set(DISABLE_LINEPROF ON)
+   # install not yet working
+   set(INTEGRATE_SAMSEG OFF)
+elseif(HOST_OS MATCHES "Rocky9")
    set(QT_SYSLIBS ON)
-   set(VTK_SYSLIBS OFF)
+   set(VTK_SYSLIBS ON)
+   set(DISABLE_LINEPROF ON)
+elseif(HOST_OS MATCHES "Rocky8")
+   set(QT_SYSLIBS ON)
 endif()
 message(STATUS "For HOST_OS=${HOST_OS} QT_SYSLIBS=${QT_SYSLIBS}")
 message(STATUS "For HOST_OS=${HOST_OS} VTK_SYSLIBS=${VTK_SYSLIBS}")
+message(STATUS "For HOST_OS=${HOST_OS} ITK_SYSLIBS=${ITK_SYSLIBS}")
+message(STATUS "For HOST_OS=${HOST_OS} GLUT_SYSLIBS=${GLUT_SYSLIBS}")
 
 # -------- zlib --------
 find_package(ZLIB REQUIRED)
-add_definitions(-DHAVE_ZLIB -DITK_USE_SYSTEM_ZLIB)
+if(HOST_OS MATCHES "Ubuntu24")
+   add_definitions(-DHAVE_ZLIB)
+else()
+   add_definitions(-DHAVE_ZLIB -DITK_USE_SYSTEM_ZLIB)
+endif()
 
 # -------- gfortran/blas/lapack --------
 if(NOT APPLE)
@@ -546,12 +568,14 @@ if(VTK_FOUND AND VTK_BUILD_SHARED_LIBS)
   endif()
 endif()
 
-
 # -------- itk --------
 if(NOT ITK_DIR)
    if(HOST_OS MATCHES "Ubuntu24")
-      # set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4_ubuntu24/lib/cmake CACHE PATH "ITK install directory")
-      set(ITK_DIR /usr/lib/x86_64-linux-gnu/cmake CACHE PATH "ITK install directory")
+      if(NOT ITK_SYSLIBS)
+         set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_rok9_ub24/lib/cmake CACHE PATH "ITK install directory")
+      else()
+         set(ITK_DIR /usr/lib/x86_64-linux-gnu/cmake CACHE PATH "ITK install directory")
+      endif()
    elseif(HOST_OS MATCHES "Rocky9")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_rocky9/lib/cmake CACHE PATH "ITK install directory")
    elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
@@ -582,6 +606,18 @@ endif()
 
 find_package(ITK HINTS ${ITK_DIR} REQUIRED)
 message(STATUS "For HOST_OS=${HOST_OS} ITK_DIR=${ITK_DIR}")
+
+# -------- glut --------
+
+# default to FS built version of glut
+set(GLUT_LIBRARIES "glut")
+set(GLUT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/packages/glut")
+if(GLUT_SYSLIBS)
+   if (HOST_OS MATCHES "Ubuntu24")
+      set(GLUT_LIBRARIES "-L/usr/lib64 -lglut")
+      set(GLUT_INCLUDE_DIR "/usr/include/GL")
+   endif()
+endif()
 
 # ------ list where the build tree is ------
 message(STATUS "Compiling source under build tree ${CMAKE_BINARY_DIR}")

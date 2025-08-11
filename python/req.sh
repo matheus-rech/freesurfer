@@ -318,7 +318,7 @@ if [ $uninstall -eq 1 ]; then
       # $python_binary -m pip freeze | grep '^nvidia\|^triton\|^torch' | sed 's;==.*;;' >> postinstall.list
       $python_binary -m pip freeze | grep '^nvidia\|^triton' | sed 's;==.*;;' >> postinstall.list
    else
-      echo "$s: Found nothing to uninstall for nvidia and triton in output from pip freeze."
+      echo "$s: pip found nothing to uninstall for nvidia and triton in output from pip freeze."
    fi
 
    # tflow_subdir="$install_path/python/lib/python3.8/site-packages"
@@ -330,12 +330,16 @@ if [ $uninstall -eq 1 ]; then
       if [ -e ./header.list ]; then
         if [ ! -z ./header.list ]; then
            file_cnt=`wc -l header.list | awk '{print $1}'`
-           echo "$s: Removing $file_cnt NVIDIA copyrighted source files"
-           (cd ${tflow_subdir} && find -type f ! -name "*LICENSE*" ! -name "*.so*" -exec grep -i "copyright.*nvidia" {} \; -print | grep "^\.\/") > header.list
-           rm -f delete_header.sh
-           cat header.list | sed 's;^;rm -f '${tflow_subdir}'/;' > delete_header.sh
-           bash delete_header.sh
-           # rm -f header.list delete_header.sh
+           if [ "$file_cnt" != "0" ]; then
+              echo "$s: Removing $file_cnt NVIDIA copyrighted source files"
+              (cd ${tflow_subdir} && find -type f ! -name "*LICENSE*" ! -name "*.so*" -exec grep -i "copyright.*nvidia" {} \; -print | grep "^\.\/") > header.list
+              rm -f delete_header.sh
+              cat header.list | sed 's;^;rm -f '${tflow_subdir}'/;' > delete_header.sh
+              bash delete_header.sh
+              # rm -f header.list delete_header.sh
+           else
+              echo "%s: no license text mentioning NVIDIA found to remove."
+           fi
         else
            echo "%s: no source files found to check for copyrights under $tflow_subdir"
         fi
@@ -361,6 +365,8 @@ if [ $uninstall -eq 1 ]; then
          echo "$s: pip UNINSTALL failed - exiting."
          exit 1
       fi
+   else
+      echo "%s: no postinstall.list was created."
    fi
 
    $python_binary -m pip freeze | grep "^tensorflow" > /dev/null
@@ -393,7 +399,7 @@ if [ $uninstall -eq 1 ]; then
       echo "$s: Created postinstall script:"
       echo "$dir/postinstall.sh"
    else
-      echo "$s: Cannot find list of removed modules postinstall.list to create postinstall.sh"
+      echo "$s: postinstall.sh not created since no postinstall.list"
    fi
 fi
 

@@ -144,7 +144,7 @@ if args.t2 and not args.t2file:
 if input_seg and not input_masked and not args.forceskullstrip:
     sf.system.fatal('Must have a masked mprage file specified with --masked if the segmentation file is provided.')
 
-if subj_group == 'default' and not subj_age and not input_seg:
+if subj_group == 'default' and subj_age is None and not input_seg:
     sf.system.fatal('Must set the age (in months) for the subject to be analyzed.')
 
 if args.newborn and args.oneyear:

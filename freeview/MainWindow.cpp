@@ -2390,8 +2390,8 @@ void MainWindow::CommandLoadSubject(const QStringList &sa)
                          "%1/surf/rh.pial:edgecolor=red "
                          //                         "%1/surf/lh.orig:edgecolor=green:visible=0 "
                          //                         "%1/surf/rh.orig:edgecolor=green:visible=0 "
-                         "%1/surf/lh.inflated:annot=aparc:visible=0 "
-                         "%1/surf/rh.inflated:annot=aparc:visible=0 ").arg(subject_path);
+                         "%1/surf/lh.inflated:annot=%1/label/lh.aparc.annot:visible=0 "
+                         "%1/surf/rh.inflated:annot=%1/label/rh.aparc.annot:visible=0 ").arg(subject_path);
   if (QFile::exists(QString("%1/surf/lh.orig.nofix").arg(subject_path)))
       args += QString("%1/surf/lh.orig.nofix:overlay=%1/surf/lh.defect_labels:edgecolor=overlay:overlay_threshold=0.01,100,percentile:visible=0 ").arg(subject_path);
   if (QFile::exists(QString("%1/surf/rh.orig.nofix").arg(subject_path)))
