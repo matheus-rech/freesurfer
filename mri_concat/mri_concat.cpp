@@ -108,6 +108,7 @@ int DoBonfCor=0;
 int DoAbs = 0;
 int DoPos = 0;
 int DoNeg = 0;
+int InFrameNo = -1;
 
 char *matfile = NULL;
 MATRIX *M = NULL;
@@ -209,7 +210,9 @@ int main(int argc, char **argv)
         exit(1);
       }
 
-      nframestot += mritmp->nframes;
+      if(InFrameNo < 0) nframestot += mritmp->nframes;
+      else nframestot++;
+
       inputDatatype = mritmp->type; // used by DoKeepDatatype option
       MRIfree(&mritmp);
     }
@@ -322,6 +325,17 @@ int main(int argc, char **argv)
     {
       printf("ERROR: loading %s\n",inlist[nthin]);
       exit(1);
+    }
+    if(InFrameNo >= 0){
+      printf("Extracting frame %d\n",InFrameNo);
+      if(InFrameNo >= mritmp->nframes){
+	printf("ERROR: InFrameNo >= mritmp->nframes=%d\n",mritmp->nframes);
+	exit(1);
+      }
+      std::vector<int> framelist = {InFrameNo};
+      MRI *mritmp2 = fMRIextractFrames(mritmp, framelist);
+      MRIfree(&mritmp);
+      mritmp = mritmp2;
     }
     if(nthin == 0)
     {
@@ -1029,6 +1043,12 @@ static int parse_commandline(int argc, char **argv)
       sscanf(pargv[0],"%d",&ngroups);
       nargsused = 1;
     }
+    else if ( !strcmp(option, "--in-frame") )
+    {
+      if (nargc < 1) argnerr(option,1);
+      sscanf(pargv[0],"%d",&InFrameNo);
+      nargsused = 1;
+    }
     else if ( !strcmp(option, "--rep") )
     {
       if (nargc < 1)
@@ -1175,8 +1195,8 @@ static void print_usage(void)
   printf("\n");
   printf("   --o out \n");
   printf("   --i invol <--i invol ...> (don't need --i) \n");
-  printf("   --f listfile : list file has a text list of files (up to %d)\n",
-         NInMAX);
+  printf("   --f listfile : list file has a text list of files (up to %d)\n",NInMAX);
+  printf("   --in-frame frameno : extract frameno from the input\n");
   printf("\n");
   printf("   --paired-sum  : compute paired sum (1+2, 3d+4, etc) \n");
   printf("   --paired-avg  : compute paired avg (1+2, 3d+4, etc) \n");
