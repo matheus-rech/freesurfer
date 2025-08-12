@@ -131,6 +131,8 @@ if(NOT MINIMAL)
     NMR_ONLY
   )
 
+  host_os()
+
   install(PROGRAMS predict_v1.sh DESTINATION bin)
 
   # Install image in fresurfer is getting too large to be packaged,
@@ -162,6 +164,7 @@ if(NOT MINIMAL)
   ## uncompressed adds 72M
   install_tarball(Yeo_Brainmap_MNI152.tar.gz DESTINATION average)
   ## uncompressed adds 992M
-  # install_tarball(fsmni152.tar.gz DESTINATION subjects)
-
+  if(HOST_OS MATCHES "CentOS7")
+     install_tarball(fsmni152.tar.gz DESTINATION subjects)
+  endif()
 endif()
