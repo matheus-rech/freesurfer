@@ -370,7 +370,7 @@ int GLMfree(GLMMAT **pglm)
 
   for (n = 0; n < GLMMAT_NCONTRASTS_MAX; n++) {
     if (glm->C[n]) MatrixFree(&glm->C[n]);
-    if (glm->Cname[n]) free(&glm->Cname[n]);
+    //if (0 && glm->Cname[n]) free(&glm->Cname[n]); // see GLMdeepCopy()
     if (glm->Mpmf[n]) MatrixFree(&glm->Mpmf[n]);
     if (glm->ypmf[n]) MatrixFree(&glm->ypmf[n]);
     if (glm->Ct[n]) MatrixFree(&glm->Ct[n]);
