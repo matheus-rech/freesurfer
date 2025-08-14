@@ -127,7 +127,7 @@ MRI *MRIpkurtosis(MRI *kvals, int dof, MRI *mask, int nsamples);
 
 MATRIX *ASLinterpMatrix(int ntp);
 MATRIX *fMRItoMatrix(MRI *fmri, MATRIX *M);
-int fMRIfromMatrix(MATRIX *M, MRI *fmri);
+int fMRIfromMatrix(MATRIX *M, MRI *fmri, MRI *mask=NULL);
 MRI *fMRIspatialCorMatrix(MRI *fmri);
 MRI *fMRIdistance(MRI *mri, MRI *mask);
 MRI *fMRIcumSum(MRI *inmri, MRI *mask, MRI *outmri);
