@@ -3676,7 +3676,6 @@ int MatrixRandPermRows(MATRIX *X, int ptype, unsigned long int seed)
     return(1);
   }
   if(ptype == 1 || ptype == 3){
-    printf("Chaning ordre\n");
     std::vector<int> rp = randperm(X->rows, seed);
     int *NewRowOrder = (int*)calloc(X->rows,sizeof(int));
     for(int r = 0; r < X->rows; r++) NewRowOrder[r] = rp[r]+1;  // Make one-based
@@ -3687,13 +3686,11 @@ int MatrixRandPermRows(MATRIX *X, int ptype, unsigned long int seed)
     NewRowOrder=NULL;
   }
   if(ptype == 2 || ptype == 3){
-    printf("Chaning sign\n");
     RFS *rfs;
-    rfs = RFspecInit(0, NULL);
+    rfs = RFspecInit(seed, NULL);
     rfs->name = strcpyalloc("uniform");
     rfs->params[0] = 0;
     rfs->params[1] = 1;
-    RFspecSetSeed(rfs, -1);
     for(int n=0; n < X->rows; n++){
       double s = RFdrawVal(rfs)-0.5;
       if(s > 0) s = +1;
