@@ -456,7 +456,7 @@ QString Layer::GetTransformString()
       str += QString("%1 %2 ").arg(axis[i]).arg(m_dRotate[i]);
   }
   if (!str.isEmpty())
-    tf += QString("rotate %1at center %2 %3 %4 ").arg(str).arg(m_dRotationCenter[0]).arg(m_dRotationCenter[1]).arg(m_dRotationCenter[2]);
+    tf += QString("rotate %1 at center %2 %3 %4 ").arg(str).arg(m_dRotationCenter[0]).arg(m_dRotationCenter[1]).arg(m_dRotationCenter[2]);
 
   str.clear();
   for (int i = 0; i < 3; i++)

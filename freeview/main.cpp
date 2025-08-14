@@ -56,9 +56,10 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 {
   Q_UNUSED(context);
 
-  if (msg.contains("sRGB profile") || msg.contains("QWidget::create")
-      || msg.contains("unregister timer") || msg.contains("QPainter::") || msg.contains("Empty filename passed") ||
-          msg.contains("posix collation implementation"))
+  if (msg.contains("sRGB profile") || msg.contains("QWidget::create") ||
+      msg.contains("unregister timer") || msg.contains("QPainter::") || msg.contains("Empty filename passed") ||
+      msg.contains("posix collation implementation") || msg.contains("::requestActivate") ||
+      msg.contains("QSocketNotifier"))
     return;
 
 //  MainWindow::WriteLog(msg);
