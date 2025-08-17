@@ -34,6 +34,40 @@ if(HOST_OS MATCHES "Ubuntu24")
    endif()
 endif()
 
+ # default is least version specific or sparse requirements to allow for latest pkg revisions
+ set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
+ set(requirements_extra "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-extra.txt")
+ if(FSPYTHON_BUILD_REQ)
+    # pip install current snapshot of (hardcoded) package revisions into fspython
+    if(NOT APPLE)
+       ## all linux OS
+       # set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-linux.txt")
+       set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-build.txt")
+       set(requirements_extra "")
+    else()
+       if(NOT APPLE_ARM64)
+          ## darwin_x86_64
+        set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-build.darwin_x86_64.txt")
+        set(requirements_extra "")
+ 	 message(STATUS "For HOST_OS=${HOST_OS} using default requirements files")
+       else()
+          ## darwin_arm64
+ 	 message(STATUS "For HOST_OS=${HOST_OS} - requirements files managed separately for mininconda darwin_arm64.")
+       endif()
+    endif()
+ endif()
+ if(NOT APPLE_ARM64)
+    if(INFANT_MODULE)
+       # provide requirements file for infant module to allow for different package revisions compared to what
+       # freesurfer uses (add cmake option -DFSPYTHON_BUILD_REQ=ON to infant options -DINFANT_MODULE=ON -DMINIMAL=ON)
+       #set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-infant.txt")
+       #set(requirements_extra "")
+    endif()
+ endif()
+ if(NOT APPLE_ARM64)
+    message(STATUS "For HOST_OS=${HOST_OS} fspython pip set to use requirement arguments: ${requirements} ${requirements_extra}")
+ endif() 
+
 # Definition of FSPYTHON_INSTALL_PREFIX is in top level CMakeLists.txt
 
 function(requirements_file_install)
@@ -97,52 +131,32 @@ endfunction()
 
 # pip can install under python/packages but many/most packages from the requirements files are installed under site-package
 function(sitepackages_install)
-  # default is least version specific or sparse requirements to allow for latest pkg revisions
-  set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
-  set(requirements_extra "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-extra.txt")
-  if(FSPYTHON_BUILD_REQ)
-     # pip install current snapshot of (hardcoded) package revisions into fspython
-     if(NOT APPLE)
-        ## all linux OS
-        # set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-linux.txt")
-        set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-build.txt")
-        set(requirements_extra "")
-     else()
-        if(NOT APPLE_ARM64)
-           ## darwin_x86_64
-         set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-build.darwin_x86_64.txt")
-         set(requirements_extra "")
-  	 message(STATUS "For HOST_OS=${HOST_OS} using default requirements files")
-        else()
-           ## darwin_arm64
-  	 message(STATUS "For HOST_OS=${HOST_OS} - requirements files managed separately for mininconda darwin_arm64.")
-        endif()
-     endif()
-  endif()
-  if(NOT APPLE_ARM64)
-     if(INFANT_MODULE)
-        # provide requirements file for infant module to allow for different package revisions compared to what
-        # freesurfer uses (add cmake option -DFSPYTHON_BUILD_REQ=ON to infant options -DINFANT_MODULE=ON -DMINIMAL=ON)
-        #set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-infant.txt")
-        #set(requirements_extra "")
-     endif()
-  endif()
-  if(NOT APPLE_ARM64)
-     message(STATUS "For HOST_OS=${HOST_OS} fspython pip set to use requirement arguments: ${requirements} ${requirements_extra}")
-  endif() 
-
   install(CODE "
     message(STATUS \"Installing python package dependencies into fspython with cmd:\")
     message(STATUS \"${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
-
     execute_process(COMMAND bash -c \"${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
-
     if(NOT \${retcode} STREQUAL 0)
       message(FATAL_ERROR \"Could not install python dependencies\")
     endif()
+  ")
+endfunction()
 
+# expand the packages to install from the requirements file directly on to the pip command line and run via req.sh
+# Apparently needed to avoid an issue in docker (for only linux builds) with pip install.
+function(sitepackages_install_rev2)
+  install(CODE "
+    message(STATUS \"Installing python package dependencies into fspython with cmd:\")
+    message(STATUS \"FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
+    execute_process(COMMAND bash -c \"FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
+    if(NOT \${retcode} STREQUAL 0)
+      message(FATAL_ERROR \"Could not install python dependencies\")
+    endif()
+  ")
+endfunction()
+
+function(clean_and_optional_link)
+  install(CODE "
     execute_process(COMMAND bash -c \"find ${FSPYTHON_INSTALL_PREFIX}/python/bin ! -name 'python3*' ! -name 'ds' -type f -exec rm -f {} +\" RESULT_VARIABLE retcode)
-
     if(NOT \${retcode} STREQUAL 0)
       message(FATAL_ERROR \"Could not remove pip-installed scripts\")
     endif()
@@ -258,7 +272,12 @@ if(DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    # install a copy of the requirements-build.txt file if the build was set to use it for the revs of pkgs to install
    python_3_8_base_install()
    packages_install()
-   sitepackages_install()
+   if(NOT APPLE)
+      sitepackages_install_rev2()
+   else()
+      sitepackages_install()
+   endif()
+   clean_and_optional_link()
    fspython_script_install()
    requirements_file_install()
    if(NOT FSPYTHON_INSTALL_CUDA)
@@ -299,7 +318,12 @@ if(NOT DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    set(PKG_TARGET "${pip_target_option}=${FSPYTHON_INSTALL_PREFIX}/python/packages")
    message(STATUS For "HOST_OS=${HOST_OS} PKG_TARGET=${PKG_TARGET}")
    packages_install()
-   sitepackages_install()
+   if(NOT APPLE)
+      sitepackages_install_rev2()
+   else()
+      sitepackages_install()
+   endif()
+   clean_and_optional_link()
    fspython_script_install()
    requirements_file_install()
    if(NOT FSPYTHON_INSTALL_CUDA)

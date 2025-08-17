@@ -16,6 +16,7 @@ func_setup_fspython()
 if [ $# == 0 ]; then
    echo "$s: Please provide one of the following arguments:"
    echo "$s: --generate   (Re)generate the requirements-build.txt and requirements-build-extra.txt files using the fspython found under your current INSTALL_PREFIX"
+   echo "$s: --expand     Pass the contents of requirements file specified with -r option to the pip command line and irun the command"
    echo "$s: --add-links  Remove original requirements.txt and requirements-extra.txt and create soft links:"
    echo "$s:              requirements.txt --> requirements-build.txt"
    echo "$s:              requirements-extra.txt --> requirements-build-extra.txt"
@@ -30,9 +31,10 @@ fi
 
 s=`echo $0 | sed 's;^\.\/;;'`
 # echo "$s: start"
+generate=0
+expand=0
 add_links=0
 rm_links=0
-generate=0
 uninstall=0
 reinstall=0
 torchcpu=0
@@ -46,42 +48,49 @@ do
         "--generate" )
            echo "$s: (Re)generate the requirements-build.txt and requirements-build-extra.txt files using the fspython found under your current INSTALL_PREFIX."
            generate=1
-           if [[ $add_links -eq 1 || $rm_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
+           if [[ $expand -eq 1 || $add_links -eq 1 || $rm_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
+              echo "$s: Only 1 argument allowed" && exit 1
+           fi
+           ;;
+        "--expand" )
+           # echo "$s: Pass the contents of requirements file specified with -r option to the pip command line and run the command."
+           expand=1
+           if [[ $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
               echo "$s: Only 1 argument allowed" && exit 1
            fi
            ;;
         "--add-links" )
            echo "$s: Remove original requirements.txt and requirements-extra.txt and create soft links to them from requirements-build.txt and requirements-build-extra.txt."
            add_links=1
-           if [[ $generate -eq 1 || $rm_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
+           if [[ $expand -eq 1 || $generate -eq 1 || $rm_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
               echo "$s: Only 1 argument allowed" && exit 1
            fi
            ;;
         "--rm-links" )
            echo "$s: Remove soft links for requirements.txt and requirements-extra.txt and check out the current versions from git."
            rm_links=1
-           if [[ $generate -eq 1 ||$add_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
+           if [[ $expand -eq 1 || $generate -eq 1 ||$add_links -eq 1 || $uninstall -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
               echo "$s: Only 1 argument allowed" && exit 1
            fi
            ;;
         "--uninstall" )
            # echo "$s: Remove packages that include libs/code we cannot re-distribute and/or are not cross-platform compatible."
            uninstall=1
-           if [[ $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
+           if [[ $expand -eq 1 || $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1 || $reinstall -eq 1 || $torchcpu -eq 1 ]]; then
               echo "$s: Only 1 argument allowed" && exit 1
            fi
            ;;
         "--reinstall" )
            echo "$s: Reinstall any python modules we may have uninstalled."
            reinstall=1
-           if [[ $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1|| $uninstall -eq 1 || $torchcpu -eq 1 ]]; then
+           if [[ $expand -eq 1 || $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1|| $uninstall -eq 1 || $torchcpu -eq 1 ]]; then
               echo "$s: Only 1 argument allowed" && exit 1
            fi
            ;;
         "--torchcpu" )
            echo "$s: Replace torch module with cpu only version."
            torchcpu=1
-           if [[ $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1|| $uninstall -eq 1|| $reinstall -eq 1 ]]; then
+           if [[ $expand -eq 1 || $generate -eq 1 || $add_links -eq 1 || $rm_links -eq 1|| $uninstall -eq 1|| $reinstall -eq 1 ]]; then
               echo "$s: Only 1 argument allowed" && exit 1
            fi
            ;;
@@ -96,6 +105,28 @@ cd $this_dir
 
 cmake_cache=""
 install_path=""
+
+if [ $expand -eq 1 ]; then
+   all_args="$@"
+   req_file=`echo $all_args | sed 's;^.*-r;-r;' | awk '{print $2}'`
+   remaining_cmd=`echo $all_args | sed 's;\-r[ ][ ]*'$req_file';;' | sed 's;[ ][ ]*$;;'`
+   # ignore any commented out package entries in the requirements file
+   package_list=`cat $req_file | grep -v "^#.*" | tr -s '\n' ' '`
+   expanded_cmd="$remaining_cmd $package_list"
+   echo "============================"
+   date
+   # echo "REQ FILE=${req_file}"
+   # echo "REMAINING CMD=${remaining_cmd}"
+   echo "ORIGINAL COMMAND:"
+   echo "${all_args}"
+   echo "EXPANDED WITH PACKAGES:"
+   echo "${expanded_cmd}"
+   echo "INSTALLING:"
+   eval ${expanded_cmd}
+   date
+   echo "============================"
+   # exit 1
+fi
 
 if [ ! -z ${BUILD_GENERATED_CMAKECACHE} ]; then
    if [ -e ${BUILD_GENERATED_CMAKECACHE} ]; then
@@ -338,7 +369,8 @@ if [ $uninstall -eq 1 ]; then
               bash delete_header.sh
               # rm -f header.list delete_header.sh
            else
-              echo "%s: no license text mentioning NVIDIA found to remove."
+              # echo "%s: no license text mentioning NVIDIA found to remove."
+              echo "no license text mentioning NVIDIA found to remove."
            fi
         else
            echo "%s: no source files found to check for copyrights under $tflow_subdir"
@@ -366,7 +398,8 @@ if [ $uninstall -eq 1 ]; then
          exit 1
       fi
    else
-      echo "%s: no postinstall.list was created."
+      # echo "%s: no postinstall.list was created."
+      echo "no postinstall.list was created."
    fi
 
    $python_binary -m pip freeze | grep "^tensorflow" > /dev/null
