@@ -8,6 +8,64 @@ import scipy.sparse as sp
 import ext.interpol as interpol
 from torch.nn import functional
 from torch.utils.data import Dataset, DataLoader
+from skimage.measure import label
+
+###############################
+
+def get_ras_axes(aff, n_dims=3):
+    """This function finds the RAS axes corresponding to each dimension of a volume, based on its affine matrix.
+    :param aff: affine matrix Can be a 2d numpy array of size n_dims*n_dims, n_dims+1*n_dims+1, or n_dims*n_dims+1.
+    :param n_dims: number of dimensions (excluding channels) of the volume corresponding to the provided affine matrix.
+    :return: two numpy 1d arrays of lengtn n_dims, one with the axes corresponding to RAS orientations,
+    and one with their corresponding direction.
+    """
+    aff_inverted = np.linalg.inv(aff)
+    img_ras_axes = np.argmax(np.absolute(aff_inverted[0:n_dims, 0:n_dims]), axis=0)
+    return img_ras_axes
+
+###############################
+
+def align_volume_to_ref(volume, aff, aff_ref=None, return_aff=False, n_dims=3):
+    """This function aligns a volume to a reference orientation (axis and direction) specified by an affine matrix.
+    :param volume: a numpy array
+    :param aff: affine matrix of the floating volume
+    :param aff_ref: (optional) affine matrix of the target orientation. Default is identity matrix.
+    :param return_aff: (optional) whether to return the affine matrix of the aligned volume
+    :param n_dims: number of dimensions (excluding channels) of the volume corresponding to the provided affine matrix.
+    :return: aligned volume, with corresponding affine matrix if return_aff is True.
+    """
+
+    # work on copy
+    aff_flo = aff.copy()
+
+    # default value for aff_ref
+    if aff_ref is None:
+        aff_ref = np.eye(4)
+
+    # extract ras axes
+    ras_axes_ref = get_ras_axes(aff_ref, n_dims=n_dims)
+    ras_axes_flo = get_ras_axes(aff_flo, n_dims=n_dims)
+
+    # align axes
+    aff_flo[:, ras_axes_ref] = aff_flo[:, ras_axes_flo]
+    for i in range(n_dims):
+        if ras_axes_flo[i] != ras_axes_ref[i]:
+            volume = torch.swapaxes(volume, ras_axes_flo[i], ras_axes_ref[i])
+            swapped_axis_idx = np.where(ras_axes_flo == ras_axes_ref[i])
+            ras_axes_flo[swapped_axis_idx], ras_axes_flo[i] = ras_axes_flo[i], ras_axes_flo[swapped_axis_idx]
+
+    # align directions
+    dot_products = np.sum(aff_flo[:3, :3] * aff_ref[:3, :3], axis=0)
+    for i in range(n_dims):
+        if dot_products[i] < 0:
+            volume = torch.flip(volume, [i])
+            aff_flo[:, i] = - aff_flo[:, i]
+            aff_flo[:3, 3] = aff_flo[:3, 3] - aff_flo[:3, i] * (volume.shape[i] - 1)
+
+    if return_aff:
+        return volume, aff_flo
+    else:
+        return volume
 
 ###############################3
 
@@ -65,14 +123,7 @@ def cropLabelVolTorch(V,
     i2 = i2 if i2 < V.shape[0] else torch.tensor(V.shape[0] - 1, device=V.device, dtype=torch.long)
     j2 = j2 if j2 < V.shape[1] else torch.tensor(V.shape[0] - 1, device=V.device, dtype=torch.long)
     k2 = k2 if k2 < V.shape[2] else torch.tensor(V.shape[0] - 1, device=V.device, dtype=torch.long)
-    """
-    i1 = i1 if i1>=0 else 0
-    j1 = j1 if j1 >= 0 else 0
-    k1 = k1 if k1 >= 0 else 0
-    i2 = i2 if i2 < V.shape[0] else (V.shape[0] - 1)
-    j2 = j2 if j2 < V.shape[1] else (V.shape[1] - 1)
-    k2 = k2 if k2 < V.shape[2] else (V.shape[2] - 1)
-    """
+
     cropping = [i1, j1, k1, i2, j2, k2]
     cropped = V[i1:i2, j1:j2, k1:k2]
 
@@ -123,6 +174,13 @@ def viewVolume(x, aff=None):
 
 ###############################3
 
+def getLargestCC(segmentation):
+    labels = label(segmentation)
+    largestCC = labels == np.argmax(np.bincount(labels.flat, weights=segmentation.flat))
+    return largestCC
+
+###############################3
+
 def MRIwrite(volume, aff, filename, dtype=None):
 
     if dtype is not None:
@@ -154,6 +212,17 @@ def MRIread(filename, dtype=None, im_only=False, as_closest_canonical=False):
         return volume
     else:
         return volume, aff
+
+###############################
+
+def get_largest_connected_component(binary_numpy):
+    labeled_array, num_features = scipy.ndimage.label(binary_numpy)
+    if num_features == 0:
+      return np.zeros_like(binary_numpy)
+    component_sizes = np.bincount(labeled_array.flatten())
+    largest_component_label = np.argmax(component_sizes[1:]) + 1
+    largest_component_mask = (labeled_array == largest_component_label)
+    return largest_component_mask
 
 ###############################
 
@@ -445,6 +514,59 @@ def torch_resize(I, aff, resolution, device, power_factor_at_half_width=5, dtype
 
     return It_lowres, aff2
 
+def torch_gaussian_filter3d(I, sigmas, slow=False):
+
+    if torch.is_grad_enabled():
+        with torch.no_grad():
+            return torch_gaussial_filter3d(I, sigmas, slow)
+    device = I.device
+    dtype = I.dtype
+    slow = slow or device.type == 'cpu'
+    if len(sigmas)==1:
+        sigmas = sigmas * torch.ones(3, device=device, dtype=dtype)
+
+    if len(I.shape) not in (3, 4):
+        raise Exception('torch_resize works with 3D or 3D+label volumes')
+    no_channels = len(I.shape) == 3
+    if no_channels:
+        I = I[:, :, :, None]
+    I = I.permute([3, 0, 1, 2])
+
+    It_lowres = None
+    for c in range(len(I)):
+        It = torch.as_tensor(I[c], device=device, dtype=dtype)[None, None]
+        # Smoothen if needed
+        for d in range(3):
+            if sigmas[d]>0:
+                sl = torch.ceil(sigmas[d] * 2.5).to(device).to(int)
+                v = torch.arange(-sl, sl + 1).to(device).to(dtype)
+                gauss = torch.exp((-(v / sigmas[d]) ** 2 / 2))
+                kernel = gauss / torch.sum(gauss)
+                if slow:
+                    It = conv_slow_fallback(It, kernel)
+                else:
+                    kernel = kernel[None, None, None,  None, :]
+                    It = torch.conv3d(It, kernel, bias=None, stride=1, padding=[0, 0, int((kernel.shape[-1] - 1) / 2)])
+
+            It = It.permute([0, 1, 4, 2, 3])
+        It = torch.squeeze(It)
+        It = It.detach()
+        It = It.to(I.device)
+        if len(I) == 1:
+            It_smooth = It[None]
+        else:
+            if It_smooth is None:
+                It_smooth = It.new_empty([len(I), *It.shape])
+            It_smooth[c] = It
+
+        torch.cuda.empty_cache()
+
+    if not no_channels:
+        It_smooth = It_smooth.permute([1, 2, 3, 0])
+    else:
+        It_smooth = It_smooth[0]
+
+    return It_smooth
 
 @torch.jit.script
 def conv_slow_fallback(x, kernel):
@@ -1184,3 +1306,4 @@ def get_priors_or_posteriors(atlas_names, atlas_size, grids, atlas_resolution,
         return seg, seg_rgb, vols
     else:
         return A
+
