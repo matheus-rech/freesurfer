@@ -3,23 +3,18 @@ This is an implementation of a Bayesian segmentation method that relies on the h
 Casamitjana et al. 
 -- preprint available at https://www.biorxiv.org/content/10.1101/2024.02.05.579016v1 
 
+And the method presented in the article:
+"Fast segmentation with the NextBrain histological atlas", by
+Puonti et al. (under revision)
+
 The code also relies on:
-
-B Billot, DN Greve, O Puonti, A Thielscher, K Van Leemput, B Fischl, AV Dalca, and JE Iglesias. 
-"SynthSeg: Segmentation of brain MRI scans of any contrast and resolution without retraining." 
-Medical image analysis 86 (2023): 102789.
-
-B Billot, C Magdamo, Y Cheng, SE Arnold, S Das, and JE Iglesias.
-"Robust machine learning segmentation for large-scale analysis of heterogeneous clinical brain MRI datasets."
-Proceedings of the National Academy of Sciences, 120 (2023): e2216399120.
-
-JE Iglesias.
-A ready-to-use machine learning tool for symmetric multi-modality registration of brain MRI. 
-Scientific Reports, 13 (2023): 6657.
+"A Modality-agnostic Multi-task Foundation Model for Human Brain Imaging"
+Liu et al. (under revision)
 
 ## Prerequisites:
 
 The first time you run the method, it will prompt you to download the atlas files, which are not distributed with the code.
+If you use the FireANTs version (highly recommended), it will also prompt you to download a machine learning model file.s
 
 
 ## Usage for 'full' Bayesian version (slow, not recommended):

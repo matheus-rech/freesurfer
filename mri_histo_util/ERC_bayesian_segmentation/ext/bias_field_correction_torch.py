@@ -47,16 +47,25 @@ ASEG_LABELS= {
 
 # Need it for clustering regions under the same gaussian.
 CLUSTER_DICT = {
-    'Gray': [53, 17, 51, 12, 54, 18, 50, 11, 58, 26, 42, 3],
+    'Gray': [53, 17, 51, 12, 54, 18, 50, 11, 58, 26, 42, 3, 819, 820, 865, 866, 869, 870],
     'CSF': [4, 5, 43, 44, 15, 14, 24],
     'Thalaumus': [49, 10],
     'Pallidum': [52, 13],
-    'VentralDC': [28, 60],
     'Brainstem': [16],
-    'WM': [41, 2],
+    'WM': [41, 2, 28, 60, 85, 821, 822, 843, 844],
     'cllGM': [47, 8],
     'cllWM': [46, 7]
 }
+CLUSTER_DICT_CEREBRUM = {
+    'Gray': [53, 17, 51, 12, 54, 18, 50, 11, 58, 26, 42, 3, 819, 820, 865, 866, 869, 870],
+    'CSF': [4, 5, 43, 44, 15, 14, 24],
+    'Thalaumus': [49, 10],
+    'Pallidum': [52, 13],
+    'WM': [28, 60, 41, 2, 28, 60, 85, 821, 822, 843, 844]
+}
+
+
+
 
 # make polynomial basis functions
 def get_basis_functions(shape, order=3, device='cpu', dtype=torch.float32):
@@ -110,14 +119,15 @@ def get_basis_functions_dct(shape, order=3, device='cpu', dtype=torch.float32):
     return B
 
 # Main function to correct bias field
-def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', device='cpu', dtype=torch.float32):
-
+def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', cerebrum_only=False, dontmask=False, device='cpu', dtype=torch.float32):
+    cluster_dict = CLUSTER_DICT_CEREBRUM if cerebrum_only else CLUSTER_DICT
+    mri[mri<0] = 0 # negative values break this
     with torch.no_grad():
         # get image and masks as tensors, all masked by segmentation
-        mask = (seg > 0) & (mri>0) # avoid logarithm of negative numbers...
+        mask = (seg > 0) & (mri>0) & (seg!=77) # avoid lesions!
         I = torch.tensor(np.squeeze(mri)[mask > 0], device=device, dtype=dtype)
         nvox = I.shape[0]
-        nclass = len(CLUSTER_DICT)
+        nclass = len(cluster_dict)
         prior = torch.zeros([nvox, nclass], device=device, dtype=dtype)
         seg2 = seg.copy()
         seg2[seg2 >= 2000] = 42
@@ -132,7 +142,7 @@ def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', devi
         kernel = torch.tensor(kernel, device=device, dtype=dtype)
         kernel = kernel[None, None, None, None, :]
 
-        for it_lab, (lab_str, lab_list) in enumerate(CLUSTER_DICT.items()):
+        for it_lab, (lab_str, lab_list) in enumerate(cluster_dict.items()):
             M = torch.zeros(mri.shape, device=device, dtype=dtype)
             for lab in lab_list:
                 M[seg2==lab] = 1.0
@@ -218,13 +228,22 @@ def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', devi
                 ready = True
             ycorr = y - torch.sum(A * C, dim=1)
 
-        Icorr = torch.zeros(mask.shape, device=device, dtype=dtype)
-        Icorr[mask] = (torch.exp(ycorr) - 1) / factor
+        Icorr = torch.log(1+factor*torch.tensor(mri.squeeze(), device=device, dtype=dtype))
+        for b in range(len(BFs)):
+            Icorr -= ( C[b] * BFs[b] )
+        Icorr = (torch.exp(Icorr) -1 ) / factor
 
+        if dontmask==False:
+            Icorr[seg == 0] = 0
+            Icorr[mri == 0] = 0
         Icorr = Icorr.detach().cpu().numpy()
         cost = cost.detach().cpu().numpy()
 
-    torch.cuda.empty_cache()
+    if device!='cpu':
+        torch.cuda.empty_cache()
 
+    if dontmask:
+        return Icorr, cost, mask
+    else:
+        return Icorr, cost
 
-    return Icorr, cost
