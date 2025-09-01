@@ -33,7 +33,7 @@ def main():
     # only import packages if arguments are correct
     from nibabel.freesurfer import write_geometry
     import numpy as np
-    from scipy.ndimage import gaussian_filter
+    from scipy.ndimage import gaussian_filter, binary_fill_holes
     import torch
     from photo_reconstruction import image_utils, mesh_utils
     from photo_reconstruction.photo_aligner import photo_aligner
@@ -86,6 +86,8 @@ def main():
                                                      ndilations=int(1.0 / arguments.photo_resolution),
                                                      equalize_images=arguments.equalize_images)
     areas = areas = np.array(Morig).sum(axis=(1, 2))
+    for i in range(len(Morig)):
+        Morig[i] = binary_fill_holes(Morig[i]>0).astype(Morig[i].dtype)
     Morig = image_utils.make_distance_transforms(Morig, arguments.photo_resolution)
 
     # get thicknesses from weights if needed, and estimate a-p coordinate shifts in mm
@@ -112,8 +114,8 @@ def main():
     Iorig = np.pad(np.stack(Iorig, axis=2), ((0,0),(0,0),(PAD_AP,PAD_AP),(0,0)))
     Morig = np.pad(np.stack(Morig, axis=2), ((0,0),(0,0),(PAD_AP,PAD_AP)))
     for k in range(PAD_AP):
-        Morig[:, :, PAD_AP-k-1] = -np.abs(Morig[:, :, PAD_AP-k]) - arguments.slice_thickness
-        Morig[:, :, -PAD_AP+k] = -np.abs(Morig[:, :, -PAD_AP+k-1]) - arguments.slice_thickness
+        Morig[:, :, PAD_AP-k-1] =  - (k+1) * arguments.slice_thickness * np.ones_like(Morig[:, :, PAD_AP-k])
+        Morig[:, :, -PAD_AP+k] = - (k+1) * arguments.slice_thickness * np.ones_like(Morig[:, :, -PAD_AP+k-1])
     siz = Iorig.shape[0:2]
 
     # Build resolution pyramid and center in origin
