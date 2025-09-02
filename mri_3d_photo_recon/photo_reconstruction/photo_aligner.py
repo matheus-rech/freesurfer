@@ -22,7 +22,7 @@ class photo_aligner(nn.Module):
         mri_mask,
         mri_aff,
         Pmesh,
-        Wmesh=None,
+        Dmesh=None,
         pixel_size=1.0,
         t_ini=None,
         theta_ini=None,
@@ -76,10 +76,10 @@ class photo_aligner(nn.Module):
             self.mri_mask_rearranged = torch.unsqueeze(torch.unsqueeze(self.mri_mask, dim=0), dim=0).to(self.device)
             self.mri_aff = torch.Tensor(mri_aff).to(self.device)
         if Pmesh is None:
-            self.Pmesh = self.Wmesh = None
+            self.Pmesh = self.Dmesh = None
         else:
             self.Pmesh = torch.Tensor(Pmesh.copy().T).to(self.device)
-            self.Wmesh =torch.ones(Pmesh.shape[0]).to(device) if (Wmesh is None) else torch.Tensor(Wmesh.copy()).to(self.device)
+            self.Dmesh =torch.ones(Pmesh.shape[0]).to(device) if (Dmesh is None) else torch.Tensor(Dmesh.copy()).to(self.device)
 
         # Some constants we'll reuse
         self.photo_siz = self.photo_vol.shape[:-1]
@@ -597,7 +597,14 @@ class photo_aligner(nn.Module):
             c0 = c00 * wfy + c10 * wcy
             c1 = c01 * wfy + c11 * wcy
             values = c0 * wfz + c1 * wcz
-            cost_mesh = torch.sum(torch.abs(values) * self.Wmesh[ok]) / torch.sum(self.Wmesh[ok])
+            # New symmetric cost
+            # cost_mesh = torch.sum(torch.abs(values) * self.Wmesh[ok]) / torch.sum(self.Wmesh[ok])
+            x = torch.abs(values)
+            y = self.Dmesh[ok]
+            rho = 1.0
+            w_x = torch.exp(-rho * x)
+            w_y = torch.exp(-rho * y)
+            cost_mesh = torch.sum(w_x * y) / w_x.sum() + torch.sum(w_y * x) / w_y.sum()
 
 
         # now let's compute the metrics
@@ -639,7 +646,7 @@ class photo_aligner(nn.Module):
         # Next: mean absolute difference between consecutive slices
         dif = (photo_resampled[:, :, self.pad_ignore + 1: - self.pad_ignore] -
             photo_resampled[:, :, self.pad_ignore: - self.pad_ignore - 1])
-        if False: # maybe give double weight to first and last?
+        if True:  # maybe give double weight to first and last? The other slices count twice after all
             dif[:, :, 1] *= 2.0
             dif[:, :, -1] *= 2.0
         dif_slice_loss = torch.mean(torch.abs(dif)) / 255
