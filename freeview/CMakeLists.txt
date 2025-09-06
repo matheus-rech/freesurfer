@@ -350,6 +350,10 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     target_link_libraries(freeview ${GLUT_LIBRARIES} ${X11_LIBRARIES})
   endif()
 
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(freeview PRIVATE "LINKER:-as-needed")
+  endif()
+
   if(APPLE)
     mac_deploy_qt(TARGET freeview BUNDLE Freeview.app PLIST Info.plist ICONS resource/icons/freeview.icns)
     install(PROGRAMS mac_wrapper DESTINATION bin RENAME freeview)

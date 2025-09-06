@@ -20,6 +20,10 @@ if(BUILD_GUIS)
 
   target_link_libraries(retrospective_correction ${QT_LIBRARIES})
 
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(retrospective_correction PRIVATE "LINKER:-as-needed")
+  endif()
+
   if(APPLE)
     mac_deploy_qt(TARGET retrospective_correction BUNDLE bin/retrospective_correction.app PLIST Info.plist)
     install(PROGRAMS mac_wrapper DESTINATION bin RENAME retrospective_correction)

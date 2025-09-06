@@ -25,4 +25,7 @@ if(ARMADILLO_FOUND AND ENSMALLEN_FOUND)
   target_link_libraries(cpptester PRIVATE ${ARMADILLO_LIBRARIES})
 endif()
 
+if(LINK_SHARED_AS_NEEDED)
+   target_link_options(cpptester PRIVATE "LINKER:-as-needed")
+endif()
 

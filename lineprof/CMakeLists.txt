@@ -46,6 +46,9 @@ if(ITK_FOUND AND VTK_FOUND AND PETSC_FOUND)
        ${ITK_LIBRARIES}
        ${QUADMATH_LIBRARIES}
      )
+     if(LINK_SHARED_AS_NEEDED)
+        target_link_options(lineprof_test, PRIVATE "LINKER:-as-needed")
+     endif()
   endif()
 
 endif()

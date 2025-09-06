@@ -175,6 +175,11 @@ target_link_libraries(kvlGEMSCommon_dynmesh ${ZLIB_LIBRARIES} ${ITK_LIBRARIES})
 #add_library(kvlGEMSCommon_dynmesh ${SOURCES})
 #target_link_libraries(kvlGEMSCommon_dynmesh ${ITK_LIBRARIES} ${ZLIB_LIBRARIES})
 
+if(LINK_SHARED_AS_NEEDED)
+   target_link_options(kvlGEMSCommon PRIVATE "LINKER:-as-needed")
+   target_link_options(kvlGEMSCommon_dynmesh PRIVATE "LINKER:-as-needed")
+endif()
+
 # build command line executables
 if(GEMS_BUILD_EXECUTABLES)
   add_subdirectory(Executables)

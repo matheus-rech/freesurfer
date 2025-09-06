@@ -9,6 +9,10 @@ if(VTK_FOUND)
   add_executable(mris_mesh_subdivide mris_mesh_subdivide.cxx)
   target_link_libraries(mris_mesh_subdivide utils ${VTK_LIBRARIES})
 
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(mris_mesh_subdivide PRIVATE "LINKER:-as-needed")
+  endif()
+
   install(TARGETS mris_mesh_subdivide DESTINATION bin)
 
 endif()

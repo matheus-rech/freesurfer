@@ -25,6 +25,10 @@ target_link_libraries(kvlGEMSGUI
   ${FLTK_LIBRARIES}
 )
 
+if(LINK_SHARED_AS_NEEDED)
+   target_link_options(kvlGEMSGUI PRIVATE "LINKER:-as-needed")
+endif()
+
 # add an executable
 fltk_wrap_ui(kvlEstimateAtlasParameters kvlAtlasParameterEstimationConsoleGUI.fl)
 
