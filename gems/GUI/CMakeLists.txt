@@ -26,7 +26,7 @@ target_link_libraries(kvlGEMSGUI
 )
 
 if(LINK_SHARED_AS_NEEDED)
-   target_link_options(kvlGEMSGUI PRIVATE "LINKER:-as-needed")
+   target_link_options(kvlGEMSGUI PRIVATE "LINKER:--as-needed")
 endif()
 
 # add an executable

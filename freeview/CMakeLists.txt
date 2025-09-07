@@ -351,7 +351,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   endif()
 
   if(LINK_SHARED_AS_NEEDED)
-     target_link_options(freeview PRIVATE "LINKER:-as-needed")
+     target_link_options(freeview PRIVATE "LINKER:--as-needed")
   endif()
 
   if(APPLE)

@@ -16,7 +16,7 @@ pybind11_add_module(fsbindings
 target_link_libraries(fsbindings PRIVATE utils nifti ${ITK_LIBRARIES})
 
 if(LINK_SHARED_AS_NEEDED)
-   target_link_options(fsbindings PRIVATE "LINKER:-as-needed")
+   target_link_options(fsbindings PRIVATE "LINKER:--as-needed")
 endif()
 
 # make sure the bindings library gets built into the repository even in out-of-source builds

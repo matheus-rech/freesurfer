@@ -18,7 +18,7 @@ if(BUILD_GUIS)
   target_link_libraries(fiducials_correction ${QT_LIBRARIES})
 
   if(LINK_SHARED_AS_NEEDED)
-     target_link_options(fiducials_correction PRIVATE "LINKER:-as-needed")
+     target_link_options(fiducials_correction PRIVATE "LINKER:--as-needed")
   endif()
 
   if(APPLE)

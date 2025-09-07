@@ -21,7 +21,7 @@ if(BUILD_GUIS)
   target_link_libraries(mask_extraction ${QT_LIBRARIES})
 
   if(LINK_SHARED_AS_NEEDED)
-     target_link_options(mask_extraction PRIVATE "LINKER:-as-needed")
+     target_link_options(mask_extraction PRIVATE "LINKER:--as-needed")
   endif()
 
   if(APPLE)

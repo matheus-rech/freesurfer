@@ -26,6 +26,6 @@ if(ARMADILLO_FOUND AND ENSMALLEN_FOUND)
 endif()
 
 if(LINK_SHARED_AS_NEEDED)
-   target_link_options(cpptester PRIVATE "LINKER:-as-needed")
+   target_link_options(cpptester PRIVATE "LINKER:--as-needed")
 endif()
 

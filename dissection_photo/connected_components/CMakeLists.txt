@@ -22,7 +22,7 @@ if(BUILD_GUIS)
   target_link_libraries(connected_components ${QT_LIBRARIES})
 
   if(LINK_SHARED_AS_NEEDED)
-     target_link_options(connected_components PRIVATE "LINKER:-as-needed")
+     target_link_options(connected_components PRIVATE "LINKER:--as-needed")
   endif()
 
   if(APPLE)

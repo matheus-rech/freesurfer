@@ -27,7 +27,7 @@ if(VTK_FOUND AND NOT MINIMAL)
   install(TARGETS mris_volmask_vtk DESTINATION bin)
 
   if(LINK_SHARED_AS_NEEDED)
-     target_link_options(mris_volmask_vtk PRIVATE "LINKER:-as-needed")
+     target_link_options(mris_volmask_vtk PRIVATE "LINKER:--as-needed")
   endif()
 
 endif()
