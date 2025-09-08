@@ -6918,7 +6918,12 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
       else if (dim[2] == 1)
         SetMainView(2);
 
-      double grid_size = qMax(dim[0], qMax(dim[1],dim[2]))/32*vs[0];
+      int ngrid = qMax(dim[0], qMax(dim[1],dim[2]))/32;
+      if (ngrid == 0)
+        ngrid = qMax(dim[0], qMax(dim[1],dim[2]))/8;
+      if (ngrid == 0)
+        ngrid = 1;
+      double grid_size = ngrid*vs[0];
       for (int i = 0; i < 3; i++)
         ((RenderView2D*)m_views[i])->SetGridSize(grid_size);
     }
