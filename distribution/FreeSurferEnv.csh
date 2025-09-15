@@ -180,7 +180,7 @@ if(! $?FSL_DIR  || $FS_OVERRIDE) then
         setenv FSL_DIR /usr/pubsw/packages/fsl/current
     else if ( -e /usr/local/pubsw/packages/fsl/current) then
         setenv FSL_DIR /usr/local/pubsw/packages/fsl/current
-    else if ( -e $HOME/fsl); then
+    else if ( -e $HOME/fsl) then
         setenv FSL_DIR $HOME/fsl
     else if ( -e /usr/local/fsl) then
         setenv FSL_DIR /usr/local/fsl
