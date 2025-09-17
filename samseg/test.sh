@@ -15,9 +15,13 @@ fi
 
 test_command samseg --i input.mgz --o output --threads 1 --options config.json
 
-if [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]]; then
+if [ "$host_os" == "ubuntu24" ]; then
+      TESTDATA_SUFFIX=".gcc11"
+fi
+
+if [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]] || [[ "$host_os" == "ubuntu24" ]]; then
    compare_vol output/seg.mgz seg.ref${TESTDATA_SUFFIX}.ubuntu.mgz
-elif [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "centos9" ]]; then
+elif [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "centos9" ]] || [[ "$host_os" == "rocky9" ]]; then
    compare_vol output/seg.mgz seg.ref${TESTDATA_SUFFIX}.centos.mgz
 elif [[ "$TESTDATA_SUFFIX" != "" ]] && [[ "$host_os" == "macos10" ]] || [[ "$host_os" == "macos12" ]] ; then
    compare_vol output/seg.mgz seg.ref${TESTDATA_SUFFIX}.mgz

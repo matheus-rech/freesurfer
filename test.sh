@@ -125,9 +125,9 @@ FSTEST_TESTDATA_TARBALL="${FSTEST_SCRIPT_DIR}/testdata.tar.gz"
 host_os=$(get_os)
 export TESTDATA_SUFFIX=""
 export CLANG_VERSION=""
-if [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]]; then
+if [[ "$host_os" == "centos8" ]] || [[ "$host_os" == "ubuntu20" ]] || [[ "$host_os" == "ubuntu22" ]] || [[ "$host_os" == "ubuntu24" ]]; then
    export TESTDATA_SUFFIX=".gcc8"
-elif [ "$host_os" == "centos9" ]; then
+elif [[ "$host_os" == "centos9" ]] || [[ "$host_os" == "rocky9" ]]; then
    export TESTDATA_SUFFIX=".gcc10"
 elif [ "$host_os" == "macos10" ]; then
    export TESTDATA_SUFFIX=".clang12"
