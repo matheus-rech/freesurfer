@@ -76,10 +76,13 @@ class photo_aligner(nn.Module):
             self.mri_mask_rearranged = torch.unsqueeze(torch.unsqueeze(self.mri_mask, dim=0), dim=0).to(self.device)
             self.mri_aff = torch.Tensor(mri_aff).to(self.device)
         if Pmesh is None:
-            self.Pmesh = self.Dmesh = None
+            self.Pmesh = self.Dmesh = self.Wmesh = None
         else:
             self.Pmesh = torch.Tensor(Pmesh.copy().T).to(self.device)
-            self.Dmesh =torch.ones(Pmesh.shape[0]).to(device) if (Dmesh is None) else torch.Tensor(Dmesh.copy()).to(self.device)
+            self.Dmesh = torch.Tensor(Dmesh.copy()).to(self.device)
+            n_v_orig = int(torch.where(self.Dmesh>0)[0][0])
+            rel_weight_explorers = n_v_orig / (len(self.Dmesh) - n_v_orig)
+            self.Wmesh = torch.concatenate([torch.ones(n_v_orig, device=device), rel_weight_explorers * torch.ones(len(self.Dmesh) - n_v_orig, device=device)])
 
         # Some constants we'll reuse
         self.photo_siz = self.photo_vol.shape[:-1]
@@ -603,7 +606,7 @@ class photo_aligner(nn.Module):
             y = self.Dmesh[ok]
             rho = 1.0
             w_x = torch.exp(-rho * x)
-            w_y = torch.exp(-rho * y)
+            w_y = torch.exp(-rho * y) * self.Wmesh[ok]
             cost_mesh = torch.sum(w_x * y) / w_x.sum() + torch.sum(w_y * x) / w_y.sum()
 
 
