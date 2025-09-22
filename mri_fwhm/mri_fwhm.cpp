@@ -288,8 +288,8 @@ MRI *ar1;
 char *ar1path=NULL;
 
 double infwhm = 0,ingstd =0;
-double infwhmc=0, infwhmr=0, infwhms=0;
-double ingstdc=0, ingstdr=0, ingstds=0;
+double infwhmc=0, infwhmr=0, infwhms=0, infwhmf;
+double ingstdc=0, ingstdr=0, ingstds=0, ingstdf;
 double byfwhm;
 double bygstd;
 char *tofwhmfile = NULL;
@@ -440,6 +440,13 @@ int main(int argc, char *argv[]) {
     if (outmaskpath) MRIwrite(mask,outmaskpath);
   } else nsearch = InVals->width * InVals->height * InVals->depth;
   printf("Search region is %d voxels = %lf mm3\n",nsearch,nsearch*voxelvolume);
+
+  if(infwhmf > 0){
+    MRI *tmpmri = MRItemporalGSmooth(InVals, mask, ingstdf, NULL, 2);
+    if(tmpmri == NULL) exit(1);
+    MRIfree(&InVals);
+    InVals = tmpmri;
+  }
 
   if(DoMedian == 0){
     if( (infwhm > 0 || infwhmc > 0 || infwhmr > 0 || infwhms > 0 || mb2drad || mb2dtan) && SmoothOnly) {
@@ -847,12 +854,20 @@ static int parse_commandline(int argc, char **argv) {
       sscanf(pargv[0],"%lf",&infwhmr);
       ingstdr = infwhmr/sqrt(log(256.0));
       nargsused = 1;
-    } else if (!strcasecmp(option, "--fwhms")) {
+    } 
+    else if (!strcasecmp(option, "--fwhms")) {
       if (nargc < 1) CMDargNErr(option,1);
       sscanf(pargv[0],"%lf",&infwhms);
       ingstds = infwhms/sqrt(log(256.0));
       nargsused = 1;
-    } else if (!strcasecmp(option, "--gstd")) {
+    } 
+    else if (!strcasecmp(option, "--fwhmf")) {
+      if (nargc < 1) CMDargNErr(option,1);
+      sscanf(pargv[0],"%lf",&infwhmf);
+      ingstdf = infwhmf/sqrt(log(256.0));
+      nargsused = 1;
+    } 
+    else if (!strcasecmp(option, "--gstd")) {
       if (nargc < 1) CMDargNErr(option,1);
       sscanf(pargv[0],"%lf",&ingstd);
       infwhm = ingstd*sqrt(log(256.0));
@@ -1076,6 +1091,8 @@ static void print_usage(void) {
   printf("   --gstd gstd : same as --fwhm but specified as the stddev\n");
   printf("   --median width : perform median filtering instead of gaussian\n");
   printf("   --fwhmc, --fwhmr, --fwhms to control each axis separately\n");
+  printf("   --fwhmf fwhmf FWHM to apply to the frames (in units of TR)\n");
+  printf("   --tr TR : set the TR value (can be helpful with --fwhmf)\n");
   printf("   --g2 w1 fwhm2 : gaussian mixture (w1*g1 + (1-w1)*g2)\n");
   printf("   --g2{crs} w1{crs} fwhm2{crs} : assign a mixture model to given axis\n");
   printf("\n");

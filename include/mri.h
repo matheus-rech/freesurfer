@@ -1085,6 +1085,7 @@ MRI   *MRImaskedGaussianSmooth(MRI *src, MRI *binmask, double std, MRI *targ);
 MRI   *MRIconvolveGaussianMeanAndStdByte(MRI *mri_src, MRI *mri_dst,
     MRI *mri_gaussian) ;
 MRI *MRIgaussianSmoothNI(MRI *src, double cstd, double rstd, double sstd, MRI *targ);
+MRI *MRItemporalGSmooth(MRI *src, MRI *mask, double tstd, MRI *targ, int normtype=2);
 
 /* frequency filtering*/
 MRI* MRI_fft(MRI *mri_src, MRI* dst);
