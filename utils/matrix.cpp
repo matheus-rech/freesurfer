@@ -3551,8 +3551,10 @@ MATRIX *GaussianMatrix2(int len, float std1, float std2, float w1, int norm, MAT
 /*---------------------------------------------------------------
   GaussianMatrix() - creates a gaussian convolution matrix. Each row
   is a gaussian waveform with centered at the diagonal with standard
-  deviation std.  If norm == 1, then the sum of each row is adjusted
-  to be 1. The matrix will be len-by-len.
+  deviation std.  If norm==1, then BUG!: I wanted the sum of each row
+  to be adjusted to be 1, but norm==1 just normalizes the kernel
+  (9/19/25). To force the sum of the row to be 1, use norm=2. The
+  matrix will be len-by-len.
   ---------------------------------------------------------------*/
 MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G)
 {
@@ -3571,8 +3573,9 @@ MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G)
   var = std * std;
   f = sqrt(2 * M_PI) * std;
 
-  // Adjust scale so that sum at center line is 1
-  if (norm) {
+  if(norm == 1) {
+    // Adjust scale so that sum at the CENTER ROW is 1
+    // Note this does not make each row sum to 1. Use norm=2 for that
     sum = 0;
     for (c = 0; c < len; c++) {
       d = c - len / 2;
@@ -3582,16 +3585,22 @@ MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G)
     f /= sum;
   }
 
-  for (r = 0; r < len; r++) {
-    for (c = 0; c < len; c++) {
-      d = c - r;
+  for(r=0; r < len; r++) {
+    sum = 0;
+    for(c=0; c < len; c++) {
+        d = c - r;
       v = exp(-(d * d) / (2 * var)) / f;
-      G->rptr[r + 1][c + 1] = v;
+      sum += v;
+      G->rptr[r+1][c+1] = v;
+    }
+    if(norm == 2){
+      // Make each row sum to 1
+      for(c=0; c < len; c++) G->rptr[r+1][c+1] /= sum;
     }
   }
 
-  // printf("std = %g\n",std);
-  // MatrixWriteTxt("g.txt",G);
+  //printf("std = %g\n",std);
+  //MatrixWriteTxt("g.txt",G);
   // exit(1);
 
   return (G);
