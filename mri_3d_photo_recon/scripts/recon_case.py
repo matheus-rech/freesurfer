@@ -162,7 +162,8 @@ def main():
         mini = (Pmesh.min(axis=0) - margin).astype(np.int32)
         maxi = (Pmesh.max(axis=0) + margin + 1).astype(np.int32)
         np_target = 50000
-        delta = ((maxi - mini).prod() / Pmesh.shape[0]) ** (1.0 / 3)
+        # I used to make delta a function of the number of mesh vertices, but this led to too few points sometimes
+        delta = 1.0 
         skip = int(np.floor(Pmesh.shape[0]/np_target))
         points = torch.tensor(Pmesh[::skip,:], device=device, dtype=torch.float)
         xs = torch.arange(mini[0], maxi[0], delta, device=device, dtype=torch.float32)
