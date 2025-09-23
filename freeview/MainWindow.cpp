@@ -2663,6 +2663,10 @@ void MainWindow::CommandLoadVolume( const QStringList& sa )
       {
         m_scripts.insert( 0, QStringList("showlayer") << "MRI" << subArgu );
       }
+      else if ( subOption == "selected")
+      {
+        m_scripts.insert( 0, QStringList("selectlayer") << "MRI" << subArgu );
+      }
       else if ( subOption == "gotolabel" || subOption == "structure")
       {
         m_scripts.insert(0, QStringList("gotolabel") << subArgu);
