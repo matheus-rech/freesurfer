@@ -1,9 +1,7 @@
 project(utils)
 
 # ATH: temporarily turning off this warning in mrisurf_defect.cpp
-if(NOT HOST_OS MATCHES "Ubuntu20")
-   add_compile_options(-Wno-for-loop-analysis)
-elseif(NOT HOST_OS MATCHES "Ubuntu22")
+if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
    add_compile_options(-Wno-for-loop-analysis)
 endif()
 

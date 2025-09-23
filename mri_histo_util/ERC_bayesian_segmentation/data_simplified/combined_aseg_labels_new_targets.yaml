@@ -1,0 +1,87 @@
+Aseg Combined Structures:
+- Background:
+  - 0
+  - 4
+  - 5
+  - 43
+  - 44
+  - 24
+  - 14
+  - 15
+- White Matter:
+  - 2
+  - 41
+  - 16
+  - 161
+  - 162
+  - 77
+  - 85
+  - 821
+  - 822
+  - 865
+  - 866
+  - 869
+  - 870
+- Gray Matter:
+  - 17
+  - 53
+  - 18
+  - 54
+  - 3
+  - 42
+- Cerebellum White Matter:
+  - 7
+  - 46
+- Cerebellum Gray Matter:
+  - 8
+  - 47
+- Caudate and Accumbens:
+  - 11
+  - 50
+  - 26
+  - 58
+- Putamen:
+  - 12
+  - 51
+- White Thalamus:
+  - 10
+  - 49
+- Gray Thalamus:
+  - 10
+  - 49
+- Pallidum:
+  - 13
+  - 52
+- Substantia Nigra and STN and Red Nucleus:
+  - 16
+  - 161
+  - 162
+- Gray Brainstem nuclei:
+  - 16
+  - 161
+  - 162
+- White Brainstem nuclei:
+  - 16
+  - 161
+  - 162
+- Gray hypothalamus:
+  - 28
+  - 60
+  - 819
+  - 820
+- White hypothalamus:
+  - 28
+  - 60
+  - 843
+  - 844
+- Cerebellar Other:
+  - 7
+  - 46
+- Hippocampal White Matter:
+  - 17
+  - 53
+  - 18
+  - 54
+  - 3
+  - 42
+

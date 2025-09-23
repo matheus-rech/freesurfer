@@ -6768,6 +6768,45 @@ MRI *MRIgaussianSmoothNI(MRI *src, double cstd, double rstd, double sstd, MRI *t
   return (targ);
 }
 
+// Gaussian smoothing in the temporal (frame) dimension. tstd is the
+// stddev of the gaussian in units of the src->tr (typically ms). Note
+// that the normalization uses normtype=2 (if not specified) to force
+// the rows the of the G matrix to sum to 1
+MRI *MRItemporalGSmooth(MRI *src, MRI *mask, double tstd, MRI *targ, int normtype)
+{
+  if(targ == NULL) {
+    targ = MRIallocSequence(src->width, src->height, src->depth, MRI_FLOAT, src->nframes);
+    if(targ == NULL) {
+      printf("ERROR: MRItemporalGSmooth(): could not alloc\n");
+      return (NULL);
+    }
+    MRIcopy(src, targ);
+    MRIcopyPulseParameters(src,targ);
+  }
+  
+  printf("tstd = %g, tr=%g, nstd %g, normtype %d\n", tstd,src->tr, tstd/src->tr, normtype);
+  MATRIX *G = GaussianMatrix(src->nframes, tstd/src->tr, normtype, NULL);
+#ifdef HAVE_OPENMP
+#pragma omp parallel for 
+#endif
+  for(int c = 0; c < src->width; c++){
+    for(int r = 0; r < src->height; r++) {
+      for(int s = 0; s < src->depth; s++) {
+	if(mask && MRIgetVoxVal(mask,c,r,s,0) < 0.5) continue;
+	MATRIX *v = MatrixAlloc(src->nframes, 1, MATRIX_REAL);
+	for(int f=0; f < src->nframes; f++) v->rptr[f+1][1] = MRIgetVoxVal(src, c, r, s, f);
+	MATRIX *vg = MatrixMultiply(G, v, NULL);
+	for(int f=0; f < src->nframes; f++) MRIsetVoxVal(targ, c, r, s, f, vg->rptr[f+1][1]);
+	MatrixFree(&v);
+	MatrixFree(&vg);
+      } // slice
+    } // rows
+  }// col
+  MatrixFree(&G);
+  return(targ);
+}
+
+
 MRI *MRIsegmentationSurfaceNormals(MRI *mri_seg, MRI *mri_normals, int label, MRI **pmri_ctrl)
 {
   int x, y, z, border;

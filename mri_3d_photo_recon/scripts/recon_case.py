@@ -33,7 +33,7 @@ def main():
     # only import packages if arguments are correct
     from nibabel.freesurfer import write_geometry
     import numpy as np
-    from scipy.ndimage import gaussian_filter
+    from scipy.ndimage import gaussian_filter, binary_fill_holes
     import torch
     from photo_reconstruction import image_utils, mesh_utils
     from photo_reconstruction.photo_aligner import photo_aligner
@@ -86,6 +86,8 @@ def main():
                                                      ndilations=int(1.0 / arguments.photo_resolution),
                                                      equalize_images=arguments.equalize_images)
     areas = areas = np.array(Morig).sum(axis=(1, 2))
+    for i in range(len(Morig)):
+        Morig[i] = binary_fill_holes(Morig[i]>0).astype(Morig[i].dtype)
     Morig = image_utils.make_distance_transforms(Morig, arguments.photo_resolution)
 
     # get thicknesses from weights if needed, and estimate a-p coordinate shifts in mm
@@ -112,8 +114,8 @@ def main():
     Iorig = np.pad(np.stack(Iorig, axis=2), ((0,0),(0,0),(PAD_AP,PAD_AP),(0,0)))
     Morig = np.pad(np.stack(Morig, axis=2), ((0,0),(0,0),(PAD_AP,PAD_AP)))
     for k in range(PAD_AP):
-        Morig[:, :, PAD_AP-k-1] = -np.abs(Morig[:, :, PAD_AP-k]) - arguments.slice_thickness
-        Morig[:, :, -PAD_AP+k] = -np.abs(Morig[:, :, -PAD_AP+k-1]) - arguments.slice_thickness
+        Morig[:, :, PAD_AP-k-1] =  - (k+1) * arguments.slice_thickness * np.ones_like(Morig[:, :, PAD_AP-k])
+        Morig[:, :, -PAD_AP+k] = - (k+1) * arguments.slice_thickness * np.ones_like(Morig[:, :, -PAD_AP+k-1])
     siz = Iorig.shape[0:2]
 
     # Build resolution pyramid and center in origin
@@ -149,17 +151,35 @@ def main():
     # by adding points randomly around the cloud with lower weight (improves capture range)
     # Note to self: I disabled it as it could stretch the distance transform / edge in a funny way
     if (arguments.ref_mesh is None):
-        Pmesh = Wmesh = TRImesh = meta_mesh = None
+        Pmesh = Dmesh = TRImesh = meta_mesh = None
     else:
         Pmesh, TRImesh, meta_mesh = mesh_utils.read_and_reorient_mesh(arguments.ref_mesh, arguments.mesh_reorient_with_indices, fsprefix, output_directory, arguments.hemisphere)
         Pmesh[:,0] = arguments.stretch_factor_lr_mesh * Pmesh[:,0]
         nv_orig = Pmesh.shape[0]
-        Wmesh = np.ones(nv_orig)
-        if False:
-            for n in range(1,4):
-                idx = np.random.permutation(nv_orig)[:min(nv_orig, 100000)]
-                Pmesh = np.concatenate([Pmesh, Pmesh[idx,:] + (n * 2.0) * np.random.randn(len(idx),3)], axis=0)
-                Wmesh = np.concatenate([Wmesh, (0.20 - n*0.05) * np.ones(len(idx))], axis=0)
+        Dmesh = np.zeros(nv_orig)
+        print('Computing approximate distance function for mesh')
+        margin = 15
+        mini = (Pmesh.min(axis=0) - margin).astype(np.int32)
+        maxi = (Pmesh.max(axis=0) + margin + 1).astype(np.int32)
+        np_target = 50000
+        # I used to make delta a function of the number of mesh vertices, but this led to too few points sometimes
+        delta = 1.0 
+        skip = int(np.floor(Pmesh.shape[0]/np_target))
+        points = torch.tensor(Pmesh[::skip,:], device=device, dtype=torch.float)
+        xs = torch.arange(mini[0], maxi[0], delta, device=device, dtype=torch.float32)
+        ys = torch.arange(mini[1], maxi[1], delta, device=device, dtype=torch.float32)
+        zs = torch.arange(mini[2], maxi[2], delta, device=device, dtype=torch.float32)
+        grid = torch.stack(torch.meshgrid(xs, ys, zs, indexing="ij"), -1).reshape(-1, 3)
+        df_vals = torch.empty(grid.shape[0], device=device)
+        batch_size = 10000
+        for i in range(0, grid.shape[0], batch_size):
+            q = grid[i:i + batch_size]  # (B,3)
+            dists = torch.cdist(q, points)  # (B,N)
+            df_vals[i:i + batch_size] = dists.min(dim=1).values
+        Pmesh = np.concatenate([Pmesh, grid.detach().cpu().numpy()], axis=0)
+        Dmesh = np.concatenate([Dmesh, df_vals.detach().cpu().numpy()], axis=0)
+        print('Done computing distances')
+        del points, grid, df_vals
 
     ########################################################
 
@@ -209,7 +229,7 @@ def main():
                 REFmaskSmooth,
                 REFaff,
                 Pmesh,
-                Wmesh,
+                Dmesh,
                 pixel_size=RESOLUTIONS[res],
                 t_ini=t,
                 theta_ini=theta,
@@ -349,7 +369,7 @@ def main():
                     None if REF is None else REFmask.astype(np.float32),
                     REFaff,
                     Pmesh,
-                    Wmesh,
+                    Dmesh,
                     pixel_size=RESOLUTION_OUTPUT,
                     t_ini=t,
                     theta_ini=theta,

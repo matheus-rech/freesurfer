@@ -20,6 +20,10 @@ if(BUILD_GUIS)
 
   target_link_libraries(mask_extraction ${QT_LIBRARIES})
 
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(mask_extraction PRIVATE "LINKER:--as-needed")
+  endif()
+
   if(APPLE)
     mac_deploy_qt(TARGET mask_extraction BUNDLE bin/mask_extraction.app PLIST Info.plist)
     install(PROGRAMS mac_wrapper DESTINATION bin RENAME mask_extraction)

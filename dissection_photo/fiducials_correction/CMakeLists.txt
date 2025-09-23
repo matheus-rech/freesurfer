@@ -17,6 +17,10 @@ if(BUILD_GUIS)
 
   target_link_libraries(fiducials_correction ${QT_LIBRARIES})
 
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(fiducials_correction PRIVATE "LINKER:--as-needed")
+  endif()
+
   if(APPLE)
     mac_deploy_qt(TARGET fiducials_correction BUNDLE bin/fiducials_correction.app PLIST Info.plist)
     install(PROGRAMS mac_wrapper DESTINATION bin RENAME fiducials_correction)

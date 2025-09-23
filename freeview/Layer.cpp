@@ -295,6 +295,7 @@ void Layer::Restore()
     m_dTranslate[i] = 0;
     m_dScale[i] = 1;
     m_dRotate[i] = 0;
+    m_bFlip[i] = false;
   }
   m_bUseRotationCenter = false;
 
@@ -443,4 +444,46 @@ void Layer::SetDisplayInNeurologicalView(bool b)
 {
   m_dTinyOffset = b?-0.1:0.1;
   OnSetDisplayInNeurologicalView();
+}
+
+QString Layer::GetTransformString()
+{
+  QString axis[3] = {"L-R", "P-A", "I-S"};
+  QString tf, str;
+  for (int i = 0; i < 3; i++)
+  {
+    if (m_dRotate[i] != 0)
+      str += QString("%1 %2 ").arg(axis[i]).arg(m_dRotate[i]);
+  }
+  if (!str.isEmpty())
+    tf += QString("rotate %1 at center %2 %3 %4 ").arg(str).arg(m_dRotationCenter[0]).arg(m_dRotationCenter[1]).arg(m_dRotationCenter[2]);
+
+  str.clear();
+  for (int i = 0; i < 3; i++)
+  {
+    if (m_dTranslate[i] != 0)
+      str += QString("%1 %2 ").arg(axis[i]).arg(m_dTranslate[i]);
+  }
+  if (!str.isEmpty())
+    tf += QString("translate %1 ").arg(str);
+
+  str.clear();
+  for (int i = 0; i < 3; i++)
+  {
+    if (m_dScale[i] != 1)
+      str += QString("%1 %2 ").arg(axis[i]).arg(m_dScale[i]);
+  }
+  if (!str.isEmpty())
+    tf += QString("scale %1 ").arg(str);
+
+  str.clear();
+  for (int i = 0; i < 3; i++)
+  {
+    if (m_bFlip[i] != 0)
+      str += QString("%1 ").arg(axis[i]);
+  }
+  if (!str.isEmpty())
+    tf += QString("flip %1 ").arg(str);
+
+  return tf;
 }

@@ -26,6 +26,7 @@ class PanelPointSet;
 class QLabel;
 class QTreeWidgetItem;
 class ToolWindowLesionPopup;
+class DialogWayPointsAngle;
 
 class PanelPointSet : public PanelLayer
 {
@@ -70,6 +71,7 @@ protected slots:
   void OnSpinBoxSecondQA(int);
   void OnCheckBoxFixed(bool b);
   void OnButtonLesionPopup();
+  void OnButtonPointAngle();
 
 private:
   QLabel* MakeCommentItem(const QVariantMap& map, QLabel* label_in = NULL);
@@ -83,6 +85,7 @@ private:
   QString     m_self;
   QMap<QObject*, int> m_mapCurrentPoint;
   ToolWindowLesionPopup* m_toolLesionPopup;
+  DialogWayPointsAngle* m_dlgPointAngle;
 };
 
 #endif // PANELPOINTSET_H

@@ -60,9 +60,15 @@
 #include "LayerEditRef.h"
 #include <QPainter>
 #include <QInputDialog>
+#include <QFileDialog>
+#include "vtkInteractorStyleNoRotation.h"
 
 RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent )
 {
+#if VTK_MAJOR_VERSION > 8
+  vtkNew<vtkInteractorStyleNoRotation> style;
+  this->GetRenderWindow()->GetInteractor()->SetInteractorStyle(style);
+#endif
   m_renderer->GetActiveCamera()->ParallelProjectionOn();
   m_contour2D = new Contour2D( this );
   m_cursor2D = new Cursor2D( this );
@@ -888,6 +894,15 @@ void RenderView2D::TriggerContextMenu( QMouseEvent* event )
     menu.addAction(act);
   }
 
+  if (surf && surf->IsVisible())
+  {
+    if (!menu.actions().isEmpty())
+      menu.addSeparator();
+    QAction* act = new QAction("Save Surface Contours As...", this);
+    connect(act, SIGNAL(triggered(bool)), SLOT(OnSaveSurfaceEdge()));
+    menu.addAction(act);
+  }
+
   if (!menu.actions().isEmpty())
     menu.exec(event->globalPos());
 }
@@ -1070,4 +1085,27 @@ void RenderView2D::OnSetGridSize()
                                      tr("Grid Size in mm:"), GetGridSize(), 0.01, 100, 2, &ok);
   if (ok)
     SetGridSize(d);
+}
+
+void RenderView2D::OnSaveSurfaceEdge()
+{
+  LayerSurface* surf = qobject_cast<LayerSurface*>(MainWindow::GetMainWindow()->GetActiveLayer("Surface"));
+  if (!surf)
+    return;
+
+  QString fn = QFileDialog::getSaveFileName(
+        this,
+        "Select file",
+        QFileInfo(surf->GetFileName()).absolutePath(),
+        "VTK files (*.vtk);;All files (*)");
+  if (fn.isEmpty())
+    return;
+
+  if (QFileInfo(fn).suffix().toLower() != "vtk")
+    fn += ".vtk";
+
+  if (!surf->SaveEdgeLines(m_nViewPlane, fn))
+    QMessageBox::warning(this, "Error", "Failed to save to " + fn);
+  else
+    qDebug() << fn << "saved";
 }

@@ -130,6 +130,7 @@
 #include "DialogLoadODF.h"
 #include "LayerEditRef.h"
 #include "DialogGifMaker.h"
+#include "FSVolume.h"
 
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
@@ -2389,8 +2390,8 @@ void MainWindow::CommandLoadSubject(const QStringList &sa)
                          "%1/surf/rh.pial:edgecolor=red "
                          //                         "%1/surf/lh.orig:edgecolor=green:visible=0 "
                          //                         "%1/surf/rh.orig:edgecolor=green:visible=0 "
-                         "%1/surf/lh.inflated:annot=aparc:visible=0 "
-                         "%1/surf/rh.inflated:annot=aparc:visible=0 ").arg(subject_path);
+                         "%1/surf/lh.inflated:annot=%1/label/lh.aparc.annot:visible=0 "
+                         "%1/surf/rh.inflated:annot=%1/label/rh.aparc.annot:visible=0 ").arg(subject_path);
   if (QFile::exists(QString("%1/surf/lh.orig.nofix").arg(subject_path)))
       args += QString("%1/surf/lh.orig.nofix:overlay=%1/surf/lh.defect_labels:edgecolor=overlay:overlay_threshold=0.01,100,percentile:visible=0 ").arg(subject_path);
   if (QFile::exists(QString("%1/surf/rh.orig.nofix").arg(subject_path)))
@@ -2661,6 +2662,10 @@ void MainWindow::CommandLoadVolume( const QStringList& sa )
       else if ( subOption == "visible" )
       {
         m_scripts.insert( 0, QStringList("showlayer") << "MRI" << subArgu );
+      }
+      else if ( subOption == "selected")
+      {
+        m_scripts.insert( 0, QStringList("selectlayer") << "MRI" << subArgu );
       }
       else if ( subOption == "gotolabel" || subOption == "structure")
       {
@@ -6015,6 +6020,22 @@ void MainWindow::OnSaveVolume()
     {
       fn += ".mgz";
     }
+    if (GetVolumeCropper()->GetVolume() == layer && layer->GetSourceVolume()->GetCropped())
+    {
+      int* ext = GetVolumeCropper()->GetExtent();
+      QString crop_ext = QString("L-R %1 %2 P-A %3 %4 I-S %5 %6").arg(ext[0]).arg(ext[1])
+                                 .arg(ext[2]).arg(ext[3]).arg(ext[4]).arg(ext[5]);
+      QString cmd = QString("freeview crop volume %1  Orignal file: %2").arg(crop_ext)
+          .arg(layer->property("original_filename").toString());
+      cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
+      layer->GetSourceVolume()->setProperty("cmdline_to_add", cmd);
+    }
+    if (layer->IsTransformed())
+    {
+      QString cmd = QString("freeview transform volume %1  Orignal file: %2").arg(layer->GetTransformString()).arg(layer->property("original_filename").toString());
+      cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
+      layer->GetSourceVolume()->setProperty("cmdline_to_add", cmd);
+    }
     layer->SetFileName( fn );
     m_scripts.append(QStringList("savelayer") << QString::number(layer->GetID()));
   }
@@ -6070,6 +6091,7 @@ bool MainWindow::SaveVolumeAs()
     }
     else
     {
+      layer_mri->setProperty("original_filename", layer_mri->GetFileName());
       layer_mri->SetFileName( fn );
       OnSaveVolume();
     }
@@ -6900,7 +6922,12 @@ void MainWindow::OnIOFinished( Layer* layer, int jobtype )
       else if (dim[2] == 1)
         SetMainView(2);
 
-      double grid_size = qMax(dim[0], qMax(dim[1],dim[2]))/32*vs[0];
+      int ngrid = qMax(dim[0], qMax(dim[1],dim[2]))/32;
+      if (ngrid == 0)
+        ngrid = qMax(dim[0], qMax(dim[1],dim[2]))/8;
+      if (ngrid == 0)
+        ngrid = 1;
+      double grid_size = ngrid*vs[0];
       for (int i = 0; i < 3; i++)
         ((RenderView2D*)m_views[i])->SetGridSize(grid_size);
     }

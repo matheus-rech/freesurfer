@@ -101,6 +101,7 @@ install_configured(
   groupstats
   groupstatsdiff
   gtmseg
+  gtmstats2table
   help_xml_validate
   inflate_subject
   inflate_subject-lh
@@ -228,6 +229,7 @@ install_configured(
   run-qdec-glm
   run_mris_preproc
   samseg2recon
+  scgm-mask
   seg2cc
   seg2recon
   seg2filled

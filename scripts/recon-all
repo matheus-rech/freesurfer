@@ -6092,6 +6092,15 @@ while( $#argv != 0 )
       setenv FS_V8_XOPTS 0
       breaksw;
         
+    case "-license": 
+        if ( $#argv < 1) goto arg1err;
+        setenv FS_LICENSE $argv[1]; shift;
+	if(! -e $FS_LICENSE) then
+          echo "ERROR: cannot find $FS_LICENSE"
+          exit 1
+        endif
+        breaksw;
+        
     case "-restart": 
         if ( $#argv < 1) goto arg1err;
         set RestartFile = $argv[1]; shift;
@@ -8955,6 +8964,7 @@ usage_exit:
   echo "  -notify  file : create this file after finishing"
   echo ""
   echo " Status and Log files (Optional)"
+  echo "  -license  file : specify license file, otherwise defaults to FREESURFER/license"
   echo "  -log     file : default is scripts/recon-all.log"
   echo "  -status  file : default is scripts/recon-all-status.log"
   echo "  -noappend     : start new log and status files instead of appending"

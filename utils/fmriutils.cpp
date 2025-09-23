@@ -1404,23 +1404,34 @@ VECTOR *MRItoVector(MRI *mri, int c, int r, int s, VECTOR *v)
 /*---------------------------------------------------------------
   MRIsetSign() - sets the sign of the invol based on the sign of the
   nth frame of the signvol. The values of the input are changed.  All
-  frames of the input volume are affected.
+  frames of the input volume are affected. If frame<0, then the
+  sign is applied frame by frame.
   --------------------------------------------------------------*/
 int MRIsetSign(MRI *invol, MRI *signvol, int frame)
 {
   int c, r, s, f;
-  double v, sgn;
+  double v, sgn=0;
 
-  if (frame > signvol->nframes) {
-    printf("ERROR: MRIsetSign(): input frame %d is too large", frame);
-    return (1);
+  if(frame >= 0){
+    if(frame > signvol->nframes) {
+      printf("ERROR: MRIsetSign(): input frame %d is too large", frame);
+      return (1);
+    }
+    else {
+      if(invol->nframes != signvol->nframes) {
+	printf("ERROR: MRIsetSign(): frame-by-frame: frame dimension mismatch %d %d\n",
+	       invol->nframes,signvol->nframes);
+	return (1);
+      }
+    }
   }
 
   for (c = 0; c < invol->width; c++) {
     for (r = 0; r < invol->height; r++) {
       for (s = 0; s < invol->depth; s++) {
-        sgn = MRIgetVoxVal(signvol, c, r, s, frame);
+        if(frame >= 0) sgn = MRIgetVoxVal(signvol, c, r, s, frame);
         for (f = 0; f < invol->nframes; f++) {
+	  if(frame < 0) sgn = MRIgetVoxVal(signvol, c, r, s, f);
           v = MRIgetVoxVal(invol, c, r, s, f);
           if (sgn < 0.0) v = -1.0 * fabs(v);
           if (sgn > 0.0) v = +1.0 * fabs(v);
@@ -2675,15 +2686,15 @@ MATRIX *fMRItoMatrix(MRI *fmri, MATRIX *M)
   nvox = fmri->width * fmri->height * fmri->depth;
 
   if (M == NULL) {
-    printf("fMRItoMatrix: allocating %d %d\n", fmri->nframes, nvox);
+    //printf("fMRItoMatrix: allocating %d %d\n", fmri->nframes, nvox);
     M = MatrixAlloc(fmri->nframes, nvox, MATRIX_REAL);
     if (M == NULL) {
-      printf("fMRItoMatrix: could not alloc\n");
+      //printf("fMRItoMatrix: could not alloc\n");
       return (NULL);
     }
   }
 
-  printf("fMRItoMatrix: filling matrix %d %d\n", fmri->nframes, nvox);
+  //printf("fMRItoMatrix: filling matrix %d %d\n", fmri->nframes, nvox);
   nthcol = 0;
   for (s = 0; s < fmri->depth; s++) {
     for (r = 0; r < fmri->height; r++) {
@@ -2699,33 +2710,72 @@ MATRIX *fMRItoMatrix(MRI *fmri, MATRIX *M)
   return (M);
 }
 /*!
-  \fn fMRIfromMatrix(MATRIX *M, MRI *fmri)
-  \brief Stuffs a Matrix into an MRI. Rows goto frames.
-  Cols go to spatial dims. Note that cols are fastest, etc.
-  This is especially important when comparing to matlab.
-  Make sure to use fMRItoMatrix() to undo it. fmri cannot
-  be NULL!
+  \fn fMRIfromMatrix(MATRIX *M, MRI *fmri, MRI *mask)
+  \brief Stuffs a Matrix into an MRI. Rows goto frames.  Cols go to
+  spatial dims. Note that cols are fastest, etc.  This is especially
+  important when comparing to matlab.  Make sure to use fMRItoMatrix()
+  to undo it. fmri cannot be NULL! See also fMRIarrayToMatrix().
 */
-int fMRIfromMatrix(MATRIX *M, MRI *fmri)
+int fMRIfromMatrix(MATRIX *M, MRI *fmri, MRI *mask)
 {
-  int nthcol, nvox, c, r, s, f;
+  int nthcol, nvox, c, r, s, f, alloc=0;
   double v;
+  MATRIX *Muse=NULL;
 
-  nvox = fmri->width * fmri->height * fmri->depth;
+  nvox = 0;
+  if(mask){
+    if(MRIdimMismatch(fmri, mask, 0)){
+      printf("fMRIfromMatrix(): mask dimension mismatch\n");
+      return(1);
+    }
+    // Count the number of voxels in the mask
+    for(int s=0; s < mask->depth; s++){
+      for(int r=0; r < mask->height; r++){
+	for(int c=0; c < mask->width; c++){
+	  if(MRIgetVoxVal(mask,c,r,s,0)<0.5) continue;
+	  nvox++;
+	}
+      }
+    }
+  } 
+  else nvox = fmri->width * fmri->height * fmri->depth;
 
-  printf("fMRIfromMatrix: filling fMRI %d %d\n", fmri->nframes, nvox);
+  if(nvox != M->cols){
+    if(M->cols % nvox != 0){
+      printf("ERROR: fMRIfromMatrix: dim mismatch nvox=%d, mat %d %d\n",nvox,M->rows,M->cols);
+      return(1);
+    }
+    // This handles the multivariate situation where the new variate appears as another
+    // dimention. Eg, there could be 3 spatial and 1 temporal. This code will reshape 
+    // the matrix so that the extra variates appear as frames in the output MRI.
+    int nr = M->cols/nvox;
+    //printf("fMRIfromMatrix: reshaping nvox=%d, mat %d %d nr=%d\n",nvox,M->rows,M->cols,nr);
+    Muse = MatrixReshape(M,NULL,nr,nvox);
+    alloc=1;
+  }
+  else Muse = M;
+
+  //printf("fMRIfromMatrix: filling fMRI %d %d, mat %d %d\n", fmri->nframes, nvox,Muse->rows,Muse->cols);
+  if(Muse->cols != nvox || Muse->rows != fmri->nframes){
+    printf("ERROR: fMRIfromMatrix: dim mismatch\n");
+    return(1);
+  }
+
   nthcol = 0;
   for (s = 0; s < fmri->depth; s++) {
     for (r = 0; r < fmri->height; r++) {
       for (c = 0; c < fmri->width; c++) {
+	if(mask && MRIgetVoxVal(mask,c,r,s,0)<0.5) continue;
         for (f = 0; f < fmri->nframes; f++) {
-          v = M->rptr[f + 1][nthcol + 1];
+          v = Muse->rptr[f + 1][nthcol + 1];
           MRIsetVoxVal(fmri, c, r, s, f, v);
         }
         nthcol++;
       }
     }
   }
+  if(alloc) MatrixFree(&Muse);
+
   return (0);
 }
 

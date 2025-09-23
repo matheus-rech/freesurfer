@@ -20,6 +20,10 @@ if(BUILD_GUIS)
 
   target_link_libraries(dissection_photo ${QT_LIBRARIES})
 
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(dissection_photo PRIVATE "LINKER:--as-needed")
+  endif()
+
   if(APPLE)
     mac_deploy_qt(TARGET dissection_photo BUNDLE bin/dissection_photo PLIST Info.plist)
     install(PROGRAMS mac_wrapper DESTINATION bin RENAME dissection_photo_gui.sh)

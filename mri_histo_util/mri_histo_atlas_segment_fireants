@@ -10,10 +10,12 @@ set -e
 if  [ $# == 1 ] && [  $1 == "--help" ]
 then
   echo " "
-  echo "Bayesian segmentation with histological whole brain atlas (version with FireANTs registratio)."
+  echo "Bayesian segmentation with histological whole brain atlas (version with FireANTs registration)."
   echo " "
-  echo "Next-Generation histological atlas for high-resolution segmentation of human brain MRI"
-  echo "Casamitjana et al. (in preparation)"
+  echo "- A next-generation, histological atlas of the human brain and its application to automated brain MRI segmentation"
+  echo "    Casamitjana et al. (in press)"
+  echo "- Fast segmentation with the NextBrain histological atlas"
+  echo "    Puonti et al. (under revision)"
   echo " "
   echo "Usage:"
   echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [BF_MODE]"
@@ -46,10 +48,10 @@ fi
 # Parse arguments
 INPUT=$1
 OUTPUT_DIR=$2
-CPU_FLAG=' '
+DEVICE='cuda'
 if [ $3 -eq 0 ]
 then
-  CPU_FLAG='--cpu'
+  DEVICE='cpu'
 fi
 THREADS=$4
 BF_MODE='dct'
@@ -59,11 +61,10 @@ then
 fi
 
 # Find path to shell script
-BASEPATH="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/"
+BASEPATH="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/" 
 
 # Try to find atlas data
 ATLAS_DIR="$BASEPATH/atlas_simplified"
-
 if [ ! -f "$ATLAS_DIR/size.npy" ];
 then
   echo " "
@@ -84,18 +85,39 @@ then
   exit 1
 fi
 
+# Try to find SuperSynth model
+MODEL_FILE="$FREESURFER_HOME/models/SuperSynth_August_2025.pth"
+
+if [ ! -f "$MODEL_FILE"  ];
+then
+    echo " "
+    echo "   Machine learning model file not found. Please download from from: "
+    echo "     https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
+    echo "   and uncompress it into:  "
+    echo "      $FREESURFER_HOME/models/ "
+    echo "   You only need to do this once. You can use the following commands (may require root access): "
+    echo "      1: cd $FREESURFER_HOME/models/"
+    echo "      2a (in Linux): wget https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
+    echo "      2b (in MAC): curl -o SuperSynth_August_2025.pth https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
+    echo " "
+    echo "   After correct download and instillation, the directory: "
+    echo "      $FREESURFER_HOME/models/ "
+    echo "   should now contain an additional file:SuperSynth_August_2025.pth"
+    echo " "
+    exit 1
+fi
+
+
+
 # Create command line arguments and run!
-SYNTHSEG="$OUTPUT_DIR/SynthSeg.mgz"
-FIELD="$OUTPUT_DIR/atlas_registration.nii.gz"
-RESOLUTION="0.4"
-SKIP="3"
+
 
 echo "  "
 echo "******************************"
 echo "* Working on left hemisphere *"
 echo "******************************"
 echo "  "
-cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --i_seg $SYNTHSEG  --i_field $FIELD  --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR --threads $THREADS --resolution $RESOLUTION --skip $SKIP  --save_atlas_nonlinear_reg --write_bias_corrected  $CPU_FLAG --side left"
+cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode $BF_MODE --mode invivo --side left  "
 echo "Running command:"
 echo $cmd
 echo "  "
@@ -106,7 +128,7 @@ echo "*******************************"
 echo "* Working on right hemisphere *"
 echo "*******************************"
 echo "  "
-cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --i_seg $SYNTHSEG  --i_field $FIELD  --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR --threads $THREADS --resolution $RESOLUTION --skip $SKIP  --save_atlas_nonlinear_reg --write_bias_corrected  $CPU_FLAG --side right"
+cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode $BF_MODE --mode invivo --side right  "
 echo "Running command:"
 echo $cmd
 echo "  "
@@ -117,12 +139,5 @@ echo "*****************"
 echo "* All done!!!!! *"
 echo "*****************"
 echo "  "
-
-
-
-
-
-
-
 
 

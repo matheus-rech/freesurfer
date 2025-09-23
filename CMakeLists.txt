@@ -56,10 +56,18 @@ option(FIPS_SUPPORT "allow FS license to be read on FIPS system" OFF)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
 option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house builds only" OFF)
-option(TIFF_SYSLIBS "Link with system libtiff library" OFF)
-option(QT_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/qt" OFF)
-option(VTK_SYSLIBS "use native Qt libs from system via soft links from /usr/pubsw/packages/vtk" OFF)
+option(QT_SYSLIBS "link with system Qt libs" OFF)
+option(VTK_SYSLIBS "link with system vtk libs" OFF)
+option(ITK_SYSLIBS "link with system itk libs" OFF)
+option(GLUT_SYSLIBS "link with system glut libs" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
+if(NOT APPLE)
+   option(TIFF_SYSLIBS "link with system tiff libs" ON)
+   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" ON)
+else()
+   option(TIFF_SYSLIBS "link with system tiff libs" OFF)
+   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" OFF)
+endif()
 
 # include our custom cmake functions (and others)
 include(cmake/functions.cmake)
@@ -87,10 +95,11 @@ endif()
 message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX}")
 # endif()
 
-if (NOT FREEVIEW_LINEPROF)
+if(NOT FREEVIEW_LINEPROF)
    set(DISABLE_LINEPROF ON)
 endif()
-if (DISABLE_LINEPROF)
+
+if(DISABLE_LINEPROF)
    message(STATUS "For HOST_OS=${HOST_OS} lineprof disabled")
 endif()
 
@@ -186,21 +195,37 @@ endif()
 # all custom find-modules are stored in the cmake subdir
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-if(HOST_OS MATCHES "Rocky9")
-   set(DISABLE_LINEPROF ON)
+# Newer Linux OS's provide vendor supported versions of 3rd party packages installable
+# via the standard linux sysem tools and online repos.  Freesurfer can/has been updated
+# to work with these native packages (preferbale to supporting our own custom builds per OS).
+
+if(HOST_OS MATCHES "Ubuntu24")
    set(QT_SYSLIBS ON)
    set(VTK_SYSLIBS ON)
-endif()
-if(HOST_OS MATCHES "Rocky8")
+   set(ITK_SYSLIBS ON)
+   set(GLUT_SYSLIBS ON)
+   set(DISABLE_LINEPROF ON)
+   # install not yet working
+   set(INTEGRATE_SAMSEG OFF)
+elseif(HOST_OS MATCHES "Rocky9")
    set(QT_SYSLIBS ON)
-   set(VTK_SYSLIBS OFF)
+   set(VTK_SYSLIBS ON)
+   set(DISABLE_LINEPROF ON)
+elseif(HOST_OS MATCHES "Rocky8")
+   set(QT_SYSLIBS ON)
 endif()
 message(STATUS "For HOST_OS=${HOST_OS} QT_SYSLIBS=${QT_SYSLIBS}")
 message(STATUS "For HOST_OS=${HOST_OS} VTK_SYSLIBS=${VTK_SYSLIBS}")
+message(STATUS "For HOST_OS=${HOST_OS} ITK_SYSLIBS=${ITK_SYSLIBS}")
+message(STATUS "For HOST_OS=${HOST_OS} GLUT_SYSLIBS=${GLUT_SYSLIBS}")
 
 # -------- zlib --------
 find_package(ZLIB REQUIRED)
-add_definitions(-DHAVE_ZLIB -DITK_USE_SYSTEM_ZLIB)
+if(HOST_OS MATCHES "Ubuntu24")
+   add_definitions(-DHAVE_ZLIB)
+else()
+   add_definitions(-DHAVE_ZLIB -DITK_USE_SYSTEM_ZLIB)
+endif()
 
 # -------- gfortran/blas/lapack --------
 if(NOT APPLE)
@@ -209,8 +234,8 @@ if(NOT APPLE)
      set(NO_STATIC_GFORTRAN ON)
   endif()
 
-  if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22")
-     if(HOST_OS MATCHES "Ubuntu22" AND HOST_OS_GCC_VERSION MATCHES "11")
+  if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
+     if((HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24") AND (HOST_OS_GCC_VERSION MATCHES "11" OR HOST_OS_GCC_VERSION MATCHES "13"))
         set(CMAKE_CXX_STANDARD 17)
         # while does not compile...
         set(BUILD_FORTRAN OFF)
@@ -242,7 +267,7 @@ if(NOT APPLE)
      find_library(BLAS_LIBRARIES NAMES libopenblas.a libblas.a)
      find_library(LAPACK_LIBRARIES NAMES liblapack.a)
   endif()
-  message(STATUS "C/C++ standard set to ${CMAKE_CXX_STANDARD} for Linux build on ${HOST_OS} with gcc/g++ version ${HOST_OS_GCC_VERSION}")
+  message(STATUS "For HOST_OS=${HOST_OS} C/C++ standard set to ${CMAKE_CXX_STANDARD} for gcc/g++ version ${HOST_OS_GCC_VERSION}")
 
   if(NOT QUADMATH_LIBRARIES)
     set(QUADMATH_LIBRARIES "")
@@ -282,7 +307,7 @@ if(APPLE_ARM64)
    ## for testing comment out the above line and uncomment the lines below
    # set(PETSC_DIR "/Users/developer/space_freesurfer/packages/petsc_3.18.3_darwin_arm64/3.18.3/include")
    # find_package(PETSC)
-elseif(HOST_OS MATCHES "Rocky9")
+elseif(HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "Ubuntu24")
    set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
 else()
    find_package(PETSC)
@@ -290,7 +315,9 @@ endif()
 
 # -------- ann --------
 # ANN is only used by mris_resample
-find_package(ANN)
+if(NOT HOST_OS MATCHES "Ubuntu24")
+   find_package(ANN)
+endif()
 
 # -------- openMP --------
 if(APPLE)
@@ -322,7 +349,7 @@ endif()
 # Avoid error from __powf_finite undefined.
 # The 2.31 version of the GNU C Library removed symbols from LLVM libc++ math.h including,
 # __powf_finite __asinf_finite U_atan2f_finite __exp2f_finite __exp2_finite __expf_finite __log2f_finite
-if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22")
+if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fno-builtin")
 endif()
 
@@ -370,6 +397,15 @@ if(BUILD_GUIS)
 
 if(NOT Qt6_DIR)
   if(NOT Qt5_DIR)
+     if(HOST_OS MATCHES "Ubuntu24")
+        if(NOT QT_SYSLIBS)
+           set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.13_ubuntu24_native CACHE PATH "Qt5 root base")
+           set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
+        else()
+           set(Qt5_DIR /lib/x86_64-linux-gnu/cmake/Qt5  CACHE PATH "Qt5 install directory")
+           set(QT_PLUGIN_PATH /lib/x86_64-linux-gnu/qt5/plugins CACHE PATH "Qt5 plugin directory")
+        endif()
+     endif()
      if(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9")
         if(NOT QT_SYSLIBS)
            # set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.15.3_rocky8_gcc10 CACHE PATH "Qt5 root base")
@@ -438,10 +474,23 @@ endif()
 # -------- vtk --------
 
 if(NOT VTK_DIR)
+   if(HOST_OS MATCHES "Ubuntu24")
+      set(VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2=ON)
+      if(NOT VTK_SYSLIBS)
+         set(VTK_DIR ${FS_PACKAGES_DIR}/vtk/9.1.0_native_ubuntu24 CACHE PATH "VTK install directory")
+         set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/9.1.0_native_ubuntu24/lib64 CACHE PATH "VTK library directory")
+         set(VTK_INCLUDE_DIRS ${FS_PACKAGES_DIR}/vtk/9.1.0_native_ubuntu24/include CACHE PATH "VTK include directory")
+      else()
+         ## patches are included and have to be setup in the build image
+         set(VTK_DIR /lib/x86_64-linux-gnu/cmake/vtk-9.1 CACHE PATH "VTK install directory")
+         set(VTK_LIB64_DIR /lib/x86_64-linux-gnu CACHE PATH "VTK library directory")
+         set(VTK_INCLUDE_DIRS /usr/include/vtk-9.1 CACHE PATH "VTK include directory")
+      endif()
+   endif()
    if(HOST_OS MATCHES "Rocky9")
       set(VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2=ON)
       if(NOT VTK_SYSLIBS)
-         set(VTK_DIR /usr/pubsw/packages/vtk/9.3.0_rocky8/lib64/cmake/vtk-9.3 CACHE PATH "VTK install directory")
+         set(VTK_DIR ${FS_PACKAGES_DIR}/vtk/9.3.0_rocky8/lib64/cmake/vtk-9.3 CACHE PATH "VTK install directory")
          set(VTK_LIB64_DIR ${FS_PACKAGES_DIR}/vtk/9.3.0_rocky89/lib64 CACHE PATH "VTK library directory")
          set(VTK_INCLUDE_DIRS ${FS_PACKAGES_DIR}/vtk/9.3.0_rocky8/include CACHE PATH "VTK include directory")
       else()
@@ -467,8 +516,12 @@ if(NOT VTK_DIR)
    endif()
 endif()
 
-if(HOST_OS MATCHES "Rocky9")
-
+if (HOST_OS MATCHES "Ubuntu24")
+   if(VTK_SYSLIBS)
+      # remove ImagingOpenGL2
+      find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil InteractionStyle IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
+   endif()
+elseif(HOST_OS MATCHES "Rocky9")
    if(VTK_SYSLIBS)
       find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingOpenGL2 ImagingStencil InteractionStyle IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
    endif()
@@ -490,7 +543,7 @@ if(VTK_FOUND AND VTK_BUILD_SHARED_LIBS)
     # special libvtkNetCDF
     file(GLOB _found_library "${VTK_LIBRARY_DIRS}/libvtkNetCDF*.so*")
     list(APPEND _vtk_library_list ${_found_library})
-    # for Ubuntu22, CentOS9, Rocky9
+    # for Ubuntu22, CentOS9, Rocky9, Ubuntu24
     if(VTK_LIB64_DIR)
         file(GLOB _found_library "${VTK_LIB64_DIR}/libvtkproj*.so*")
         list(APPEND _vtk_library_list ${_found_library})
@@ -517,10 +570,15 @@ if(VTK_FOUND AND VTK_BUILD_SHARED_LIBS)
   endif()
 endif()
 
-
 # -------- itk --------
 if(NOT ITK_DIR)
-   if(HOST_OS MATCHES "Rocky9")
+   if(HOST_OS MATCHES "Ubuntu24")
+      if(NOT ITK_SYSLIBS)
+         set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_rok9_ub24/lib/cmake CACHE PATH "ITK install directory")
+      else()
+         set(ITK_DIR /usr/lib/x86_64-linux-gnu/cmake CACHE PATH "ITK install directory")
+      endif()
+   elseif(HOST_OS MATCHES "Rocky9")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_rocky9/lib/cmake CACHE PATH "ITK install directory")
    elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9")
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/5.4rc01_centos9/lib/cmake CACHE PATH "ITK install directory")
@@ -550,6 +608,18 @@ endif()
 
 find_package(ITK HINTS ${ITK_DIR} REQUIRED)
 message(STATUS "For HOST_OS=${HOST_OS} ITK_DIR=${ITK_DIR}")
+
+# -------- glut --------
+
+# default to FS built version of glut
+set(GLUT_LIBRARIES "glut")
+set(GLUT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/packages/glut")
+if(GLUT_SYSLIBS)
+   if (HOST_OS MATCHES "Ubuntu24")
+      set(GLUT_LIBRARIES "-L/usr/lib64 -lglut")
+      set(GLUT_INCLUDE_DIR "/usr/include/GL")
+   endif()
+endif()
 
 # ------ list where the build tree is ------
 message(STATUS "Compiling source under build tree ${CMAKE_BINARY_DIR}")
@@ -627,7 +697,7 @@ if(NOT NO_CXX_WARN)
        # -Wno-restrict needed with gcc8 for ./freesurfer/mris_compute_acorr/mris_compute_acorr.cpp
        # -Wno-format-overflow needed with gcc8 for ./fresurfer/mris2rgb/mris2rgb.cpp
        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra ${WARN_AS_ERROR_FLAG} -Wno-cpp -Wno-restrict -Wno-format-overflow -Wno-sign-compare -Wno-unused-result -Wno-unused-parameter -Wno-bool-compare")
-    elseif(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "CentOS8stream")
+    elseif(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "CentOS8stream")
        # uses gcc8 as well
        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin -Wall -Wextra ${WARN_AS_ERROR_FLAG} -Wno-cpp -Wno-restrict -Wno-format-overflow -Wno-sign-compare -Wno-unused-result -Wno-unused-parameter -Wno-bool-compare")
     elseif(HOST_OS MATCHES "MacOS-12" OR HOST_OS MATCHES "MacOS-13")
@@ -1081,7 +1151,7 @@ if(EXISTS "./mri_make_bem_surfaces")
    elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "CentOS8stream" OR HOST_OS MATCHES "CentOS8" OR HOST_OS MATCHES "Rocky8")
       add_subdirectories(mri_make_bem_surfaces)
       message(STATUS "Adding mri_make_bem_surfaces to build on ${HOST_OS}")
-   elseif(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22")
+   elseif(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
       add_subdirectories(mri_make_bem_surfaces)
       message(STATUS "Adding mri_make_bem_surfaces to build on ${HOST_OS}")
    elseif(APPLE)

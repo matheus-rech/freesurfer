@@ -51,6 +51,7 @@
 #include "numerics.h"
 #include "proto.h"
 #include "utils.h"
+#include "randomfields.h"
 
 #include "romp_support.h"
 
@@ -3550,8 +3551,10 @@ MATRIX *GaussianMatrix2(int len, float std1, float std2, float w1, int norm, MAT
 /*---------------------------------------------------------------
   GaussianMatrix() - creates a gaussian convolution matrix. Each row
   is a gaussian waveform with centered at the diagonal with standard
-  deviation std.  If norm == 1, then the sum of each row is adjusted
-  to be 1. The matrix will be len-by-len.
+  deviation std.  If norm==1, then BUG!: I wanted the sum of each row
+  to be adjusted to be 1, but norm==1 just normalizes the kernel
+  (9/19/25). To force the sum of the row to be 1, use norm=2. The
+  matrix will be len-by-len.
   ---------------------------------------------------------------*/
 MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G)
 {
@@ -3570,8 +3573,9 @@ MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G)
   var = std * std;
   f = sqrt(2 * M_PI) * std;
 
-  // Adjust scale so that sum at center line is 1
-  if (norm) {
+  if(norm == 1) {
+    // Adjust scale so that sum at the CENTER ROW is 1
+    // Note this does not make each row sum to 1. Use norm=2 for that
     sum = 0;
     for (c = 0; c < len; c++) {
       d = c - len / 2;
@@ -3581,16 +3585,22 @@ MATRIX *GaussianMatrix(int len, float std, int norm, MATRIX *G)
     f /= sum;
   }
 
-  for (r = 0; r < len; r++) {
-    for (c = 0; c < len; c++) {
-      d = c - r;
+  for(r=0; r < len; r++) {
+    sum = 0;
+    for(c=0; c < len; c++) {
+        d = c - r;
       v = exp(-(d * d) / (2 * var)) / f;
-      G->rptr[r + 1][c + 1] = v;
+      sum += v;
+      G->rptr[r+1][c+1] = v;
+    }
+    if(norm == 2){
+      // Make each row sum to 1
+      for(c=0; c < len; c++) G->rptr[r+1][c+1] /= sum;
     }
   }
 
-  // printf("std = %g\n",std);
-  // MatrixWriteTxt("g.txt",G);
+  //printf("std = %g\n",std);
+  //MatrixWriteTxt("g.txt",G);
   // exit(1);
 
   return (G);
@@ -3665,22 +3675,66 @@ MATRIX *MatrixReorderRows(MATRIX *X, int *NewRowOrder, MATRIX *XRO)
 }
 
 /*-----------------------------------------------------------------
-  MatrixRandPermRows() - randomly reorders the rows of the input
-  matrix.
+  MatrixRandPermRows() - randomly permutes matrix. If ptype==1, then just 
+  reorders the rows of the input  matrix. 
   -----------------------------------------------------------------*/
-int MatrixRandPermRows(MATRIX *X)
+int MatrixRandPermRows(MATRIX *X, int ptype, unsigned long int seed)
 {
-  int *NewRowOrder, r;
-  MATRIX *X0;
-
-  NewRowOrder = RandPerm(X->rows, NULL);
-  for (r = 0; r < X->rows; r++) NewRowOrder[r]++;  // Make one-based
-  X0 = MatrixCopy(X, NULL);
-  MatrixReorderRows(X0, NewRowOrder, X);
-  MatrixFree(&X0);
-  free(NewRowOrder);
+  if(ptype < 1 || ptype > 3){
+    printf("ERROR: MatrixRandPermRows(): ptype=%d must be  1, 2, or 3\n",ptype);
+    return(1);
+  }
+  if(ptype == 1 || ptype == 3){
+    std::vector<int> rp = randperm(X->rows, seed);
+    int *NewRowOrder = (int*)calloc(X->rows,sizeof(int));
+    for(int r = 0; r < X->rows; r++) NewRowOrder[r] = rp[r]+1;  // Make one-based
+    MATRIX *X0 = MatrixCopy(X, NULL);
+    MatrixReorderRows(X0, NewRowOrder, X);
+    MatrixFree(&X0);
+    free(NewRowOrder);
+    NewRowOrder=NULL;
+  }
+  if(ptype == 2 || ptype == 3){
+    RFS *rfs;
+    rfs = RFspecInit(seed, NULL);
+    rfs->name = strcpyalloc("uniform");
+    rfs->params[0] = 0;
+    rfs->params[1] = 1;
+    for(int n=0; n < X->rows; n++){
+      double s = RFdrawVal(rfs)-0.5;
+      if(s > 0) s = +1;
+      if(s < 0) s = -1;
+      for(int c=0; c < X->cols; c++)  X->rptr[n+1][c+1] *= s;
+    }
+    RFspecFree(&rfs);
+  }
   return (0);
 }
+
+/*!  \fn std::vector<int> randperm(int ntot, int nlist, unsigned long
+  int seed) \brief This is a function something like the matlab
+  randperm() which will return a vector of integers from 0-(ntot-1) in
+  a random order.  By default, seed=0, which means a random seed based
+  on the time of day.
+ */
+std::vector<int> randperm(int ntot, unsigned long int seed)
+{
+  RFS *rfs = RFspecInit(seed, NULL);
+  rfs->name = strcpyalloc("uniform");
+  rfs->params[0] = 0;
+  rfs->params[1] = 1;
+  std::vector<int> v;
+  for(int n=0; n < ntot; n++) v.push_back(n);
+  for(int n=0; n < ntot; n++){
+    int n2 = (int)floor(RFdrawVal(rfs)*ntot);
+    int tmp = v[n];
+    v[n] = v[n2];
+    v[n2] = tmp;
+  }
+  RFspecFree(&rfs);
+  return(v);
+}
+
 
 /*--------------------------------------------------------------------
   MatrixColsAreNotOrthog() - returns 1 if matrix columns are not

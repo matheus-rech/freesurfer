@@ -2980,6 +2980,7 @@ int main(int argc, char *argv[])
         mri_template->ysize *= downsample_factor[1];
         mri_template->zsize *= downsample_factor[2];
 
+	// [x|y|z]start, [x|y|z]end shouldn't change
         mri_template->xstart = -mri_template->xsize*mri_template->width  / 2;
         mri_template->xend   =  mri_template->xsize*mri_template->width  / 2;
         mri_template->ystart = -mri_template->ysize*mri_template->height / 2;

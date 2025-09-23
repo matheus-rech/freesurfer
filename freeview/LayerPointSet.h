@@ -98,7 +98,7 @@ public:
 
   std::vector<double> GetPoints();
 
-  void GetPoint(int nIndex, double* pt_out);
+  bool GetPoint(int nIndex, double* pt_out);
 
   ControlPoint GetPoint(int nIndex);
 

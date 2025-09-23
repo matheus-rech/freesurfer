@@ -178,8 +178,8 @@ def estimate_thicknesses_from_weights(weight_file, areas, av_thickness, max_thic
     # thicknesses: trapezoid model for all slabs, except for first and last (ellipsoids)
     thicknesses = np.zeros_like(weights)
     thicknesses[1:-1] = 2.0 * weights[1:-1] / (areas[0:-1] +  areas[1:])
-    thicknesses[0] = weights[0] * 3.0 / (2 * np.pi * areas[0])
-    thicknesses[-1] = weights[-1] * 3.0 / (2 * np.pi * areas[-1])
+    thicknesses[0] = weights[0] * 3.0 / (2  * areas[0])
+    thicknesses[-1] = weights[-1] * 3.0 / (2 * areas[-1])
     thicknesses *= (av_thickness / thicknesses.mean())
 
     if max_thickness<=0: # not provided

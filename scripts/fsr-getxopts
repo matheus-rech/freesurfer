@@ -69,14 +69,12 @@ foreach xoptsfile ($xoptsfilelist)
 
   # If the key is not in the file, move on to the next xopts file
   if($#tmp == 0) continue
-
   # Note that it accumulates a list of options from all files in the
   # order of the files on the command line. This is a different
   # behavior than pre 10/16/24 where it would only take the options
   # from the first file.
-  set optslist = ($optslist $tmp[2-$#tmp])
-
+  set optslist = ($optslist "$tmp[2-$#tmp]")
 end
-echo $optslist
+echo "$optslist"
 
 exit 0

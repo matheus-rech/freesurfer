@@ -16,7 +16,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
      include_directories(${CMAKE_SOURCE_DIR}/lineprof)
   endif()
 
-  if(HOST_OS MATCHES "Rocky9")
+  if(HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "Ubuntu24")
      include_directories(${VTK_INCLUDE_DIRS})
   else()
      include(${VTK_USE_FILE})
@@ -197,6 +197,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     geos/kde.cpp
     BusyIndicator.cpp
     vtkInteractorStyleMyTrackballCamera.cxx
+    vtkInteractorStyleNoRotation.cxx
     FlowLayout.cpp
     WindowLayerInfo.cpp
     WindowEditAnnotation.cpp
@@ -216,6 +217,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     LayerEditRef.cpp
     DialogGifMaker.cpp
     GifWriterWrapper.cpp
+    DialogWayPointsAngle.cpp
     freeview.qrc
   )
 
@@ -226,11 +228,12 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
      set(SOURCES ${SOURCES} DialogLineProfile.cpp LayerLineProfile.cpp)
   endif()
 
-  if(BUILD_SCRIBBLE)
+  if(BUILD_SCRIBBLE AND HOST_OS MATCHES "Rocky8")
      message(STATUS "For HOST_OS=${HOST_OS} Build of freeview with ScribblePrompt enabled")
      set(SOURCES ${SOURCES} TorchScriptModule.cpp ScribblePromptWorker.cpp)
      set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/space/freesurfer/packages/libtorch/2.3.0.dev20240124+cpu/lib")
   else()
+     set(BUILD_SCRIBBLE OFF)
      message(STATUS "For HOST_OS=${HOST_OS} Build of freeview with ScribblePrompt disabled")
   endif()
 
@@ -346,7 +349,11 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   endif()
 
   if(NOT APPLE)
-    target_link_libraries(freeview glut ${X11_LIBRARIES})
+    target_link_libraries(freeview ${GLUT_LIBRARIES} ${X11_LIBRARIES})
+  endif()
+
+  if(LINK_SHARED_AS_NEEDED)
+     target_link_options(freeview PRIVATE "LINKER:--as-needed")
   endif()
 
   if(APPLE)
@@ -368,10 +375,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
         # link_directories(/usr/local/lib/python3.10/site-packages/torch/lib)
         # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/lib/python3.10/site-packages/torch/lib -ltorch -lc10 -ltorch_cpu")
      else()
-        host_os()
-        if (NOT ${HOST_OS} MATCHES "Rocky8")
-           message(FATAL_ERROR "BUILD_SCRIBBLE not supported on ${HOST_OS}")
-        endif()
+        # Rocky8 Linux only from test above
         set(TORCH_DIR "/space/freesurfer/packages/libtorch/2.3.0.dev20240124+cpu")
         include_directories(${TORCH_DIR}/include)
         link_directories(${TORCH_DIR}/lib)

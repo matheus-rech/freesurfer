@@ -469,6 +469,8 @@ public slots:
 
   void SetNoShading(bool b);
 
+  bool SaveEdgeLines(int n, const QString& fn);
+
 Q_SIGNALS:
   void SurfaceAnnotationAdded( SurfaceAnnotation* );
   void SurfaceLabelAdded( SurfaceLabel* );

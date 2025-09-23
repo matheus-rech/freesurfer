@@ -59,7 +59,20 @@ else
   end
 	
   % Covariance matrix of contrast effect size
-  cescvm = inv(C*inv(X'*X)*C');
+  %cescvm = inv(C*inv(X'*X)*C');
+  % Covariance matrix of contrast effect size. This condition check is
+  % used because sometimes we just want the ces and not the p-value,
+  % but the design/contrast are ill-conditioned and cause the this
+  % part to fail (eg, Tatiana's FIR). So this is a little bit of a
+  % hack so that things can continue. See also fast_fratiow.m
+  CiXtXC = C*inv(X'*X)*C';
+  if(cond(CiXtXC) < 1e14) % Not sure what the threshold should be
+    cescvm = inv(CiXtXC);
+  else
+    fprintf('fast_fratio: Warning: C*inv(X*X)*C is badly conditioned\n');
+    nC1 = size(C,1);
+    cescvm = zeros(nC1);
+  end
 end
 
 J = size(C,1);

@@ -160,7 +160,7 @@ def predict(path_images,
 
         # postprocessing
         try:
-            pred = postprocess(pred, pad_idx, aff, disable_sharpening)
+            pred = postprocess(pred.clip(0,128), pad_idx, aff, disable_sharpening)
         except Exception as e:
             print('\nthe following problem occured when postprocessing prediction for image %s :' % path_image)
             print(e)

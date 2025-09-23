@@ -44,6 +44,7 @@
 #include <QDir>
 #include <QDebug>
 #include "ProgressCallback.h"
+#include <QDateTime>
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -1066,6 +1067,7 @@ bool FSVolume::MRIWrite( const QString& filename, int nSampleMethod, bool resamp
       MRIfree( &m_MRITemp );
       m_MRITemp = mri;
     }
+
   }
 
   // check if file is writable
@@ -1084,6 +1086,24 @@ bool FSVolume::MRIWrite( const QString& filename, int nSampleMethod, bool resamp
   }
 
   int err = 0;
+  QString cmd = property("cmdline_to_add").toString();
+  if (!cmd.isEmpty())
+  {
+    // MRIaddCommandLine(m_MRITemp, cmd.toStdString());
+
+    // workaround for a docker rocky8 build issue
+    if (m_MRITemp->ncmds >= MAX_CMDS)
+      qDebug() << "can't add cmd to mri since max cmds (" << m_MRITemp->ncmds <<  ") has been reached";
+    else
+    {
+      int i = m_MRITemp->ncmds++;
+      m_MRITemp->cmdlines[i] = (char *)calloc(cmd.size() + 1, sizeof(char));
+      strcpy(m_MRITemp->cmdlines[i], qPrintable(cmd));
+    }
+
+    setProperty("cmdline_to_add", "");
+  }
+
   try
   {
     err = ::MRIwrite( m_MRITemp, filename.toLatin1().data() );

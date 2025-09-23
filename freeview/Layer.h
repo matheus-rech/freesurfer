@@ -251,6 +251,8 @@ public:
     return !m_listTransform.isEmpty();
   }
 
+  QString GetTransformString();
+
 Q_SIGNALS:
   void NameChanged( const QString& name );
   void Transformed();

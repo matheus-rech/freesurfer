@@ -174,6 +174,8 @@ MRI *mritmp=NULL;
 
 MRIS *surf;
 double infwhm = 0, ingstd = 0;
+double infwhmf = 0, ingstdf = 0;
+double TR=-1;
 int synth = 0, nframes = 10;
 int SynthSeed = -1;
 int nitersonly=0;
@@ -359,6 +361,18 @@ int main(int argc, char *argv[]) {
     if (mritmp == NULL) exit(1);
     MRIfree(&InVals);
     InVals = mritmp;
+  }
+
+  if(TR > 0){
+    printf("Setting TR to %g\n",TR);
+    InVals->tr = TR;
+  }
+
+  if(infwhmf > 0){
+    MRI *tmpmri = MRItemporalGSmooth(InVals, mask, ingstdf, NULL, 2);
+    if(tmpmri == NULL) exit(1);
+    MRIfree(&InVals);
+    InVals = tmpmri;
   }
 
   if (infwhm > 0 || niters > 0) {
@@ -623,6 +637,17 @@ static int parse_commandline(int argc, char **argv) {
       ingstd = infwhm/sqrt(log(256.0));
       nargsused = 1;
     }
+    else if (!strcasecmp(option, "--fwhmf")) {
+      if (nargc < 1) CMDargNErr(option,1);
+      sscanf(pargv[0],"%lf",&infwhmf);
+      ingstdf = infwhmf/sqrt(log(256.0));
+      nargsused = 1;
+    } 
+    else if (!strcasecmp(option, "--tr")) {
+      if (nargc < 1) CMDargNErr(option,1);
+      sscanf(pargv[0],"%lf",&TR);
+      nargsused = 1;
+    } 
     else if (!strcasecmp(option, "--fwhm-map")) {
       if (nargc < 1) CMDargNErr(option,1);
       fwhmmapname = pargv[0];
@@ -770,6 +795,8 @@ static void print_usage(void) {
   printf("   \n");
   printf("   --fwhm fwhm : apply before measuring\n");
   printf("   --niters-only <niters> : only report on niters for fwhm\n");
+  printf("   --fwhmf fwhmf FWHM to apply to the frames (in units of TR)\n");
+  printf("   --tr TR : set the TR value (can be helpful with --fwhmf)\n");
   printf("   --o output\n");
   printf("\n");
   printf("   --sd SUBJECTS_DIR \n");
