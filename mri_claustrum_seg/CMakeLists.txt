@@ -29,4 +29,3 @@ endif()
 install_tarball(claustrum_seg.tar.gz DESTINATION average)
 
 endif()
-
