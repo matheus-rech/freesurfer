@@ -1,5 +1,8 @@
 project(mri_claustrum_seg)
 
+# currently only working on Linux platforms
+if(NOT APPLE)
+
 # handle FSPYTHON tree split install
 if (FSPYTHON_INSTALL_TREE)
     set(claustrum_python "${FSPYTHON_INSTALL_PREFIX}/python")
@@ -23,5 +26,6 @@ else()
 endif()
 
 ## isntall the atlas dir
-# install_tarball(claustrum_seg DESTINATION average)
+install_tarball(claustrum_seg.tar.gz DESTINATION average)
 
+endif
