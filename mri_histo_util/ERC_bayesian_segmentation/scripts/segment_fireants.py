@@ -43,7 +43,7 @@ parser.add_argument("--write_rgb", action="store_true", help="Write soft segment
 parser.add_argument("--write_bias_corrected", action="store_true", help="Write bias field corrected image to disk")
 parser.add_argument("--device", help="Device (cpu, cuda)")
 parser.add_argument("--device_registration", help="Use this option if you want to use a different device for the registration (useful for high-res ex vivo)")
-parser.add_argument("--threads", type=int, default=1, help="(optional) Number of CPU cores to be used. Default is 1. You can use -1 to use all available cores")
+parser.add_argument("--threads", type=int, default=-1, help="(optional) Number of CPU cores to be used. Default is -1 (use all available cores")
 parser.add_argument("--skip", type=int, default=1, help="(optional) Skipping factor to easy memory requirements of priors when estimating Gaussian parameters. Default is 1.")
 parser.add_argument("--resolution", type=float, default=0.4, help="(optional) Resolution of output segmentation")
 parser.add_argument("--force_tiling", action="store_true", help="Forces tiling on CPU so it gives the same result as GPU")

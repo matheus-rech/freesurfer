@@ -10,21 +10,21 @@ set -e
 if  [ $# == 1 ] && [  $1 == "--help" ]
 then
   echo " "
-  echo "Bayesian segmentation with histological whole brain atlas (version with FireANTs registration)."
+  echo "Bayesian segmentation with histological whole brain atlas (fast version with FireANTs registration)."
   echo " "
-  echo "- A next-generation, histological atlas of the human brain and its application to automated brain MRI segmentation"
+  echo "- A probabilistic histological atlas of the human brain for MRI segmentation"
   echo "    Casamitjana et al. (in press)"
   echo "- Fast segmentation with the NextBrain histological atlas"
   echo "    Puonti et al. (under revision)"
   echo " "
   echo "Usage:"
-  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [BF_MODE]"
+  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [MODE]"
   echo " "
   echo "INPUT SCAN: scan to process, in mgz or nii(.gz) format"
   echo "OUTPUT_DIRECTORY: directory with segmentations, volume files, etc"
   echo "GPU: set to 1 to use the GPU; requires a fat (~48GB) GPU!"
   echo "THREADS: number of CPU threads to use (use -1 for all available threads)"
-  echo "BF_MODE (optional): bias field model: dct (default), polynomial, or hybrid"
+  echo "MODE (optional): invivo (default), exvivo, cerebrum, or hemi"
   echo " "
   exit 0
 fi
@@ -36,7 +36,7 @@ then
   echo "Incorrect number of arguments."
   echo "Usage: "
   echo " "
-  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [BF_MODE]"
+  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [MODE]"
   echo " "
   echo "Or, for help"
   echo " "
@@ -54,10 +54,10 @@ then
   DEVICE='cpu'
 fi
 THREADS=$4
-BF_MODE='dct'
+MODE='invivo'
 if [ $# -gt 4 ]
 then
-  BF_MODE=$5
+  MODE=$5
 fi
 
 # Find path to shell script
@@ -117,7 +117,7 @@ echo "******************************"
 echo "* Working on left hemisphere *"
 echo "******************************"
 echo "  "
-cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode $BF_MODE --mode invivo --side left  "
+cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode dct --threads $THREADS --mode $MODE --side left  "
 echo "Running command:"
 echo $cmd
 echo "  "
@@ -128,7 +128,7 @@ echo "*******************************"
 echo "* Working on right hemisphere *"
 echo "*******************************"
 echo "  "
-cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode $BF_MODE --mode invivo --side right  "
+cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode dct --threads $THREADS --mode $MODE --side right  "
 echo "Running command:"
 echo $cmd
 echo "  "
@@ -138,6 +138,12 @@ echo "  "
 echo "*****************"
 echo "* All done!!!!! *"
 echo "*****************"
+echo "  "
+echo "Please cite: "
+echo "- A probabilistic histological atlas of the human brain for MRI segmentation"
+echo "    Casamitjana et al. (in press)"
+echo "- Fast segmentation with the NextBrain histological atlas"
+echo "    Puonti et al. (under revision)"
 echo "  "
 
 
