@@ -62,6 +62,7 @@
 #include <QInputDialog>
 #include <QFileDialog>
 #include "vtkInteractorStyleNoRotation.h"
+#include <vtkRenderWindow.h>
 
 RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent )
 {
