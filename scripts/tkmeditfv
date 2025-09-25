@@ -726,8 +726,12 @@ if($#subject) then
     set subject = `reg2subject --r $overlayreg`;
   endif
   if(! -e $SUBJECTS_DIR/$subject) then
-    echo "ERROR: cannot find $subject"
-    exit 1;
+    if($subject == fsmni152) then
+      setenv SUBJECTS_DIR $FREESURFER/subjects
+    else
+      echo "ERROR: cannot find $subject"
+      exit 1;
+    endif
   endif
   if(-e $mainvol0) then
     set mainvol = $mainvol0
