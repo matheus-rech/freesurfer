@@ -32,7 +32,7 @@ set DoTal = 0;
 set ColorMap = grayscale
 set params = (0 0 0 0 0 0 1 1 1 0 0 0); # 12dof
 set regheader = 0;
-set interp = () # default is nearest
+set interp = (cubic) 
 if($?FV_PATIENT_ORIENTATION == 0) setenv FV_PATIENT_ORIENTATION 1
 if($?FV_ROTATE_AROUND_CURSOR == 0) setenv FV_ROTATE_AROUND_CURSOR 0
 
@@ -143,7 +143,7 @@ if(! $UseTkRegister) then
   if($ShowConfig)  set cmd = ($cmd -transform-volume)
   set cmd = ($cmd -viewport $Plane) # currently causes FV to crash
   set targname = `basename $targ`
-  set visible = 0
+  set visible = 1
   if($#surflist == 0) set visible = 1
   set arg = ($targ":"visible=$visible":"name=$targname"(targ)"":"colormap=$ColorMap)
   set cmd = ($cmd -v $arg)
@@ -704,8 +704,9 @@ usage_exit:
   echo "  --surf surfname : explicit path to surf to load"
   echo "  --aux-surf auxsurfname : explicit path to surf to load"
   echo "  --plane plane : cor, sag, ax"
+  echo "  --nearest : use nearest neighbor interp"
   echo "  --linear : use trilinear interp"
-  echo "  --cubic : use cubic interp"
+  echo "  --cubic : use cubic interp (default)"
   echo "  --no-config : do not automatically raise transform config window"
   echo "  --mov2 mov2 <--reg2 reg2> : provide a second mov (and possibly reg)"
   echo "  --mov3 mov3 <--reg3 reg3> : provide a third mov (and possibly reg)"
