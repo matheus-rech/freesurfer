@@ -160,6 +160,7 @@ int main(int argc, char **argv)
   cras[1] = 0.0;
   cras[2] = 0.0;
   res[3] = 2.0; /* TR */
+  if(TR > 0) res[3] = TR;
 
   if (argc == 0) usage_exit();
 
@@ -444,9 +445,9 @@ int main(int argc, char **argv)
   if (tempid != NULL) {
     MRIcopyHeader(mritemp,mri);
     mri->type = MRI_FLOAT;
+    if(TR > 0) mritemp->tr = TR;
     // Override
     if(nframes > 0) mri->nframes = nframes;
-    if(TR > 0) mri->tr = TR;
   } 
   else {
     if(mri == NULL) {
