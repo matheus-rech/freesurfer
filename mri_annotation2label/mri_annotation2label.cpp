@@ -291,6 +291,9 @@ static int parse_commandline(int argc, char **argv)
       print_version() ;
     }
 
+    else if (!strcmp(option, "--diag-debug"))
+      Gdiag |= DIAG_INFO;
+    
     else if (!strcmp(option, "--debug")) {
       debug = 1;
     } else if (!strcmp(option, "--a2005s")) {
