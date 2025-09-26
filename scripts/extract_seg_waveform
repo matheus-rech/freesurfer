@@ -19,6 +19,7 @@ set demean = 0
 set MulVal = ()
 set DivVal = ()
 set RescaleLocal = ();
+set ctab = $FREESURFER/FreeSurferColorLUT.txt
 
 set tmpdir = ();
 set cleanup = 1;
@@ -135,6 +136,7 @@ set avgwfmri = $tmpdir/avgwf.mgh
 set ud = `UpdateNeeded $avgwfmri $fsegbb $segbb`
 if($ud || $ForceUpdate) then
   set cmd = (mri_segstats --i $fsegbb --seg $segbb --id 1 --avgwfvol $avgwfmri)
+  set cmd = ($cmd --ctab $ctab) #Must have ctab that has a segid=1; otherwise err
   if(! $demean) set cmd = ($cmd --avgwf $outwf)
   if($#MulVal)  set cmd = ($cmd --mul $MulVal)
   if($#DivVal)  set cmd = ($cmd --div $DivVal)
