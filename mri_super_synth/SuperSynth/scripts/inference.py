@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--model_file", required=True, help="(required) Checkpoint .pth file")
     parser.add_argument("--test_time_flipping", action="store_true", help="(optional) Flipping for test-time augmentation.")
     parser.add_argument("--threads", type=int, default=-1, help="(optional) Number of CPU cores to be used (-1 = all available; this is the default)")
-    parser.add_argument("--mode", help="Segmentation mode: invivo / cerebrum / left-hemi / right-hemi / exvivo (ignored if input is CSV file)")
+    parser.add_argument("--mode", help="Segmentation mode: invivo / cerebrum / left-hemi / right-hemi / exvivo (ignored if input is CSV file)", required=True)
     args = parser.parse_args()
 
     device = args.device
