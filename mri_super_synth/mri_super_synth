@@ -104,7 +104,7 @@ exit 1
 fi
 
 # Create command and run!
-BASEPATH="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/" 
+BASEPATH="$FREESURFER_HOME/python/packages/SuperSynth/" 
 cmd="fspython $BASEPATH/scripts/inference.py $@ --model_file $MODEL_FILE --test_time_flipping "
 echo "Running command:"
 echo $cmd
