@@ -57,10 +57,16 @@ then
   exit 0
 fi
 
-# Try to find SuperSynth model
+# Try to find SuperSynth model and atlas files
 MODEL_FILE="$FREESURFER_HOME/models/SuperSynth_August_2025.pth"
-if [ ! -f "$MODEL_FILE"  ];
+ATLAS_FILE="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/atlas_simplified/size.npy"
+
+# if model file or atlas files not found, print instructions for download and exit
+if [ ! -f "$MODEL_FILE" ] || [ ! -f "$ATLAS_FILE" ];
 then
+echo "Unable to located some dependencies, please follow the steps below to install them, then rerun the script."
+echo ""
+if [ ! -f "$MODEL_FILE" ]; then 
     echo " "
     echo "   Machine learning model file not found. Please download from from: "
     echo "     https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
@@ -75,7 +81,26 @@ then
     echo "      $FREESURFER_HOME/models/ "
     echo "   should now contain an additional file:SuperSynth_August_2025.pth"
     echo " "
-    exit 1
+fi
+if [ ! -f "$ATLAS_FILE" ]; then
+  echo " "
+  echo "   Atlas files not found. Please download atlas from: "
+  echo "      https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "   and uncompress it into:  "
+  echo "      $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/ "
+  echo "   You only need to do this once. You can use the following three commands (may require root access): "
+  echo "      1: cd $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation"
+  echo "      2a (in Linux): wget https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "      2b (in MAC): curl -o atlas.zip https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "      3. unzip atlas_simplified.zip"
+  echo " "
+  echo "   After correct extraction, the directory: "
+  echo "      $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/atlas_simplified "
+  echo "   should contain files: size.npy, label_001.npz, label_002.npz, ..."
+  echo " "
+
+fi
+exit 1    
 fi
 
 # Create command and run!
