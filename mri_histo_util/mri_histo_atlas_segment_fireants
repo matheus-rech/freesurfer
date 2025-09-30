@@ -18,25 +18,26 @@ then
   echo "    Puonti et al. (under revision)"
   echo " "
   echo "Usage:"
-  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [MODE]"
+  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS MODE SIDE"
   echo " "
   echo "INPUT SCAN: scan to process, in mgz or nii(.gz) format"
   echo "OUTPUT_DIRECTORY: directory with segmentations, volume files, etc"
   echo "GPU: set to 1 to use the GPU; requires a fat (~48GB) GPU!"
   echo "THREADS: number of CPU threads to use (use -1 for all available threads)"
-  echo "MODE (optional): invivo (default), exvivo, cerebrum, or hemi"
+  echo "MODE: invivo , exvivo, cerebrum, or hemi"
+  echo "SIDE: left or right"
   echo " "
   exit 0
 fi
 
 # If number of arguments is incorrect
-if [ $# -lt 4 ] || [ $# -gt 5 ]
+if [ $# -lt 6 ] || [ $# -gt 6 ]
 then
   echo " "
   echo "Incorrect number of arguments."
   echo "Usage: "
   echo " "
-  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [MODE]"
+  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS MODE SIDE"
   echo " "
   echo "Or, for help"
   echo " "
@@ -54,11 +55,8 @@ then
   DEVICE='cpu'
 fi
 THREADS=$4
-MODE='invivo'
-if [ $# -gt 4 ]
-then
-  MODE=$5
-fi
+MODE=$5
+SIDE=$6
 
 # Find path to shell script
 BASEPATH="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/" 
@@ -110,25 +108,7 @@ fi
 
 
 # Create command line arguments and run!
-
-
-echo "  "
-echo "******************************"
-echo "* Working on left hemisphere *"
-echo "******************************"
-echo "  "
-cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode dct --threads $THREADS --mode $MODE --side left  "
-echo "Running command:"
-echo $cmd
-echo "  "
-$cmd
-
-echo "  "
-echo "*******************************"
-echo "* Working on right hemisphere *"
-echo "*******************************"
-echo "  "
-cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode dct --threads $THREADS --mode $MODE --side right  "
+cmd="fspython $BASEPATH/scripts/segment_fireants.py --i $INPUT --model_file $MODEL_FILE   --atlas_dir $ATLAS_DIR --o $OUTPUT_DIR  --device $DEVICE --bf_mode dct --threads $THREADS --mode $MODE --side $SIDE  "
 echo "Running command:"
 echo $cmd
 echo "  "
