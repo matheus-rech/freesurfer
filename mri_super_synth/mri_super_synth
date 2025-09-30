@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+# Exit at any error
+set -e
+
+# Make sure FreeSurfer is sourced
+[ ! -e "$FREESURFER_HOME" ] && echo "error: freesurfer has not been properly sourced" && exit 1
+
+# If requesting help
+if  [ $# == 1 ] && [  $1 == "--help" ]
+then
+  echo " "
+  echo "U-Net trained to make a set of useful predictions from any 3D brain image "
+  echo "(in vivo, ex vivo, single hemispheres, etc) using a common backbone. It predicts: "
+  echo "Segmentation, registration to MNI atlas, and joint super-resolution and synthesis of "
+  echo "1mm isotropic T1w, T2w, and FLAIR scans."
+  echo " "
+  echo "The code relies on: "
+  echo "   A Modality-agnostic Multi-task Foundation Model for Human Brain Imaging "
+  echo "      Liu et al. (under revision)"
+  echo " "
+  echo " Usage: "
+  echo "There are two way of running the code: "
+  echo "Mode A. For a single scan: just provide input files with --i, output directory with --o, "
+  echo "  and type of volume with --mode. "
+  echo "Mode B. For a set of scans / batch processing, you need to prepare a CSV file, where each "
+  echo "  row has 3 columns separated with commas: "
+  echo "   - Column 1: input file "
+  echo "   - Column 2: output directory "
+  echo "   - Column 3: mode (must be invivo, exvivo, cerebrum, left-hemi, or right-hemi) "
+  echo "(Please note that there is no leading/header row in the CSV file) "
+  echo " "
+  echo "IMPORTANT: for 32 vs 64-bit reasons, inference is tiled on the GPU but not on the CPU, "
+  echo " so results are expected to be slightly different on the 2 platforms. You can use the option"
+  echo " --force_tiling option on the CPU to force tiling and get the same results as on the GPU "
+  echo " "
+  echo "The command line options are: "
+  echo " "
+  echo "--i [IMAGE_OR_CSV_FILE] "
+  echo "           Input image to segment - mode A - or CSV file with list of scans - mode B (required argument)"
+
+  echo "--o [OUTPUT_DIRECTORY] "
+  echo "           Directory where outputs will be written (ignored in mode B)"
+
+  echo "--mode [MODE] "
+  echo "           Type of input. Must be invivo, exvivo, cerebrum, left-hemi, or right-hemi (ignored in mode B) "
+
+  echo "--threads [THREADS] "    
+  echo "           Number of cores to be used. You can use -1 to use all available cores. Default is -1 (optional)"
+
+  echo "--device [DEV] "     
+  echo "           Device used for computations (cpu or cuda). The default is to use cuda if a GPU is available (optional) "
+                        
+  echo "--force_tiling "    
+  echo "           Use this flag to force tiling on CPU and get the same results as on GPU, as explained above (optional)"
+
+  exit 0
+fi
+
+# Try to find SuperSynth model and atlas files
+MODEL_FILE="$FREESURFER_HOME/models/SuperSynth_August_2025.pth"
+ATLAS_FILE="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/atlas_simplified/size.npy"
+
+# if model file or atlas files not found, print instructions for download and exit
+if [ ! -f "$MODEL_FILE" ] || [ ! -f "$ATLAS_FILE" ];
+then
+echo "Unable to located some dependencies, please follow the steps below to install them, then rerun the script."
+echo ""
+if [ ! -f "$MODEL_FILE" ]; then 
+    echo " "
+    echo "   Machine learning model file not found. Please download from from: "
+    echo "     https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
+    echo "   and uncompress it into:  "
+    echo "      $FREESURFER_HOME/models/ "
+    echo "   You only need to do this once. You can use the following commands (may require root access): "
+    echo "      1: cd $FREESURFER_HOME/models/"
+    echo "      2a (in Linux): wget https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
+    echo "      2b (in MAC): curl -o SuperSynth_August_2025.pth https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/SuperSynth_Iglesias_2025/SuperSynth_August_2025.pth "
+    echo " "
+    echo "   After correct download and installation, the directory: "
+    echo "      $FREESURFER_HOME/models/ "
+    echo "   should now contain an additional file:SuperSynth_August_2025.pth"
+    echo " "
+fi
+if [ ! -f "$ATLAS_FILE" ]; then
+  echo " "
+  echo "   Atlas files not found. Please download atlas from: "
+  echo "      https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "   and uncompress it into:  "
+  echo "      $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/ "
+  echo "   You only need to do this once. You can use the following three commands (may require root access): "
+  echo "      1: cd $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation"
+  echo "      2a (in Linux): wget https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "      2b (in MAC): curl -o atlas.zip https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "      3. unzip atlas_simplified.zip"
+  echo " "
+  echo "   After correct extraction, the directory: "
+  echo "      $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/atlas_simplified "
+  echo "   should contain files: size.npy, label_001.npz, label_002.npz, ..."
+  echo " "
+
+fi
+exit 1    
+fi
+
+# Create command and run!
+BASEPATH="$FREESURFER_HOME/python/packages/SuperSynth/" 
+cmd="fspython $BASEPATH/scripts/inference.py $@ --model_file $MODEL_FILE --test_time_flipping "
+echo "Running command:"
+echo $cmd
+echo "  "
+$cmd
+
+
+
