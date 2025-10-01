@@ -237,6 +237,11 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
      message(STATUS "For HOST_OS=${HOST_OS} Build of freeview with ScribblePrompt disabled")
   endif()
 
+  if(HOST_OS MATCHES "Ubuntu24")
+     # references to java libs may be linked in so use the default java distribution
+     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/usr/lib/jvm/default-java/lib")
+  endif()
+
   # build the QVTKWidget utilities
   if(${VTK_MAJOR_VERSION} LESS 7)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/QVTK5)
