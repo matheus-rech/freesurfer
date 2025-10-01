@@ -22,14 +22,15 @@ distributed with the code.
 
 ## Usage
 
-mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS [MODE]
+mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS MODE SIDE
 
 - INPUT SCAN: scan to process, in nii(.gz) or mgz format
 - OUTPUT_DIRECTORY: directory where segmentations, volume files, etc will be written (more on this below).
 - GPU: set to 1 to use the GPU (*highly* recommended but requires a ~40GB GPU!)
 - THREADS: number of CPU threads to use (use -1 for all available threads)
-- MODE (optional): type of scan: invivo (default), exvivo, cerebrum (ex vivo without brainstem or cerebellum), 
+- MODE: type of scan: invivo, exvivo, cerebrum (ex vivo without brainstem or cerebellum), 
 hemi (ex vivo with single cerebral hemisphere)
+- SIDE: left or right
 
 
 ## Outputs
