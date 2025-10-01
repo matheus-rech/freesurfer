@@ -1,7 +1,7 @@
 import torch.nn as nn
 
-from ext.unet3d.buildingblocks import DoubleConv, ResNetBlock, ResNetBlockSE, create_decoders, create_encoders
-from ext.unet3d.utils import get_class, number_of_features_per_level
+from SuperSynth.ext.unet3d.buildingblocks import DoubleConv, ResNetBlock, ResNetBlockSE, create_decoders, create_encoders
+from SuperSynth.ext.unet3d.utils import get_class, number_of_features_per_level
 
 
 class AbstractUNet(nn.Module):
