@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.environ.get('FREESURFER_HOME'),'python/packages/SuperSynth/'))
+sys.path.insert(0, os.path.join(os.environ.get('FREESURFER_HOME'),'python/packages'))
 from argparse import ArgumentParser
 import torch
 import numpy as np
@@ -33,11 +33,11 @@ def main():
     force_tiling = args.force_tiling
 
     # Don't bother importing stuff if parser fails hehe
-    from ext.unet3d.model import EugeniosResidualEncoderUNet3D
-    from SuperSynth.utils import MRIread, MRIwrite, torch_resize, align_volume_to_ref
+    from SuperSynth.ext.unet3d.model import EugeniosResidualEncoderUNet3D
+    from SuperSynth.SuperSynth.utils import MRIread, MRIwrite, torch_resize, align_volume_to_ref
     from torch.nn import Softmax
-    from SuperSynth.generators import fast_3D_interp_torch
-    from SuperSynth.utils import get_largest_connected_component
+    from SuperSynth.SuperSynth.generators import fast_3D_interp_torch
+    from SuperSynth.SuperSynth.utils import get_largest_connected_component
     from scipy.ndimage.morphology import binary_dilation
     import csv
     import nibabel as nib
@@ -407,8 +407,9 @@ def main():
                     MRIwrite(DEFdemons.clip(0,255).detach().cpu().numpy(), aff, outputdir + '/mni_deformed_demons.mgz', dtype=np.uint8)
                 print('   freeview ' + input_file + ' ' + outputdir + '/*.mgz &')
                 print('   oocalc ' + outputdir + '/volumes.csv &')
-              except:
+              except Exception as e:
                   print('*** Something went wrong with this file, skipping to the next ***')
+                  print(f'Error trace: {e}')
 
         print('   All done')
 

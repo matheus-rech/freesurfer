@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from torch.nn.functional import conv3d
 import nibabel as nib
-from SuperSynth.utils import myzoom_torch
+from SuperSynth.SuperSynth.utils import myzoom_torch
 from scipy.io.matlab import loadmat
-import ext.interpol as interpol
+import SuperSynth.ext.interpol as interpol
 
 def super_generator(datadir,
               resolution_sampler,
