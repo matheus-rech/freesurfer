@@ -91,7 +91,7 @@ if [ ! -f "$ATLAS_FILE" ]; then
   echo "   You only need to do this once. You can use the following three commands (may require root access): "
   echo "      1: cd $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation"
   echo "      2a (in Linux): wget https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
-  echo "      2b (in MAC): curl -o atlas.zip https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
+  echo "      2b (in MAC): curl -o atlas_simplified.zip https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
   echo "      3. unzip atlas_simplified.zip"
   echo " "
   echo "   After correct extraction, the directory: "
