@@ -231,15 +231,16 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
   if(BUILD_SCRIBBLE AND HOST_OS MATCHES "Rocky8")
      message(STATUS "For HOST_OS=${HOST_OS} Build of freeview with ScribblePrompt enabled")
      set(SOURCES ${SOURCES} TorchScriptModule.cpp ScribblePromptWorker.cpp)
-     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/space/freesurfer/packages/libtorch/2.3.0.dev20240124+cpu/lib")
+     # set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/space/freesurfer/packages/libtorch/2.3.0.dev20240124+cpu/lib")
   else()
      set(BUILD_SCRIBBLE OFF)
      message(STATUS "For HOST_OS=${HOST_OS} Build of freeview with ScribblePrompt disabled")
   endif()
 
   if(HOST_OS MATCHES "Ubuntu24")
-     # references to java libs may be linked in so use the default java distribution
-     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/usr/lib/jvm/default-java/lib")
+    # do not strip RPATH in install pass since system java libs may not otherwise be found and use RUNPATH not DT_RPATH
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
   endif()
 
   # build the QVTKWidget utilities
