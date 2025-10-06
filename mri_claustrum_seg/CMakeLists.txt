@@ -1,5 +1,8 @@
 project(mri_claustrum_seg)
 
+# Problems with python env on APPLE_ARM64
+if (NOT APPLE_ARM64)
+
 # handle FSPYTHON tree split install
 if (FSPYTHON_INSTALL_TREE)
     set(claustrum_python "${FSPYTHON_INSTALL_PREFIX}/python")
@@ -24,3 +27,5 @@ endif()
 
 ## isntall the atlas dir
 install_tarball(claustrum_seg.tar.gz DESTINATION average)
+
+endif()
