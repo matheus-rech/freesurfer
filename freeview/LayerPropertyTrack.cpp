@@ -13,6 +13,7 @@
  *
  */
 #include "LayerPropertyTrack.h"
+#include "vtkRGBAColorTransferFunction.h"
 
 LayerPropertyTrack::LayerPropertyTrack(QObject* parent) :
   LayerProperty(parent),
@@ -25,7 +26,8 @@ LayerPropertyTrack::LayerPropertyTrack(QObject* parent) :
   m_nNumberOfSides(5),
   m_dOpacity(1),
   m_nScalarColorMap(0),
-  m_nScalarIndex(0)
+  m_nScalarIndex(0),
+  m_ctab(NULL)
 {
   connect(this, SIGNAL(ColorCodeChanged(int)), this, SIGNAL(PropertyChanged()));
   connect(this, SIGNAL(DirectionSchemeChanged(int)), this, SIGNAL(PropertyChanged()));
@@ -34,7 +36,7 @@ LayerPropertyTrack::LayerPropertyTrack(QObject* parent) :
   connect(this, SIGNAL(RenderRepChanged()), this, SIGNAL(PropertyChanged()));
   connect(this, SIGNAL(OpacityChanged(double)), this, SIGNAL(PropertyChanged()));
   connect(this, SIGNAL(ScalarColorMapChanged(int)), this, SIGNAL(PropertyChanged()));
-  connect(this, SIGNAL(ScalarThresholdChanged(double,double)), this, SIGNAL(PropertyChanged()));
+  //  connect(this, SIGNAL(ScalarThresholdChanged(double,double)), this, SIGNAL(PropertyChanged()));
   connect(this, SIGNAL(ScalarIndexChanged(int)), this, SIGNAL(PropertyChanged()));
 }
 
@@ -150,5 +152,47 @@ void LayerPropertyTrack::InitializeScalarThreshold(const QList<QPair<double, dou
   for (int i = 0; i < ranges.size(); i++)
   {
     m_listScalarThreshold << ranges[i].first << ranges[i].second;
+  }
+}
+
+void LayerPropertyTrack::SetLUTCTAB( COLOR_TABLE* ct )
+{
+  m_ctab = ct;
+  if ( ct )
+  {
+    emit ColorMapChanged();
+  }
+}
+
+void LayerPropertyTrack::UpdateLUTTable(vtkRGBAColorTransferFunction* lut)
+{
+  if (m_ctab)
+  {
+    lut->RemoveAllPoints();
+    lut->AddRGBAPoint( 0, 0, 0, 0, 0 );
+    int cEntries;
+    CTABgetNumberOfTotalEntries( m_ctab, &cEntries );
+    bool last_is_valid = true;
+    for ( int nEntry = 1; nEntry < cEntries; nEntry++ )
+    {
+      int bValid;
+      CTABisEntryValid( m_ctab, nEntry, &bValid );
+      if ( bValid )
+      {
+        if (!last_is_valid)
+          last_is_valid = true;
+
+        float red, green, blue, alpha;
+        CTABrgbaAtIndexf( m_ctab, nEntry, &red, &green, &blue, &alpha );
+        lut->AddRGBAPoint( nEntry, red, green, blue, 1 );
+      }
+      else if (last_is_valid)
+      {
+        lut->AddRGBAPoint( nEntry, 0, 0, 0, 0 );
+        last_is_valid = false;
+      }
+    }
+    lut->AddRGBAPoint( cEntries, 0, 0, 0, 0 );
+    lut->Build();
   }
 }

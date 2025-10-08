@@ -18,6 +18,10 @@
 #include "LayerProperty.h"
 #include <QColor>
 
+#include "colortab.h"
+
+class vtkRGBAColorTransferFunction;
+
 class LayerPropertyTrack : public LayerProperty
 {
   Q_OBJECT
@@ -28,7 +32,7 @@ public:
   enum DirectionScheme { EndPoints = 0, MidSegment, EverySegment };
   enum DirectionMapping  { RGB = 0, RBG, GRB, GBR, BRG, BGR };
   enum RenderRep { Line = 0, Tube };
-  enum ScalarColorMap { Heatscale = 0, Jet };
+  enum ScalarColorMap { Heatscale = 0, Jet, LUT };
 
   int GetColorCode()
   {
@@ -82,7 +86,14 @@ public:
     return m_nScalarIndex;
   }
 
+  COLOR_TABLE* GetLUTCTAB()
+  {
+    return m_ctab;
+  }
+
   void InitializeScalarThreshold(const QList< QPair<double, double> >& ranges);
+
+  void UpdateLUTTable(vtkRGBAColorTransferFunction* lut);
 
 signals:
   void ColorCodeChanged(int);
@@ -94,6 +105,7 @@ signals:
   void ScalarColorMapChanged(int);
   void ScalarThresholdChanged(double, double);
   void ScalarIndexChanged(int);
+  void ColorMapChanged();
 
 public slots:
   void SetColorCode(int nCode);
@@ -107,8 +119,10 @@ public slots:
   void SetScalarThreshold(double dMin, double dMax);
   void SetScalarColorMap(int nVal);
   void SetScalarIndex(int nVal);
+  void SetLUTCTAB(COLOR_TABLE* ct);
 
 private:
+
   int     m_nColorCode;
   int     m_nDirectionScheme;
   int     m_nDirectionMapping;
@@ -120,6 +134,7 @@ private:
   int     m_nScalarIndex;
   QList<double>  m_listScalarThreshold;
   QColor  m_color;
+  COLOR_TABLE* m_ctab;
 };
 
 #endif // LAYERPROPERTYTRACK_H

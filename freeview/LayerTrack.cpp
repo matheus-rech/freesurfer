@@ -51,6 +51,7 @@ LayerTrack::LayerTrack(LayerMRI* ref, QObject* parent, bool bCluster) : Layer(pa
   connect(mProperty, SIGNAL(ScalarColorMapChanged(int)), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(ScalarIndexChanged(int)), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(ScalarThresholdChanged(double, double)), this, SLOT(UpdateColor()));
+  connect(mProperty, SIGNAL(ColorMapChanged()), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(RenderRepChanged()), this, SLOT(RebuildActors()));
   connect(mProperty, SIGNAL(OpacityChanged(double)), this, SLOT(UpdateOpacity(double)));
 
@@ -303,6 +304,9 @@ void LayerTrack::UpdateColor(bool emitSignal)
       m_colorTable->AddRGBAPoint( th[1] - (th[1] - th[0]) / 4, 1, 1, 0, 1 );
       m_colorTable->AddRGBAPoint( th[1], 1, 0, 0, 1 );
       m_colorTable->Build();
+      break;
+    case LayerPropertyTrack::LUT:
+      GetProperty()->UpdateLUTTable(m_colorTable);
       break;
     }
 

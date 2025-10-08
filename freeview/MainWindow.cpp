@@ -187,7 +187,7 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
 
   connect(m_volumeCropper, SIGNAL(CropBoundChanged(LayerMRI*)), this, SLOT(RequestRedraw()));
   connect(m_layerCollections["MRI"], SIGNAL(LayerRemoved(Layer*)),
-      m_propertyBrush, SLOT(OnLayerRemoved(Layer*)));
+          m_propertyBrush, SLOT(OnLayerRemoved(Layer*)));
 
   ui->setupUi(this);
   setAcceptDrops(true);
@@ -279,7 +279,7 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
   connect(m_volumeCropper, SIGNAL(CropBoundChanged(LayerMRI*)),
           m_dlgCropVolume, SLOT(OnCropBoundChanged(LayerMRI*)));
   connect(m_layerCollections["MRI"], SIGNAL(LayerRemoved(Layer*)),
-      m_dlgCropVolume, SLOT(OnLayerRemoved(Layer*)));
+          m_dlgCropVolume, SLOT(OnLayerRemoved(Layer*)));
 
   m_dlgThresholdVolume = new DialogThresholdVolume(this);
   m_dlgThresholdVolume->hide();
@@ -321,7 +321,7 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
   m_dlgRepositionSurface = new DialogRepositionSurface(this);
   m_dlgRepositionSurface->hide();
   connect(m_layerCollections["Surface"], SIGNAL(LayerModified()),
-      m_dlgRepositionSurface, SLOT(UpdateUI()));
+          m_dlgRepositionSurface, SLOT(UpdateUI()));
   //  connect(ui->view3D, SIGNAL(SurfaceVertexClicked()),
   //          m_dlgRepositionSurface, SLOT(OnSurfaceVertexClicked()));
   connect(ui->view3D, SIGNAL(SurfaceVertexClicked(LayerSurface*)),
@@ -389,70 +389,70 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
     for ( int j = 0; j < 4; j++ )
     {
       connect( m_layerCollections[keys[i]], SIGNAL(LayerAdded(Layer*)),
-          m_views[j], SLOT(RefreshAllActors()) );
+               m_views[j], SLOT(RefreshAllActors()) );
       connect( m_layerCollections[keys[i]], SIGNAL(LayerRemoved(Layer*)),
-          m_views[j], SLOT(RefreshAllActors()) );
+               m_views[j], SLOT(RefreshAllActors()) );
       connect( m_layerCollections[keys[i]], SIGNAL(LayerMoved(Layer*)),
-          m_views[j], SLOT(RefreshAllActors()) );
+               m_views[j], SLOT(RefreshAllActors()) );
       connect( m_layerCollections[keys[i]], SIGNAL(LayersReordered()),
-          m_views[j], SLOT(RefreshAllActors()) );
+               m_views[j], SLOT(RefreshAllActors()) );
       connect( m_layerCollections[keys[i]], SIGNAL(LayerActorChanged()),
-          m_views[j], SLOT(RefreshAllActors()) );
+               m_views[j], SLOT(RefreshAllActors()) );
       connect( m_layerCollections[keys[i]], SIGNAL(LayerActorUpdated()),
-          m_views[j], SLOT(RequestRedraw()) );
+               m_views[j], SLOT(RequestRedraw()) );
 
       // 2D view only
       if ( j < 3 )
       {
         connect( m_layerCollections[keys[i]], SIGNAL(LayerAdded(Layer*)),
-            m_views[j], SLOT(UpdateAnnotation()) );
+                 m_views[j], SLOT(UpdateAnnotation()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayerRemoved(Layer*)),
-            m_views[j], SLOT(UpdateAnnotation()) );
+                 m_views[j], SLOT(UpdateAnnotation()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayerAdded(Layer*)),
-            m_views[j], SLOT(Update2DOverlay()) );
+                 m_views[j], SLOT(Update2DOverlay()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayerRemoved(Layer*)),
-            m_views[j], SLOT(Update2DOverlay()) );
+                 m_views[j], SLOT(Update2DOverlay()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayerMoved(Layer*)),
-            m_views[j], SLOT(Update2DOverlay()) );
+                 m_views[j], SLOT(Update2DOverlay()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayersReordered()),
-            m_views[j], SLOT(Update2DOverlay()) );
+                 m_views[j], SLOT(Update2DOverlay()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayerVisibilityChanged()),
-            m_views[j], SLOT(Update2DOverlay()) );
+                 m_views[j], SLOT(Update2DOverlay()) );
       }
       // 3D view only
       else
       {
         connect( m_layerCollections[keys[i]], SIGNAL(LayerAdded(Layer*)),
-            m_views[j], SLOT(UpdateBounds()) );
+                 m_views[j], SLOT(UpdateBounds()) );
         connect( m_layerCollections[keys[i]], SIGNAL(LayerRemoved(Layer*)),
-            m_views[j], SLOT(UpdateBounds()) );
+                 m_views[j], SLOT(UpdateBounds()) );
       }
     }
     connect(m_layerCollections[keys[i]], SIGNAL(LayerAdded(Layer*)),
-        ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayerRemoved(Layer*)),
-        ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayerMoved(Layer*)),
-        ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayerShowInfoChanged()),
-        ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayersReordered()),
-        ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetCursorInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
 
     connect(m_layerCollections[keys[i]], SIGNAL(LayerAdded(Layer*)),
-        ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayerRemoved(Layer*)),
-        ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayerMoved(Layer*)),
-        ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayerShowInfoChanged()),
-        ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
     connect(m_layerCollections[keys[i]], SIGNAL(LayersReordered()),
-        ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
+            ui->treeWidgetMouseInfo, SLOT(UpdateAll()), Qt::QueuedConnection);
 
     if (keys[i] != "Supplement")
       connect(m_layerCollections[keys[i]], SIGNAL(ActiveLayerChanged(Layer*)),
-          this, SLOT(OnActiveLayerChanged(Layer*)), Qt::QueuedConnection);
+              this, SLOT(OnActiveLayerChanged(Layer*)), Qt::QueuedConnection);
   }
   connect(m_views[3], SIGNAL(MouseIn()), ui->treeWidgetMouseInfo, SLOT(ShowHeaderText()));
   connect(m_views[3], SIGNAL(MouseOut()), ui->treeWidgetMouseInfo, SLOT(ClearHeaderText()));
@@ -468,16 +468,16 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
   for (int i = 0; i < 3; i++)
   {
     connect(m_layerCollections["MRI"], SIGNAL(ActiveLayerChanged(Layer*)),
-        m_views[i], SLOT(UpdateAnnotation()));
+            m_views[i], SLOT(UpdateAnnotation()));
   }
   connect(m_layerCollections["MRI"], SIGNAL(LayerTransformed()),
-      m_views[3], SLOT(UpdateBounds()));
+          m_views[3], SLOT(UpdateBounds()));
   connect(m_layerCollections["Surface"], SIGNAL(ActiveLayerChanged(Layer*)),
-      m_views[3], SLOT(UpdateAxesActor()));
+          m_views[3], SLOT(UpdateAxesActor()));
   connect(m_layerCollections["MRI"], SIGNAL(ActiveLayerChanged(Layer*)),
-      this, SLOT(UpdateLayerInfo(Layer*)), Qt::QueuedConnection);
+          this, SLOT(UpdateLayerInfo(Layer*)), Qt::QueuedConnection);
   connect(m_layerCollections["Surface"], SIGNAL(ActiveLayerChanged(Layer*)),
-      this, SLOT(UpdateLayerInfo(Layer*)), Qt::QueuedConnection);
+          this, SLOT(UpdateLayerInfo(Layer*)), Qt::QueuedConnection);
 
   QActionGroup* actionGroupMode = new QActionGroup( this );
   actionGroupMode->addAction( ui->actionNavigate );
@@ -545,7 +545,7 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
   connect(ui->treeWidgetCursorInfo, SIGNAL(RASChangeTriggered(double,double,double)),
           this, SLOT(SetSlicePosition(double,double,double)));
   connect(m_layerCollections["MRI"], SIGNAL(MouseRASPositionChanged()),
-      ui->treeWidgetMouseInfo, SLOT(OnMousePositionChanged()), Qt::QueuedConnection);
+          ui->treeWidgetMouseInfo, SLOT(OnMousePositionChanged()), Qt::QueuedConnection);
   connect(ui->treeWidgetMouseInfo, SIGNAL(RASChangeTriggered(double,double,double)),
           m_layerCollections["MRI"], SLOT(SetMouseRASPosition(double,double,double)));
 
@@ -2393,9 +2393,9 @@ void MainWindow::CommandLoadSubject(const QStringList &sa)
                          "%1/surf/lh.inflated:annot=%1/label/lh.aparc.annot:visible=0 "
                          "%1/surf/rh.inflated:annot=%1/label/rh.aparc.annot:visible=0 ").arg(subject_path);
   if (QFile::exists(QString("%1/surf/lh.orig.nofix").arg(subject_path)))
-      args += QString("%1/surf/lh.orig.nofix:overlay=%1/surf/lh.defect_labels:edgecolor=overlay:overlay_threshold=0.01,100,percentile:visible=0 ").arg(subject_path);
+    args += QString("%1/surf/lh.orig.nofix:overlay=%1/surf/lh.defect_labels:edgecolor=overlay:overlay_threshold=0.01,100,percentile:visible=0 ").arg(subject_path);
   if (QFile::exists(QString("%1/surf/rh.orig.nofix").arg(subject_path)))
-      args += QString("%1/surf/rh.orig.nofix:overlay=%1/surf/rh.defect_labels:edgecolor=overlay:overlay_threshold=0.01,100,percentile:visible=0 ").arg(subject_path);
+    args += QString("%1/surf/rh.orig.nofix:overlay=%1/surf/rh.defect_labels:edgecolor=overlay:overlay_threshold=0.01,100,percentile:visible=0 ").arg(subject_path);
   args +=  "-viewport coronal ";
   QString control_pt_file = QString("%1/tmp/control.dat").arg(subject_path);
   if (QFile::exists(control_pt_file))
@@ -3849,7 +3849,7 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
           {
             script = QStringList("setsurfaceoverlaymethod") << overlay_method;
             if (!overlay_thresholds.isEmpty())
-                 script << overlay_thresholds.join(",");
+              script << overlay_thresholds.join(",");
             // insert right AFTER loadsurfaceoverlay command
             m_scripts.insert( 1, script );
           }
@@ -5176,17 +5176,17 @@ void MainWindow::SetViewSize(int x, int y)
   switch( m_nViewLayout )
   {
   case VL_2x2:
-    offsetx *= 2;
-    offsety *= 2;
-    break;
+  offsetx *= 2;
+  offsety *= 2;
+  break;
   case VL_1n3:
-    offsety += (int)(offsety/2.0+0.5);
-    break;
+  offsety += (int)(offsety/2.0+0.5);
+  break;
   case VL_1n3h:
-    offsetx += (int)(offsetx/2.0+0.5);
-    break;
+  offsetx += (int)(offsetx/2.0+0.5);
+  break;
   default:
-    break;
+  break;
   }
   this->resize( this->size() + QSize(offsetx,offsety) );
 
@@ -5591,29 +5591,29 @@ void MainWindow::SetViewLayout( int nLayout )
   switch ( m_nMainView )
   {
   case MV_Coronal:
-    view[0] = ui->viewCoronal;
-    view[1] = ui->viewSagittal;
-    view[2] = ui->viewAxial;
-    view[3] = ui->view3D;
-    break;
+  view[0] = ui->viewCoronal;
+  view[1] = ui->viewSagittal;
+  view[2] = ui->viewAxial;
+  view[3] = ui->view3D;
+  break;
   case MV_Axial:
-    view[0] = ui->viewAxial;
-    view[1] = ui->viewSagittal;
-    view[2] = ui->viewCoronal;
-    view[3] = ui->view3D;
-    break;
+  view[0] = ui->viewAxial;
+  view[1] = ui->viewSagittal;
+  view[2] = ui->viewCoronal;
+  view[3] = ui->view3D;
+  break;
   case MV_3D:
-    view[0] = ui->view3D;
-    view[1] = ui->viewSagittal;
-    view[2] = ui->viewCoronal;
-    view[3] = ui->viewAxial;
-    break;
+  view[0] = ui->view3D;
+  view[1] = ui->viewSagittal;
+  view[2] = ui->viewCoronal;
+  view[3] = ui->viewAxial;
+  break;
   default:
-    view[0] = ui->viewSagittal;
-    view[1] = ui->viewCoronal;
-    view[2] = ui->viewAxial;
-    view[3] = ui->view3D;
-    break;
+  view[0] = ui->viewSagittal;
+  view[1] = ui->viewCoronal;
+  view[2] = ui->viewAxial;
+  view[3] = ui->view3D;
+  break;
   }
 
   ui->gridLayoutViewport->setRowStretch( 0, 0 );
@@ -5629,30 +5629,30 @@ void MainWindow::SetViewLayout( int nLayout )
   switch ( nLayout )
   {
   case VL_2x2:
-    for ( int i = 0; i < 4; i++ )
-    {
-      ui->gridLayoutViewport->addWidget( view[i], i/2, i%2 );
-    }
-    break;
+  for ( int i = 0; i < 4; i++ )
+  {
+    ui->gridLayoutViewport->addWidget( view[i], i/2, i%2 );
+  }
+  break;
   case VL_1n3:
-    ui->gridLayoutViewport->addWidget( view[0], 0, 0, 1, 3 );
-    ui->gridLayoutViewport->addWidget( view[1], 1, 0 );
-    ui->gridLayoutViewport->addWidget( view[2], 1, 1 );
-    ui->gridLayoutViewport->addWidget( view[3], 1, 2 );
-    ui->gridLayoutViewport->setRowStretch( 0, 2 );
-    ui->gridLayoutViewport->setRowStretch( 1, 1 );
-    break;
+  ui->gridLayoutViewport->addWidget( view[0], 0, 0, 1, 3 );
+  ui->gridLayoutViewport->addWidget( view[1], 1, 0 );
+  ui->gridLayoutViewport->addWidget( view[2], 1, 1 );
+  ui->gridLayoutViewport->addWidget( view[3], 1, 2 );
+  ui->gridLayoutViewport->setRowStretch( 0, 2 );
+  ui->gridLayoutViewport->setRowStretch( 1, 1 );
+  break;
   case VL_1n3h:
-    ui->gridLayoutViewport->addWidget( view[0], 0, 0, 3, 1 );
-    ui->gridLayoutViewport->addWidget( view[1], 0, 1 );
-    ui->gridLayoutViewport->addWidget( view[2], 1, 1 );
-    ui->gridLayoutViewport->addWidget( view[3], 2, 1 );
-    ui->gridLayoutViewport->setColumnStretch( 0, 2 );
-    ui->gridLayoutViewport->setColumnStretch( 1, 1 );
-    break;
+  ui->gridLayoutViewport->addWidget( view[0], 0, 0, 3, 1 );
+  ui->gridLayoutViewport->addWidget( view[1], 0, 1 );
+  ui->gridLayoutViewport->addWidget( view[2], 1, 1 );
+  ui->gridLayoutViewport->addWidget( view[3], 2, 1 );
+  ui->gridLayoutViewport->setColumnStretch( 0, 2 );
+  ui->gridLayoutViewport->setColumnStretch( 1, 1 );
+  break;
   default:
-    ui->gridLayoutViewport->addWidget( view[0], 0, 0 );
-    break;
+  ui->gridLayoutViewport->addWidget( view[0], 0, 0 );
+  break;
   }
 
   view[0]->show();
@@ -6024,7 +6024,7 @@ void MainWindow::OnSaveVolume()
     {
       int* ext = GetVolumeCropper()->GetExtent();
       QString crop_ext = QString("L-R %1 %2 P-A %3 %4 I-S %5 %6").arg(ext[0]).arg(ext[1])
-                                 .arg(ext[2]).arg(ext[3]).arg(ext[4]).arg(ext[5]);
+          .arg(ext[2]).arg(ext[3]).arg(ext[4]).arg(ext[5]);
       QString cmd = QString("freeview crop volume %1  Orignal file: %2").arg(crop_ext)
           .arg(layer->property("original_filename").toString());
       cmd += QString("  TimeStamp: %1 BuildTimeStamp: %2 %3").arg(QDateTime::currentDateTime().toString()).arg(__DATE__).arg(__TIME__);
@@ -6676,7 +6676,7 @@ void MainWindow::LoadSurfaceFile( const QString& filename, const QString& fn_pat
                                   const QStringList& sup_files_in, const QVariantMap& sup_options)
 {
   QFileInfo fi( filename );
-  QString ext = fi.completeSuffix(); 
+  QString ext = fi.completeSuffix();
   m_strLastDir = fi.absolutePath();
   LayerSurface* layer = new LayerSurface( m_layerVolumeRef );
   connect(layer, SIGNAL(CurrentVertexChanged(int)), m_wndGroupPlot, SLOT(SetCurrentVertex(int)), Qt::UniqueConnection);
@@ -7532,13 +7532,25 @@ void MainWindow::LoadLUT()
                                                    "LUT files (*)");
   if ( !filename.isEmpty() )
   {
-    LayerMRI* mri = (LayerMRI*)GetLayerCollection( "MRI" )->GetActiveLayer();
-    if ( mri )
+    COLOR_TABLE* ct = m_luts->LoadColorTable( filename );
+    if (ct)
     {
-      COLOR_TABLE* ct = m_luts->LoadColorTable( filename );
-      if ( ct )
+      QString type = ui->widgetAllLayers->GetCurrentPanelType();
+      if (type == "MRI")
       {
-        mri->GetProperty()->SetLUTCTAB( ct );
+        LayerMRI* mri = (LayerMRI*)GetLayerCollection( "MRI" )->GetActiveLayer();
+        if ( mri )
+        {
+          mri->GetProperty()->SetLUTCTAB( ct );
+        }
+      }
+      else if (type == "Tract")
+      {
+        LayerTrack* tr = (LayerTrack*)GetLayerCollection( "Tract" )->GetActiveLayer();
+        if ( tr )
+        {
+          tr->GetProperty()->SetLUTCTAB( ct );
+        }
       }
     }
   }
@@ -7624,54 +7636,54 @@ void MainWindow::SetVolumeColorMap( int nColorMap, int nColorMapScale, const QLi
       switch ( nColorMapScale )
       {
       case LayerPropertyMRI::Grayscale:
-        if ( scales.size() >= 2 )
-        {
-          p->SetMinMaxGrayscaleWindow( scales[0], scales[1] );
-        }
-        else if ( !scales.empty() )
-        {
-          cerr << "Need 2 values for grayscale.\n";
-        }
-        break;
+      if ( scales.size() >= 2 )
+      {
+        p->SetMinMaxGrayscaleWindow( scales[0], scales[1] );
+      }
+      else if ( !scales.empty() )
+      {
+        cerr << "Need 2 values for grayscale.\n";
+      }
+      break;
       case LayerPropertyMRI::Heat:
-        if ( scales.size() >= 3 )
-        {
-          p->SetHeatScaleAutoMid(false);
-          p->SetHeatScaleMinThreshold( scales[0] );
-          p->SetHeatScaleMidThreshold( scales[1] );
-          p->SetHeatScaleMaxThreshold( scales[2] );
-        }
-        else if ( scales.size() == 2 )
-        {
-          p->SetHeatScaleAutoMid(true);
-          p->SetHeatScaleSetMidToMin(true);
-          p->SetHeatScaleMinThreshold( scales[0]);
-          p->SetHeatScaleMaxThreshold( scales[1]);
-        }
-        else if ( !scales.empty() )
-        {
-          cerr << "Need 2 or 3 values for heatscale.\n";
-        }
-        break;
+      if ( scales.size() >= 3 )
+      {
+        p->SetHeatScaleAutoMid(false);
+        p->SetHeatScaleMinThreshold( scales[0] );
+        p->SetHeatScaleMidThreshold( scales[1] );
+        p->SetHeatScaleMaxThreshold( scales[2] );
+      }
+      else if ( scales.size() == 2 )
+      {
+        p->SetHeatScaleAutoMid(true);
+        p->SetHeatScaleSetMidToMin(true);
+        p->SetHeatScaleMinThreshold( scales[0]);
+        p->SetHeatScaleMaxThreshold( scales[1]);
+      }
+      else if ( !scales.empty() )
+      {
+        cerr << "Need 2 or 3 values for heatscale.\n";
+      }
+      break;
       case LayerPropertyMRI::LUT:
-        if ( scales.size() >= 1 )
-        {
-        }
-        else if ( !scales.empty() )
-        {
-          cerr << "Need a value for lut.\n";
-        }
-        break;
+      if ( scales.size() >= 1 )
+      {
+      }
+      else if ( !scales.empty() )
+      {
+        cerr << "Need a value for lut.\n";
+      }
+      break;
       default:
-        if ( scales.size() >= 2 )
-        {
-          p->SetMinMaxGenericThreshold( scales[0], scales[1] );
-        }
-        else if ( !scales.empty() )
-        {
-          cerr << "Need 2 values for colorscale.\n";
-        }
-        break;
+      if ( scales.size() >= 2 )
+      {
+        p->SetMinMaxGenericThreshold( scales[0], scales[1] );
+      }
+      else if ( !scales.empty() )
+      {
+        cerr << "Need 2 values for colorscale.\n";
+      }
+      break;
       }
     }
   }
@@ -9567,8 +9579,8 @@ void MainWindow::OnApplyVolumeTransform()
 
 void MainWindow::OnLoadSurfaceLabelRequested(const QString &fn)
 {
-//  AddScript(QStringList("loadsurfacelabel") << fn);
-//  AddScript(QStringList("hidesurfacelabel"));
+  //  AddScript(QStringList("loadsurfacelabel") << fn);
+  //  AddScript(QStringList("hidesurfacelabel"));
   if (LoadSurfaceLabelFile(fn))
     CommandHideSurfaceLabel();
 }
@@ -10325,7 +10337,7 @@ void MainWindow::SetEditRefPoint(LayerMRI *mri, double *pos_in)
   int n[3];
   mri->WorldToVoxelIndex(pos_in, n);
   mri->VoxelIndexToWorld(n, pos);
-//  qDebug() << "num of marks" << ref->GetNumberOfMarks();
+  //  qDebug() << "num of marks" << ref->GetNumberOfMarks();
   if (ref->GetMRIRef() != mri || ref->GetNumberOfMarks() != 1)
   {
     ref->SetMRIRef(mri);

@@ -18,6 +18,8 @@
 #include "PanelLayer.h"
 #include <QList>
 
+class LUTDataHolder;
+
 namespace Ui
 {
 class PanelTrack;
@@ -41,6 +43,7 @@ protected slots:
   void OnLineEditOpacity(const QString&);
   void OnSliderScalarThreshold(int);
   void OnLineEditScalarThreshold(const QString&);
+  void OnComboLookupTable(int nSel);
 
 private:
   Ui::PanelTrack *ui;
@@ -48,6 +51,10 @@ private:
   QList<QWidget*> m_widgetlistDirectionalColor;
   QList<QWidget*> m_widgetlistSolidColor;
   QList<QWidget*> m_widgetlistScalarColor;
+  QList<QWidget*> m_widgetlistScalarLut;
+  QList<QWidget*> m_widgetlistScalarThreshold;
+
+  LUTDataHolder* m_luts;
 };
 
 #endif // PANELTRACK_H
