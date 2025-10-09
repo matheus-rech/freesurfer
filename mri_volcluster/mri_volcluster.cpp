@@ -151,7 +151,7 @@ int AdjustThreshWhenOneTail=1;
 double cwpvalthresh = -1; // pvalue, NOT log10(p)!
 
 CSD *csd=NULL;
-char *csdfile;
+char *csdfile=NULL, *csdoutfile=NULL;
 double pvalLow, pvalHi, ciPct=90, pval, ClusterSize;
 char *csdpdffile = NULL;
 int csdpdfonly = 0;
@@ -975,11 +975,18 @@ static int parse_commandline(int argc, char **argv) {
         exit(1);
       }
       nargsused = 1;
-    } else if (!strcmp(option, "--csdpdf")) {
+    } 
+    else if (!strcmp(option, "--csdpdf")) {
       if (nargc < 1) argnerr(option,1);
       csdpdffile = pargv[0];
       nargsused = 1;
-    } else if (!strcmp(option, "--frame")) {
+    } 
+    else if (!strcmp(option, "--csd-out")) {
+      if (nargc < 1) argnerr(option,1);
+      csdoutfile = pargv[0];
+      nargsused = 1;
+    } 
+    else if (!strcmp(option, "--frame")) {
       if (nargc < 1) argnerr(option,1);
       sscanf(pargv[0],"%d",&frame);
       if (frame < 0) {
@@ -1447,6 +1454,14 @@ static void check_options(void) {
     CSDpdf(csd,-1);
     CSDwritePDF(csdpdffile,csd);
     if (csdpdfonly) exit(0);
+  }
+  if(csdoutfile) {
+    if (csd == NULL) {
+      printf("ERROR: need --csd with --csd-out");
+      exit(1);
+    }
+    err = CSDwrite(csdoutfile,csd);
+    if(err) exit(1);
   }
   if(voxwisesigfile != NULL && csd == NULL) {
     printf("ERROR: need csd with --vwsig\n");
