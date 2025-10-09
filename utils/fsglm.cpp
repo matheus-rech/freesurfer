@@ -228,22 +228,23 @@ GLMMAT *GLMdeepCopy(GLMMAT *gm)
   GLMMAT *cp = GLMalloc();
   if(gm->y) cp->y = MatrixCopy(gm->y,NULL);
   if(gm->X) cp->X = MatrixCopy(gm->X,NULL);
-
-  if(gm->Xt)   cp->Xt = MatrixCopy(gm->Xt,NULL);
-  if(gm->XtX)  cp->XtX = MatrixCopy(gm->XtX,NULL);
-  if(gm->iXtX) cp->iXtX = MatrixCopy(gm->iXtX,NULL);
-  if(gm->Xty)  cp->Xty = MatrixCopy(gm->Xty,NULL);
   cp->dof = gm->dof;
   cp->AllowZeroDOF = gm->AllowZeroDOF;
   cp->ill_cond_flag = gm->ill_cond_flag;
-  cp->DoPCC = gm->DoPCC;
-  cp->debug = gm->debug;
   if(gm->beta) cp->beta = MatrixCopy(gm->beta,NULL);
   if(gm->yhat) cp->yhat = MatrixCopy(gm->yhat,NULL);
   if(gm->eres) cp->eres = MatrixCopy(gm->eres,NULL);
   cp->rvar = gm->rvar;
   if(gm->yffxvar) cp->yffxvar = MatrixCopy(gm->yffxvar,NULL);
   cp->ffxdof = gm->ffxdof;
+
+  cp->DoPCC = gm->DoPCC;
+  if(gm->Xt)   cp->Xt = MatrixCopy(gm->Xt,NULL);
+  if(gm->XtX)  cp->XtX = MatrixCopy(gm->XtX,NULL);
+  if(gm->iXtX) cp->iXtX = MatrixCopy(gm->iXtX,NULL);
+  if(gm->Xty)  cp->Xty = MatrixCopy(gm->Xty,NULL);
+
+  cp->debug = gm->debug;
   cp->ReScaleX = gm->ReScaleX;
   cp->ncontrasts = gm->ncontrasts;
   for(int n=0; n < gm->ncontrasts; n++){
