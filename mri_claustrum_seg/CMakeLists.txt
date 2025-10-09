@@ -1,7 +1,7 @@
 project(mri_claustrum_seg)
 
-# currently only working on Linux platforms
-if(NOT APPLE)
+# Problems with python env on APPLE_ARM64
+if (NOT APPLE_ARM64)
 
 # handle FSPYTHON tree split install
 if (FSPYTHON_INSTALL_TREE)

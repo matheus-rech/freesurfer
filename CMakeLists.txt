@@ -205,8 +205,6 @@ if(HOST_OS MATCHES "Ubuntu24")
    set(ITK_SYSLIBS ON)
    set(GLUT_SYSLIBS ON)
    set(DISABLE_LINEPROF ON)
-   # install not yet working
-   set(INTEGRATE_SAMSEG OFF)
 elseif(HOST_OS MATCHES "Rocky9")
    set(QT_SYSLIBS ON)
    set(VTK_SYSLIBS ON)

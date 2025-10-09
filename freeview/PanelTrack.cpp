@@ -20,6 +20,7 @@
 #include "MyUtils.h"
 #include "LayerCollection.h"
 #include "LayerPropertyTrack.h"
+#include "LUTDataHolder.h"
 #include <QFileInfo>
 
 PanelTrack::PanelTrack(QWidget *parent) :
@@ -32,6 +33,7 @@ PanelTrack::PanelTrack(QWidget *parent) :
   {
     ui->toolbar->addAction(mainwnd->ui->actionLoadTrack);
     ui->toolbar->addAction(mainwnd->ui->actionCloseTrack);
+    m_luts = mainwnd->GetLUTData();
   }
 
   m_widgetlistDirectionalColor << ui->labelDirectionScheme
@@ -42,7 +44,10 @@ PanelTrack::PanelTrack(QWidget *parent) :
                          << ui->colorPickerSolidColor;
   m_widgetlistScalarColor << ui->labelScalar << ui->labelScalarColor << ui->labelScalarMin << ui->labelScalarMax
                           << ui->comboBoxScalar << ui->comboBoxScalarColor << ui->lineEditScalarMin << ui->lineEditScalarMax
-                          << ui->sliderScalarMin << ui->sliderScalarMax;
+                          << ui->sliderScalarMin << ui->sliderScalarMax << ui->labelScalarLut << ui->comboBoxScalarLut;
+  m_widgetlistScalarLut << ui->labelScalarLut << ui->comboBoxScalarLut;
+  m_widgetlistScalarThreshold << ui->labelScalarMin << ui->labelScalarMax << ui->lineEditScalarMin << ui->lineEditScalarMax
+                              << ui->sliderScalarMin << ui->sliderScalarMax;
   connect(ui->pushButtonShowClusterMap, SIGNAL(clicked()), mainwnd, SLOT(ShowTractClusterMap()));
   connect(ui->sliderOpacity, SIGNAL(valueChanged(int)), SLOT(OnSliderOpacity(int)));
   connect(ui->lineEditOpacity, SIGNAL(textChanged(QString)), SLOT(OnLineEditOpacity(QString)));
@@ -50,6 +55,7 @@ PanelTrack::PanelTrack(QWidget *parent) :
   connect(ui->sliderScalarMax, SIGNAL(valueChanged(int)), SLOT(OnSliderScalarThreshold(int)));
   connect(ui->lineEditScalarMin, SIGNAL(textChanged(QString)), SLOT(OnLineEditScalarThreshold(QString)));
   connect(ui->lineEditScalarMax, SIGNAL(textChanged(QString)), SLOT(OnLineEditScalarThreshold(QString)));
+  connect(ui->comboBoxScalarLut, SIGNAL(currentIndexChanged(int)), SLOT(OnComboLookupTable(int)));
 }
 
 PanelTrack::~PanelTrack()
@@ -142,6 +148,27 @@ void PanelTrack::DoUpdateWidgets()
       ui->sliderScalarMin->setValue((th[0]-range[0])/(range[1]-range[0])*100);
       ui->sliderScalarMax->setValue((th[1]-range[0])/(range[1]-range[0])*100);
     }
+
+    if (layer->GetProperty()->GetColorCode() == LayerPropertyTrack::Scalar)
+    {
+      bool bLut = (layer->GetProperty()->GetScalarColorMap() == LayerPropertyTrack::LUT);
+      ShowWidgets(m_widgetlistScalarLut, bLut);
+      ShowWidgets(m_widgetlistScalarThreshold, !bLut);
+    }
+
+    ui->comboBoxScalarLut->clear();
+    for ( int i = 0; i < m_luts->GetCount(); i++ )
+    {
+      ui->comboBoxScalarLut->addItem( m_luts->GetName( i ) );
+    }
+    ui->comboBoxScalarLut->addItem("Load lookup table...");
+    int nSel = m_luts->GetIndex(layer->GetProperty()->GetLUTCTAB());
+    if (nSel < 0 && m_luts->GetCount() > 0)
+    {
+      layer->GetProperty()->SetLUTCTAB(m_luts->GetColorTable(0));
+      nSel = 0;
+    }
+    ui->comboBoxScalarLut->setCurrentIndex( nSel >= 0 ? nSel : m_luts->GetCount() );
   }
 
   ui->labelFileName->setEnabled( layer );
@@ -192,7 +219,10 @@ void PanelTrack::OnSliderScalarThreshold(int val)
     int n = (sender() == ui->sliderScalarMax)?1:0;
     th[n] = (range[1]-range[0])*val/100+range[0];
     layer->GetProperty()->SetScalarThreshold(th[0], th[1]);
-    ChangeLineEditNumber(n == 0?ui->lineEditScalarMin:ui->lineEditScalarMax, th[n]);
+    QLineEdit* le = (n == 0?ui->lineEditScalarMin:ui->lineEditScalarMax);
+    le->blockSignals(true);
+    ChangeLineEditNumber(le, th[n]);
+    le->blockSignals(false);
   }
 }
 
@@ -215,5 +245,26 @@ void PanelTrack::OnLineEditScalarThreshold(const QString & text)
     slider->blockSignals(true);
     slider->setValue((val-range[0])/(range[1]-range[0])*100);
     slider->blockSignals(false);
+  }
+}
+
+void PanelTrack::OnComboLookupTable(int nSel)
+{
+  LayerTrack* layer = GetCurrentLayer<LayerTrack*>();
+  if (layer)
+  {
+    if ( nSel == ui->comboBoxScalarLut->count()-1 )
+    {
+      MainWindow::GetMainWindow()->LoadLUT();
+      UpdateWidgets();
+    }
+    else
+    {
+      if ( nSel < m_luts->GetCount() )
+      {
+        COLOR_TABLE* ct = m_luts->GetColorTable( nSel );
+        layer->GetProperty()->SetLUTCTAB( ct );
+      }
+    }
   }
 }

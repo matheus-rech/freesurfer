@@ -432,6 +432,17 @@ QString PanelAllLayers::GetCurrentLayerType()
   return "";
 }
 
+QString PanelAllLayers::GetCurrentPanelType()
+{
+  PanelLayer* panel = qobject_cast<PanelLayer*>(ui->stackedWidget->currentWidget());
+  if (panel)
+  {
+    return panel->GetLayerType();
+  }
+  else
+    return "";
+}
+
 QList<Layer*> PanelAllLayers::GetSelectedLayers(const QString &layerType)
 {
   QList<Layer*> layers;

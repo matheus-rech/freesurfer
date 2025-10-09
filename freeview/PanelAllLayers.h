@@ -23,6 +23,7 @@ public:
   ~PanelAllLayers();
 
   QString GetCurrentLayerType();
+  QString GetCurrentPanelType();
 
   QList<Layer*> GetSelectedLayers(const QString& layerType);
 
