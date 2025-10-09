@@ -26,7 +26,7 @@
   ENDHELP
 */
 
-/*
+/* 
   BEGINUSAGE
 
   ENDUSAGE
@@ -55,6 +55,7 @@
 #include "mrisurf.h"
 #include "mrisutils.h"
 #include "randomfields.h"
+#include "volcluster.h"
 
 #ifdef _OPENMP
 #include "romp_support.h"
@@ -119,7 +120,7 @@ MRI *MRIcorify(MRI *seg, double corethresh){
   printf("Done corification\n");
   return(core);
 }
-
+#if 0
 class SpatTempCluster {
   // test masking, edge and corner
   // clusters - centroid, pointsets, size
@@ -236,7 +237,8 @@ public:
   int PrintClusterSum(FILE *fp){
     for(int n=0; n < this->ClusterList.size(); n++){
       Cluster cl = ClusterList[n];
-      fprintf(fp,"%2d %5d   %3d %3d %3d  %3d\n",n+1,(int)cl.crst.size(),cl.crst[0][0],cl.crst[0][1],cl.crst[0][2],cl.crst[0][3]);
+      fprintf(fp,"%2d %5d   %3d %3d %3d  %3d\n",n+1,(int)cl.crst.size(),
+	      cl.crst[0][0],cl.crst[0][1],cl.crst[0][2],cl.crst[0][3]);
     }
     fflush(fp);
     return(0);
@@ -269,6 +271,8 @@ public:
   }
 
 };
+#endif
+
 
 static int  parse_commandline(int argc, char **argv);
 static void check_options(void);
@@ -337,7 +341,7 @@ int main(int argc, char *argv[])
   MRI *mask = NULL;
   if(maskfile){
     mask = MRIread(maskfile);
-    if(!ov) exit(1);
+    if(!mask) exit(1);
   }
 
   printf("Creating output directory %s\n",outdir);

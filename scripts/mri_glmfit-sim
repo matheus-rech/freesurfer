@@ -48,6 +48,7 @@ set varfwhm = ()
 set PermPVROverride = 0;
 set mask = ();
 set DoFDR = 0;
+set AllowDiag = 1
 
 set nJobs = 1;
 set DoBackground = 0;
@@ -456,9 +457,9 @@ if($DoSim) then
     echo "$nthJob/$nJobs `date`" | tee -a $LF
 
     set cmd = (mri_glmfit $clist2)
-    set cmd = ($cmd --sim $nulltype $nSimPerJob $thresh \
-       $glmdir/csd/$csdbase.$jpad)
+    set cmd = ($cmd --sim $nulltype $nSimPerJob $thresh $glmdir/csd/$csdbase.$jpad)
     set cmd = ($cmd --sim-sign $simsign --fwhm $fwhm)
+    if($AllowDiag) set cmd = ($cmd --allowdiag) # must match mri_volcluster
     if($#fsgd) set cmd = ($cmd --fsgd $fsgd $gd2mtx)
     if($#X)    set cmd = ($cmd --X $X)
     if($#wls)  set cmd = ($cmd --wls $wls)
@@ -676,12 +677,17 @@ foreach conname ($conlist)
     set maxcwpval = $glmdir/$conname/$csdbase.max.cwpval.txt
     set cmd = (mri_volcluster --in $sig --mask $mask --no-fixmni\
       --cwsig $cwsig --sum $sum --ocn $ocn --cwpvalthresh $cwpvalthresh \
-      --out $msig --allowdiag --maxcwpval $maxcwpval)
+      --out $msig --maxcwpval $maxcwpval \
+      --csd-out $glmdir/csd/all.$csdbase-$conname.csd)
+    if($AllowDiag) set cmd = ($cmd --allowdiag ) # must match mri_glmfit when running sim
     if(! $Do1D) then 
-      set reg = $FREESURFER_HOME/subjects/$volsubject/mri.2mm/reg.2mm.dat 
-      set aseg = aparc+aseg.mgz
-      if(! -e $FREESURFER_HOME/subjects/$volsubject/mri/$aseg) set aseg = aseg.mgz
-      set cmd = ($cmd --seg $volsubject $aseg --reg $reg )
+      if($volsubject == fsaverage) then
+        set aseg = aparc+aseg.mgz      
+        if(! -e $FREESURFER_HOME/subjects/$volsubject/mri/$aseg) set aseg = aseg.mgz
+        set cmd = ($cmd --seg $volsubject $aseg)
+        set reg = $FREESURFER_HOME/subjects/$volsubject/mri.2mm/reg.2mm.dat 
+        set cmd = ($cmd --reg $reg)
+      endif
     else
       set cmd = ($cmd --gte)
     endif
@@ -809,6 +815,13 @@ while( $#argv != 0 )
     case "--vol-subject":
       if( $#argv < 1) goto arg1err;
       set volsubject = $argv[1]; shift;
+      breaksw
+
+    case "--allowdiag":
+      set AllowDiag = 1
+      breaksw
+    case "--no-allowdiag":
+      set AllowDiag = 0
       breaksw
 
     case "--grf":
@@ -1148,6 +1161,7 @@ usage_exit:
   echo " --centroid : report the coordinates/annotation of the centroid instead of max"
   echo " --spatial-sum : compute the sum over voxels in the cluster rather than"
   echo "   the average when creating the y.ocn file. This is good for when the input is area or volume"
+  echo " --no-allowdiag : for volume, only allow face neighbors"
   echo " --help"
   echo ""
 

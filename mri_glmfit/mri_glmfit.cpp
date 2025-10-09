@@ -735,6 +735,7 @@ char *frameMaskFile = NULL;
 int DoSimThreshLoop = 0;
 int  nThreshList = 4, nthThresh;
 float ThreshList[4] = {1.3,  2.0,  2.3,  3.0};
+int AllowDiag = 0;
 int  nSignList = 3, nthSign;
 int SignList[3] = {-1,0,1};
 CSD *csdList[5][3][20];
@@ -1931,9 +1932,9 @@ int main(int argc, char **argv) {
 	      // volume clustering -------------
 	      if (debug) printf("Clustering on volume\n");
 	      VolClustList = clustGetClusters(sig, 0, vwth,-1,csd->threshsign,0,
-					      mriglm->mask, &nClusters, NULL);
+					      mriglm->mask, &nClusters, NULL, AllowDiag);
 	      csize = voxelsize*clustMaxClusterCount(VolClustList,nClusters);
-	      if (Gdiag_no > 0) clustDumpSummary(stdout,VolClustList,nClusters);
+	      if(Gdiag_no > 0) clustDumpSummary(stdout,VolClustList,nClusters);
 	      clustFreeClusterList(&VolClustList,nClusters);
 	    }
 	    if(debug) printf("%s %d nc=%d  maxcsize=%g  sigmax=%g  Fmax=%g\n",
@@ -2734,6 +2735,7 @@ static int parse_commandline(int argc, char **argv) {
       DoPCC = 0;
       nargsused = 4;
     } 
+    else if(!strcasecmp(option, "--allowdiag")) AllowDiag = 1;
     else if(!strcasecmp(option, "--sim-thresh-loop")) DoSimThreshLoop = 1;
     else if(!strcasecmp(option, "--sim-thresh-loop-pos")){
       DoSimThreshLoop = 1;

@@ -103,7 +103,7 @@ VOLCLUSTER **clustGetClusters(MRI *vol, int frame,
                               float threshmin, float threshmax,
                               int threshsign, float minclustsizemm3,
                               MRI *binmask, int *nClusters,
-                              MATRIX *XFM);
+                              MATRIX *XFM, int allowdiag=0);
 int clustMaxClusterCount(VOLCLUSTER **VolClustList, int nClusters);
 int clustDumpSummary(FILE *fp,VOLCLUSTER **VolClustList, int nClusters);
 
@@ -193,6 +193,35 @@ int CSDwrite(char *fname, CSD *csd);
 MRI *MRIremoveVolumeIslands(MRI *mask, double thresh, int nKeep, MRI *outvol);
 MRI *MRIremoveVolumeHoles(MRI *mask, double thresh, int nKeep, double FillVal, MRI *outvol);
 MRI *MRIremoveSliceHoles(MRI *mask, int slicedir, MRI *outvol);
+
+
+class SpatTempCluster {
+  // test masking, edge and corner
+  // clusters - centroid, pointsets, size
+public:
+  int topo=1; //1 = volume, 2 = surface
+  int nbrtype = 0; //1=face, 2=+edge, 3=+corner
+  MRI *binmask=NULL;
+  MRI *cnomap =NULL;
+  MRIS *surf=NULL;
+  int debug = 0;
+  std::vector<std::vector<int>> voxlist; //c,r,s,f
+  class Cluster {
+  public: 
+    int cno = 0;
+    int nmembers = 0;
+    std::vector<std::vector<int>> crst;
+  };
+  std::vector<Cluster> ClusterList;
+  std::vector<std::vector<int>> GetNearestNeighbors(std::vector<int> vox);
+  int GrowOne(std::vector<int> vox, int cno);
+  int Clusterize(void);
+  int MaxClusterSize(void);
+  std::vector<double> GetClusterSizes(void);
+  int PrintClusterSum(FILE *fp);
+  int GetBinMask(MRI *ov, double thmin, double thmax, int sign, MRI *mask);
+  int GetCtab=1;
+};
 
 
 #endif

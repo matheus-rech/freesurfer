@@ -371,7 +371,9 @@ int clustGrowOneVoxel(VOLCLUSTER *vc, int col0, int row0, int slc0, MRI *HitMap,
         slc = slc0 + dslc;
         if (slc < 0 || slc >= HitMap->depth) continue;
 
-        // If not allowing for diagonal connections
+        // If not allowing for "diagonal" (edge and corner) connections
+        // Note that AllowDiag is not set by default when mri_volcluster is run 
+	// but it is set by default when mri_glmfit-sim is run
         if (!AllowDiag) {
           dsum = fabs(dcol) + fabs(drow) + fabs(dslc);
           if (dsum != 1) continue;
@@ -780,10 +782,11 @@ VOLCLUSTER **clustGetClusters(MRI *vol,
                               float minclustsizemm3,
                               MRI *binmask,
                               int *nClusters,
-                              MATRIX *XFM)
+                              MATRIX *XFM,
+			      int allowdiag)
 {
   int nthhit, nclusters, nhits, *hitcol = NULL, *hitrow = NULL, *hitslc = NULL;
-  int col, row, slc, allowdiag = 0, nprunedclusters;
+  int col, row, slc, nprunedclusters;
   MRI *HitMap;
   VOLCLUSTER **ClusterList, **ClusterList2;
   float voxsizemm3, distthresh = 0;
@@ -1768,12 +1771,12 @@ double CSDpvalClustSize(CLUSTER_SIM_DATA *csd, double ClusterSize, double ciPct,
     // the one under test
     nover = 0;
     for (nthrep = 0; nthrep < csd->nreps; nthrep++){
-      if(csd->MaxClusterSize[nthrep] >  ClusterSize) nover++;
+      if(csd->MaxClusterSize[nthrep] > ClusterSize) nover++;
     }
-    // Use greter-than-or-equal-to in addition to greather-than.  This
+    // Use greater-than-or-equal-to in addition to greater-than.  This
     // came up in a 1D application where the number of voxels in the
     // cluster can be quite small making the inequality
-    // important. Using just > is too liberal. Using just >= is to
+    // important. Using just > is too liberal. Using just >= is too
     // conservative. This effectively averages them together; seems to
     // work. But Tom's change above is better. Probably not important
     // for 2D and 3D apps and should only change the pvalue in very
@@ -2287,4 +2290,178 @@ MRI *MRIremoveSliceHoles(MRI *mask, int slicedir, MRI *outvol)
   printf("MRIremoveSliceHodes() removed %d voxels\n",naddedtot);
 
   return(outvol);
+}
+
+
+std::vector<std::vector<int>> SpatTempCluster::GetNearestNeighbors(std::vector<int> vox)
+{
+  std::vector<std::vector<int>> nbrs;
+  if(topo==1){ // volume
+    for(int dc=-1; dc <= +1; dc++){
+      for(int dr=-1; dr <= +1; dr++){
+	for(int ds=-1; ds <= +1; ds++){
+	  if(abs(dc)+abs(dr)+abs(ds) > nbrtype) continue;
+	  if(vox[0]+dc < 0 || vox[0]+dc >= binmask->width) continue;
+	  if(vox[1]+dr < 0 || vox[1]+dr >= binmask->height) continue;
+	  if(vox[2]+ds < 0 || vox[2]+ds >= binmask->depth) continue;
+	    for(int df=-1; df <= +1; df++){
+	    if(abs(dc)+abs(dr)+abs(ds)+abs(df)==0) continue; // not self
+	    // this line forces a face topology across frames
+	    if(abs(df) > 0 && (abs(dc)+abs(dr)+abs(ds) > 0) ) continue;
+	    if(vox[3]+df < 0 || vox[3]+df >= binmask->nframes) continue;
+	    std::vector<int> dcrsf = {vox[0]+dc,vox[1]+dr,vox[2]+ds,vox[3]+df};
+	    nbrs.push_back(dcrsf);
+	  }
+	}
+      }
+    }
+  } 
+  else { // surface 
+    int vno = vox[0];
+    // Doing frames separately forces face topology across frame
+    for(int df=-1; df <= +1; df++){
+      if(vox[3]+df < 0 || vox[3]+df >= binmask->nframes) continue;
+      std::vector<int> dcrsf = {vox[0],0,0,vox[3]+df};
+      nbrs.push_back(dcrsf);
+    }
+    VERTEX_TOPOLOGY *vtop = &surf->vertices_topology[vno];
+    int vnum = vtop->vtotal;
+    for(int i = 0; i < vnum; i++) {
+      int vnbno = vtop->v[i];
+      std::vector<int> dcrsf = {vnbno,0,0,vox[3]};
+      nbrs.push_back(dcrsf);
+    }
+  }
+  return(nbrs);
+}
+
+int SpatTempCluster::GrowOne(std::vector<int> vox, int cno)
+{
+  int m;
+  m = MRIgetVoxVal(this->binmask,vox[0],vox[1],vox[2],vox[3]);
+  if(!m) return(0); // not a set voxel
+  m = MRIgetVoxVal(this->cnomap,vox[0],vox[1],vox[2],vox[3]);
+  if(m) return(0); // already in a cluster
+  // To get here, the vox must be active in the binmask and not in a cluster already
+  MRIsetVoxVal(this->cnomap,vox[0],vox[1],vox[2],vox[3], cno+1);
+  this->ClusterList[cno].crst.push_back(vox);
+  int nhits = 1;
+  std::vector<std::vector<int>> nbrs = this->GetNearestNeighbors(vox);
+  for(int n=0; n < nbrs.size(); n++){
+    nhits += this->GrowOne(nbrs[n],cno);
+  }
+  // this might not be right as it might overcount
+  this->ClusterList[cno].nmembers += nhits; 
+  return(nhits);
+}
+
+int SpatTempCluster::Clusterize(void){
+  if(topo == 1 && nbrtype == 0){
+    printf("ERROR: nbrtype must set when topo=1, should be 1, 2, or 3\n");
+    return(1);
+  }
+  //printf("cl:VMPC1.0 %d\n",GetVmPeak());
+  if(this->cnomap) MRIfree(&this->cnomap);
+  this->cnomap = MRIclone(this->binmask,NULL);
+  //printf("cl:VMPC2.0 %d\n",GetVmPeak());
+  this->ClusterList.clear();
+  //printf("cl:VMPC3.0 %d\n",GetVmPeak());
+  int pointno = -1;
+  int cno = -1;
+  while(1){
+    pointno ++;
+    if(pointno >= this->voxlist.size()) break;
+    int done = 0;
+    std::vector<int> vox;
+    while(1){ // find the next point that has not been marked
+      vox = voxlist[pointno];
+      int val = MRIgetVoxVal(this->cnomap,vox[0],vox[1],vox[2],vox[3]);
+      if(val) { // point already found
+	pointno++;
+	if(pointno >= this->voxlist.size()) {
+	  done = 1;
+	  break;
+	}
+      }
+      else break; // found an unmarked point
+    }
+    if(done) break;
+    cno++;
+    Cluster cl;
+    cl.cno = cno;
+    if(debug) printf("Adding cno=%d pointno=%d  %d %d %d %d =====\n",cno,pointno,vox[0],vox[1],vox[2],vox[3]);
+    this->ClusterList.push_back(cl);
+    //printf("pregrow:VMPC3.1 %d\n",GetVmPeak());
+    this->GrowOne(vox,cno);
+    //int nhits = this->GrowOne(vox,cno);
+    //printf("pstgrow:VMPC3.2 %d    %d\n",GetVmPeak(),nhits);
+  }
+  //printf("cl:VMPC4.0 %d\n",GetVmPeak());
+  //printf("Found %d clusters\n",(int)this->ClusterList.size());
+  //printf("Adding ctab\n");
+  if(this->GetCtab) {
+    printf("getting ctab %d\n",(int)this->ClusterList.size()+1);
+    if(this->cnomap->ct) CTABfree(&this->cnomap->ct);
+    this->cnomap->ct = CTABalloc(this->ClusterList.size()+1);
+    CTABunique(this->cnomap->ct, 100); //100 = number of tries
+  }
+  
+  return(this->ClusterList.size());
+}
+
+int SpatTempCluster::PrintClusterSum(FILE *fp){
+  for(int n=0; n < this->ClusterList.size(); n++){
+    Cluster cl = ClusterList[n];
+    fprintf(fp,"%2d %5d   %3d %3d %3d  %3d\n",n+1,(int)cl.crst.size(),
+	    cl.crst[0][0],cl.crst[0][1],cl.crst[0][2],cl.crst[0][3]);
+  }
+  fflush(fp);
+  return(0);
+}
+
+int SpatTempCluster::MaxClusterSize(void)
+{
+  int maxsize = 0;
+  for(int n=0; n < this->ClusterList.size(); n++){
+    if(maxsize < (int)ClusterList[n].crst.size()) 
+      maxsize = (int)ClusterList[n].crst.size();
+  }
+  return(maxsize);
+}
+
+std::vector<double> SpatTempCluster::GetClusterSizes(void)
+{
+  std::vector<double> csizes;
+  for(int n=0; n < this->ClusterList.size(); n++){
+    csizes.push_back(ClusterList[n].crst.size());
+  }
+  return(csizes);
+}
+
+
+int SpatTempCluster::GetBinMask(MRI *ov, double thmin, double thmax, int sign, MRI *mask)
+{
+  if(this->binmask) MRIfree(&this->binmask);
+  this->binmask = MRIallocSequence(ov->width,ov->height,ov->depth,MRI_INT,ov->nframes);
+  MRIcopyHeader(ov,this->binmask);
+  this->voxlist.clear();
+  //not thread safe
+  for(int c=0; c < ov->width; c++){
+    for(int r=0; r < ov->height; r++){
+      for(int s=0; s < ov->depth; s++){
+	if(mask && MRIgetVoxVal(mask,c,r,s,0)<0.5) continue;
+	for(int f=0; f < ov->nframes; f++){
+	  double val = MRIgetVoxVal(ov,c,r,s,f);
+	  if(sign ==  0) val = fabs(val);
+	  if(sign == -1) val = -val;
+	  if(val < thmin || val > thmax) continue;
+	  std::vector<int> vox = {c,r,s,f};
+	  voxlist.push_back(vox);
+	  MRIsetVoxVal(binmask,c,r,s,f,1);
+	}
+      }
+    }
+  }
+  if(debug) printf("thmin=%g thmax=%g sign=%d nhits=%d\n",thmin,thmax,sign,(int)voxlist.size());
+  return(voxlist.size());
 }
