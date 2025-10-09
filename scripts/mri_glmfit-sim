@@ -674,10 +674,10 @@ foreach conname ($conlist)
       echo "ERROR: voxel size of input is $voxsize, expecting 2"
       exit 1
     endif
-    set maxcwpval = $glmdir/$conname/$csdbase.max.cwpval.txt
+    set mincwpval = $glmdir/$conname/$csdbase.min.cwpval.txt
     set cmd = (mri_volcluster --in $sig --mask $mask --no-fixmni\
       --cwsig $cwsig --sum $sum --ocn $ocn --cwpvalthresh $cwpvalthresh \
-      --out $msig --maxcwpval $maxcwpval \
+      --out $msig --mincwpval $mincwpval \
       --csd-out $glmdir/csd/all.$csdbase-$conname.csd)
     if($AllowDiag) set cmd = ($cmd --allowdiag ) # must match mri_glmfit when running sim
     if(! $Do1D) then 
