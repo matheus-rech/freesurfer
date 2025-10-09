@@ -779,6 +779,7 @@ static int parse_commandline(int argc, char **argv) {
     else if (!strcasecmp(option, "--verbose")) verbose = 1;
     else if (!strcasecmp(option, "--no-adjust")) AdjustThreshWhenOneTail=0;
     else if (!strcasecmp(option, "--allowdiag")) allowdiag = 1;
+    else if (!strcasecmp(option, "--no-allowdiag")) allowdiag = 0;
     else if (!strcmp(option, "--maskinvert"))    maskinvert = 1;
     else if (!strcmp(option, "--nofixtkreg"))    fixtkreg = 0;
     else if (!strcmp(option, "--fixtkreg"))      fixtkreg = 1;
@@ -1172,7 +1173,8 @@ static void print_usage(void) {
   printf("   --minsize    minimum volume (mm^3)\n");
   printf("   --minsizevox minimum volume (voxels)\n");
   printf("   --mindist distance threshold <0>\n");
-  printf("   --allowdiag  : define contiguity to include diagonal\n");
+  printf("   --allowdiag  : define contiguity to include diagonal connectivity (edges and corners).\n");
+  printf("   --no-allowdiag  : turn it off (default). Note that mri_glmfit-sim uses --allowdiag\n");
   printf("   --bonferroni N : addition correction across N (eg, spaces)\n");
   printf("   --bonferroni-max N : apply bonf cor to maximum (only applies with --sig2p-max)\n");
   printf("   --sig2p-max : convert max from sig to p\n");
