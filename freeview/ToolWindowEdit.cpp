@@ -115,6 +115,9 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
   connect(mainwnd->ui->actionPaste, SIGNAL(triggered(bool)), SLOT(UpdateWidgets()), Qt::QueuedConnection);
   connect(ui->comboBoxSPModel, SIGNAL(currentIndexChanged(int)), SLOT(OnComboSPModel(int)), Qt::QueuedConnection);
 
+  connect(ui->comboBoxSPMatrixSize, SIGNAL(currentIndexChanged(int)), SLOT(OnComboSPMatrixSize(int)));
+  connect(ui->comboBoxSPDimension, SIGNAL(currentIndexChanged(int)), SLOT(OnComboSPDimension(int)));
+
   for (int i = 0; i < 3; i++)
   {
     RenderView2D* view = (RenderView2D*)mainwnd->GetRenderView(i);
@@ -180,7 +183,9 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
                         << ui->colorPickerBox
                         << ui->labelSPModel
                         << ui->comboBoxSPModel
-                        << ui->checkBoxIncludeExisting;
+                        << ui->checkBoxIncludeExisting
+                        << ui->comboBoxSPDimension
+                        << ui->comboBoxSPMatrixSize;
 
   QTimer* timer = new QTimer( this );
   connect( timer, SIGNAL(timeout()), this, SLOT(OnIdle()) );
@@ -216,7 +221,7 @@ ToolWindowEdit::ToolWindowEdit(QWidget *parent) :
   if (list.isEmpty())
     ui->comboBoxSPModel->addItem("None", "");
   else
-    m_scribble->LoadModel(ui->comboBoxSPModel->itemData(0).toString());
+    LoadSPModel(ui->comboBoxSPModel->itemData(0).toString());
   ui->comboBoxSPModel->addItem("Add...");
   ui->comboBoxSPModel->blockSignals(false);
   ui->comboBoxSPModel->setCurrentIndex(0);
@@ -859,7 +864,7 @@ void ToolWindowEdit::OnComboSPModel(int nSel)
       ui->comboBoxSPModel->addItem("Add...");
       ui->comboBoxSPModel->setCurrentIndex(ui->comboBoxSPModel->count()-2);
       ui->comboBoxSPModel->blockSignals(false);
-      m_scribble->LoadModel(fn);
+      LoadSPModel(fn);
       pre_ind = ui->comboBoxSPModel->currentIndex();
     }
     else
@@ -871,8 +876,41 @@ void ToolWindowEdit::OnComboSPModel(int nSel)
   }
   else if (!ui->comboBoxSPModel->itemData(nSel).toString().isEmpty())
   {
-    m_scribble->LoadModel(ui->comboBoxSPModel->itemData(nSel).toString());
+    LoadSPModel(ui->comboBoxSPModel->itemData(nSel).toString());
     pre_ind = nSel;
   }
+#endif
+}
+
+void ToolWindowEdit::LoadSPModel(const QString &fn)
+{
+#ifdef SCRIBBLE_PROMPT
+  QStringList list = QFileInfo(fn).completeBaseName().split("_");
+  if (list.size() >= 2)
+  {
+    if (list.last().toInt() == 64)
+      ui->comboBoxSPMatrixSize->setCurrentIndex(0);
+    else
+      ui->comboBoxSPMatrixSize->setCurrentText("128");
+    if (list[list.size()-2].toLower() == "3d")
+      ui->comboBoxSPDimension->setCurrentIndex(1);
+    else
+      ui->comboBoxSPDimension->setCurrentIndex(0);
+  }
+  m_scribble->LoadModel(fn, ui->comboBoxSPMatrixSize->currentText().toInt(), ui->comboBoxSPDimension->currentIndex() == 1);
+#endif
+}
+
+void ToolWindowEdit::OnComboSPDimension(int nSel)
+{
+#ifdef SCRIBBLE_PROMPT
+  m_scribble->Set3D(nSel == 1);
+#endif
+}
+
+void ToolWindowEdit::OnComboSPMatrixSize(int nSel)
+{
+#ifdef SCRIBBLE_PROMPT
+  m_scribble->SetMatrixSize(nSel == 0?64:128);
 #endif
 }

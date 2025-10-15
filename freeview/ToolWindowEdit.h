@@ -68,10 +68,15 @@ protected slots:
   void OnSegFinished(double time);
   void OnComboSPModel(int nSel);
 
+  void OnComboSPMatrixSize(int nSel);
+  void OnComboSPDimension(int nSel);
+
 protected:
   virtual void showEvent(QShowEvent *);
 
 private:
+  void LoadSPModel(const QString& fn);
+
   Ui::ToolWindowEdit *ui;
 
   bool m_bToUpdateWidgets;

@@ -35,9 +35,19 @@ signals:
 public slots:
   void Compute(LayerMRI *mri_ref, LayerMRI* seg, LayerMRI* seeds, int nPlane, int nSlice, double fill_val, bool include_existing, LayerMRI* mri_edit);
   void Apply(LayerMRI *seg, LayerMRI *filled, double fill_val);
-  void LoadModel(const QString& fn)
+  void LoadModel(const QString& fn, int mat_size, bool b3D = false)
   {
+    m_b3D = b3D;
+    m_nMatSize = mat_size;
     Initialize(fn);
+  }
+  void Set3D(bool b)
+  {
+    m_b3D = b;
+  }
+  void SetMatrixSize(int n)
+  {
+    m_nMatSize = n;
   }
 
 private slots:
@@ -46,9 +56,9 @@ private slots:
   void DoApply();
 
 private:
-  vtkImageData* GetResizedMriImage(float* ptr, int* dim, int* x_range, int* y_range, int nMag);
-  vtkImageData* GetResizedSeedImage(unsigned char* ptr, int* dim, int* x_range, int* y_range, int nMag);
-  void ResizeImageData(float* ptr_in, int nx, int ny, float* ptr_out, int nx_out, int ny_out);
+  vtkImageData* GetResizedMriImage(float* ptr, int* dim, int* x_range, int* y_range, int* z_range, int nMag);
+  vtkImageData* GetResizedSeedImage(unsigned char* ptr, int* dim, int* x_range, int* y_range, int* z_range, int nMag);
+  void ResizeImageData(float* ptr_in, int nx, int ny, int nz, float* ptr_out, int nx_out, int ny_out, int nz_out);
 
   LayerMRI* m_seeds;
   LayerMRI* m_ref;
@@ -61,6 +71,8 @@ private:
   bool    m_bIncludeExisting;
   QString m_strModelFilename;
   TorchScriptModule* m_module;
+  bool    m_b3D;
+  int     m_nMatSize;
 };
 
 #endif // SCRIBBLEPROMPTWORKER_H

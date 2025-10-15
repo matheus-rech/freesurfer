@@ -10,7 +10,7 @@ public:
   explicit TorchScriptModule(QObject *parent = nullptr);
   ~TorchScriptModule();
   void Load(const QString& fn);
-  void Run(QVector<float*> in_ptr, float* output);
+  void Run(QVector<float*> in_ptr, float* output, int mat_size, bool b3D);
 
 signals:
   void Finished();

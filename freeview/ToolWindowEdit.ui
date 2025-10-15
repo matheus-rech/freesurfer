@@ -816,6 +816,54 @@ distance</string>
          </layout>
         </widget>
        </item>
+       <item row="4" column="5" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_10">
+         <item>
+          <widget class="QComboBox" name="comboBoxSPDimension">
+           <item>
+            <property name="text">
+             <string>2D</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>3D</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBoxSPMatrixSize">
+           <property name="currentText">
+            <string>128</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>64</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>128</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_17">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>5</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
       </layout>
      </item>
      <item>
