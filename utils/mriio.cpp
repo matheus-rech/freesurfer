@@ -4911,7 +4911,8 @@ static dsr *ReadAnalyzeHeader(const char *hdrfile, int *swap, int *mritype, int 
     *mritype = MRI_USHRT;
     *bytes_per_voxel = 2;
   }
-  else if (hdr->dime.datatype == DT_SIGNED_INT) {
+  else if (hdr->dime.datatype == DT_SIGNED_INT ||
+	   hdr->dime.datatype == DT_UINT32) {
     *mritype = MRI_INT;
     *bytes_per_voxel = 4;
   }
@@ -7803,7 +7804,8 @@ static MRI *nifti1Read(const char *fname, int read_volume)
       fs_type = MRI_USHRT;
       bytes_per_voxel = 2;
     }
-    else if (hdr.datatype == DT_SIGNED_INT) {
+    else if (hdr.datatype == DT_SIGNED_INT ||
+	     hdr.datatype == DT_UINT32) {
       fs_type = MRI_INT;
       bytes_per_voxel = 4;
     }
@@ -7822,7 +7824,7 @@ static MRI *nifti1Read(const char *fname, int read_volume)
   }
   else  // we must scale the voxel values
   {
-    if (hdr.datatype != DT_UNSIGNED_CHAR && hdr.datatype != DT_SIGNED_SHORT && hdr.datatype != DT_SIGNED_INT &&
+    if (hdr.datatype != DT_UNSIGNED_CHAR && hdr.datatype != DT_SIGNED_SHORT && hdr.datatype != DT_SIGNED_INT && hdr.datatype != DT_UINT32 &&
         hdr.datatype != DT_FLOAT && hdr.datatype != DT_DOUBLE && hdr.datatype != DT_INT8 && hdr.datatype != DT_UINT16 &&
         hdr.datatype != DT_UINT32) {
       ErrorReturn(NULL,
@@ -7994,7 +7996,8 @@ static MRI *nifti1Read(const char *fname, int read_volume)
       free(buf);
     }
 
-    if (hdr.datatype == DT_SIGNED_INT) {
+    if (hdr.datatype == DT_SIGNED_INT ||
+	hdr.datatype == DT_UINT32) {
       int *buf;
       bytes_per_voxel = 4;
       buf = (int *)malloc(mri->width * bytes_per_voxel);
@@ -8493,7 +8496,8 @@ static MRI *niiRead(const char *fname, int read_volume)
       fs_type = MRI_USHRT;
       bytes_per_voxel = 2;
     }
-    else if (hdr.datatype == DT_SIGNED_INT) {
+    else if (hdr.datatype == DT_SIGNED_INT ||
+	     hdr.datatype == DT_UINT32) {
       fs_type = MRI_INT;
       bytes_per_voxel = 4;
     }
@@ -8518,7 +8522,7 @@ static MRI *niiRead(const char *fname, int read_volume)
   }
   else {
     // we must scale the voxel values
-    if (hdr.datatype != DT_UNSIGNED_CHAR && hdr.datatype != DT_SIGNED_SHORT && hdr.datatype != DT_SIGNED_INT &&
+    if (hdr.datatype != DT_UNSIGNED_CHAR && hdr.datatype != DT_SIGNED_SHORT && hdr.datatype != DT_SIGNED_INT && hdr.datatype != DT_UINT32 &&
         hdr.datatype != DT_FLOAT && hdr.datatype != DT_DOUBLE && hdr.datatype != DT_INT8 && hdr.datatype != DT_UINT16 &&
         hdr.datatype != DT_UINT32) {
       ErrorReturn(
@@ -8767,7 +8771,8 @@ static MRI *niiRead(const char *fname, int read_volume)
       free(buf);
     }
 
-    if (hdr.datatype == DT_SIGNED_INT) {
+    if (hdr.datatype == DT_SIGNED_INT ||
+	hdr.datatype == DT_UINT32) {
       int *buf;
       bytes_per_voxel = 4;
       buf = (int *)malloc(mri->width * bytes_per_voxel);
@@ -9090,7 +9095,8 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
       fs_type = MRI_USHRT;
       bytes_per_voxel = 2;
     }
-    else if (hdr->datatype == DT_SIGNED_INT) {
+    else if (hdr->datatype == DT_SIGNED_INT ||
+	     hdr->datatype == DT_UINT32) {
       fs_type = MRI_INT;
       bytes_per_voxel = 4;
     }
@@ -9118,7 +9124,7 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
   }
   else {
     // we must scale the voxel values, or undo autoscale functor
-    if (hdr->datatype != DT_UNSIGNED_CHAR && hdr->datatype != DT_SIGNED_SHORT && hdr->datatype != DT_SIGNED_INT &&
+    if (hdr->datatype != DT_UNSIGNED_CHAR && hdr->datatype != DT_SIGNED_SHORT && hdr->datatype != DT_SIGNED_INT && hdr->datatype != DT_UINT32 &&
         hdr->datatype != DT_FLOAT && hdr->datatype != DT_DOUBLE && hdr->datatype != DT_INT8 && hdr->datatype != DT_UINT16 &&
         hdr->datatype != DT_UINT32) {
       ErrorReturn(
@@ -9336,7 +9342,8 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
 	bytes_per_voxel = 1;
       else if (hdr->datatype == DT_SIGNED_SHORT)
 	bytes_per_voxel = 2;
-      else if (hdr->datatype == DT_SIGNED_INT)
+      else if (hdr->datatype == DT_SIGNED_INT ||
+	       hdr->datatype == DT_UINT32)
 	bytes_per_voxel = 4;
       else if (hdr->datatype == DT_FLOAT)
 	bytes_per_voxel = 4;
@@ -9377,7 +9384,8 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
             else if (hdr->datatype == DT_UINT16) {
               val = ((unsigned short*)buf)[nn];
             }
-            else if (hdr->datatype == DT_SIGNED_INT) {
+            else if (hdr->datatype == DT_SIGNED_INT ||
+		     hdr->datatype == DT_UINT32) {
               val = ((int*)buf)[nn];
             }
             else if (hdr->datatype == DT_FLOAT) {
@@ -9426,7 +9434,8 @@ static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> 
 	  if (swapped_flag) {
 	    if (hdr->datatype == DT_SIGNED_SHORT)
 	      byteswapbufshort(buf, bytes_per_voxel * mri->width);
-	    else if (hdr->datatype == DT_SIGNED_INT)
+	    else if (hdr->datatype == DT_SIGNED_INT ||
+		     hdr->datatype == DT_UINT32)
 	      byteswapbuffloat(buf, bytes_per_voxel * mri->width);
 	    else if (hdr->datatype == DT_FLOAT)
 	      byteswapbuffloat(buf, bytes_per_voxel * mri->width);
