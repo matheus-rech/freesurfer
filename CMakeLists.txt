@@ -61,13 +61,6 @@ option(VTK_SYSLIBS "link with system vtk libs" OFF)
 option(ITK_SYSLIBS "link with system itk libs" OFF)
 option(GLUT_SYSLIBS "link with system glut libs" OFF)
 option(APPLE_ARM64 "Mac arm64 build" OFF)
-if(NOT APPLE)
-   option(TIFF_SYSLIBS "link with system tiff libs" ON)
-   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" ON)
-else()
-   option(TIFF_SYSLIBS "link with system tiff libs" OFF)
-   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" OFF)
-endif()
 
 # include our custom cmake functions (and others)
 include(cmake/functions.cmake)
@@ -76,6 +69,18 @@ include(CheckFunctionExists)
 
 # Use host_os() to get HOST_OS to reference the correct 3rd party package build
 host_os()
+
+if(APPLE)
+   option(TIFF_SYSLIBS "link with system tiff libs" OFF)
+   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" OFF)
+elseif(HOST_OS MATCHES "Ubuntu22")
+   # may use some ubuntu22 libs on ubuntu24 where the system version of libtiff has changed
+   option(TIFF_SYSLIBS "link with system tiff libs" OFF)
+   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" ON)
+else()
+   option(TIFF_SYSLIBS "link with system tiff libs" ON)
+   option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" ON)
+endif()
 
 if(FSPYTHON_INSTALL_TREE)
    # Default is parallel to cmake install prefix - use absolute path since some commands fail with path relative
