@@ -50,6 +50,7 @@ LayerTrack::LayerTrack(LayerMRI* ref, QObject* parent, bool bCluster) : Layer(pa
   connect(mProperty, SIGNAL(SolidColorChanged(QColor)), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(ScalarColorMapChanged(int)), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(ScalarIndexChanged(int)), this, SLOT(UpdateColor()));
+  connect(mProperty, SIGNAL(ScalarIndexChanged(int)), this, SLOT(ResetSelectedLabels()));
   connect(mProperty, SIGNAL(ScalarThresholdChanged(double, double)), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(ColorMapChanged()), this, SLOT(UpdateColor()));
   connect(mProperty, SIGNAL(RenderRepChanged()), this, SLOT(RebuildActors()));
@@ -72,6 +73,11 @@ LayerTrack::~LayerTrack()
 QStringList LayerTrack::GetScalarNames()
 {
   return m_trackData?m_trackData->m_scalarNames:QStringList();
+}
+
+QStringList LayerTrack::GetPropertyNames()
+{
+  return m_trackData?m_trackData->m_propertyNames:QStringList();
 }
 
 bool LayerTrack::LoadTrackFromFiles()
@@ -166,12 +172,15 @@ void LayerTrack::RebuildActors()
   vtkSmartPointer<vtkFloatArray> scalar_array[100];
   scalars->SetNumberOfComponents(4);
   QList<vtkDataArray*> scalarList;
-  QStringList scalarNames = GetScalarNames();
+  QStringList allNames = GetScalarNames();
+  int nScalars = allNames.size();
+  allNames << GetPropertyNames();
   if (GetProperty()->GetColorCode() == LayerPropertyTrack::Scalar)
   {
     int m = 0;
-    foreach (QString name, scalarNames)
+    foreach (QString name, allNames)
     {
+      name = name + QString::number(m);
       vtkSmartPointer<vtkFloatArray> fa = vtkSmartPointer<vtkFloatArray>::New();
       fa->SetName(qPrintable(name));
       scalarList << fa;
@@ -196,9 +205,13 @@ void LayerTrack::RebuildActors()
       {
         points->InsertNextPoint(t.fPts + n*3);
         lines->InsertCellPoint(nCount);
-        for (int j = 0; j < scalarList.size(); j++)
+        for (int j = 0; j < nScalars; j++)
         {
-            scalar_array[j]->InsertNextValue(t.fScalars[j][n]);
+          scalar_array[j]->InsertNextValue(t.fScalars[j][n]);
+        }
+        for (int j = nScalars; j < scalarList.size(); j++)
+        {
+          scalar_array[j]->InsertNextValue(t.fProperty[j-nScalars]);
         }
         nCount++;
       }
@@ -241,8 +254,9 @@ void LayerTrack::RebuildActors()
       if (GetProperty()->GetColorCode() == LayerPropertyTrack::Scalar)
       {
         int m = 0;
-        foreach (QString name, scalarNames)
+        foreach (QString name, allNames)
         {
+          name = name + QString::number(m);
           vtkSmartPointer<vtkFloatArray> fa = vtkSmartPointer<vtkFloatArray>::New();
           fa->SetName(qPrintable(name));
           scalarList << fa;
@@ -283,46 +297,53 @@ void LayerTrack::UpdateColor(bool emitSignal)
   }
   else if (nCode == LayerPropertyTrack::Scalar)
   {
-    int nMap = GetProperty()->GetScalarColorMap();
-    double th[2];
-    GetProperty()->GetScalarThreshold(th);
-    if (th[1] <= th[0])
-      th[1] = th[0]+1;
-    m_colorTable->RemoveAllPoints();
-    switch (nMap)
-    {
-    case LayerPropertyTrack::Heatscale:
-      m_colorTable->AddRGBAPoint( th[0], 1, 0, 0, 1 );
-      m_colorTable->AddRGBAPoint( th[1], 1, 1, 0, 1 );
-      m_colorTable->Build();
-      break;
-    case LayerPropertyTrack::Jet:
-      m_colorTable->AddRGBAPoint( qMin( 0.0, th[0]), 0, 0, 0, 0 );
-      m_colorTable->AddRGBAPoint( th[0], 0, 0, 1, 1 );
-      m_colorTable->AddRGBAPoint( th[0] + (th[1] - th[0]) / 4, 0, 1, 1, 1 );
-      m_colorTable->AddRGBAPoint( (th[0] + th[1]) / 2, 0, 1, 0, 1 );
-      m_colorTable->AddRGBAPoint( th[1] - (th[1] - th[0]) / 4, 1, 1, 0, 1 );
-      m_colorTable->AddRGBAPoint( th[1], 1, 0, 0, 1 );
-      m_colorTable->Build();
-      break;
-    case LayerPropertyTrack::LUT:
-      GetProperty()->UpdateLUTTable(m_colorTable);
-      break;
-    }
+    UpdateColorTable();
 
     QStringList names = GetScalarNames();
+    names << GetPropertyNames();
     int n = GetProperty()->GetScalarIndex();
+    QString name = names[n] + QString::number(n);
     foreach (vtkActor* actor, m_actors)
     {
       actor->GetMapper()->SetLookupTable(m_colorTable);
       vtkPolyData* poly = vtkPolyData::SafeDownCast(actor->GetMapper()->GetInput());
       if (poly)
-        poly->GetPointData()->SetActiveScalars(qPrintable(names[n]));
+        poly->GetPointData()->SetActiveScalars(qPrintable(name));
     }
   }
 
   if (emitSignal)
     emit ActorUpdated();
+}
+
+void LayerTrack::UpdateColorTable()
+{
+  int nMap = GetProperty()->GetScalarColorMap();
+  double th[2];
+  GetProperty()->GetScalarThreshold(th);
+  if (th[1] <= th[0])
+    th[1] = th[0]+1;
+  m_colorTable->RemoveAllPoints();
+  switch (nMap)
+  {
+  case LayerPropertyTrack::Heatscale:
+    m_colorTable->AddRGBAPoint( th[0], 1, 0, 0, 1 );
+    m_colorTable->AddRGBAPoint( th[1], 1, 1, 0, 1 );
+    m_colorTable->Build();
+    break;
+  case LayerPropertyTrack::Jet:
+    m_colorTable->AddRGBAPoint( qMin( 0.0, th[0]), 0, 0, 0, 0 );
+    m_colorTable->AddRGBAPoint( th[0], 0, 0, 1, 1 );
+    m_colorTable->AddRGBAPoint( th[0] + (th[1] - th[0]) / 4, 0, 1, 1, 1 );
+    m_colorTable->AddRGBAPoint( (th[0] + th[1]) / 2, 0, 1, 0, 1 );
+    m_colorTable->AddRGBAPoint( th[1] - (th[1] - th[0]) / 4, 1, 1, 0, 1 );
+    m_colorTable->AddRGBAPoint( th[1], 1, 0, 0, 1 );
+    m_colorTable->Build();
+    break;
+  case LayerPropertyTrack::LUT:
+    GetProperty()->UpdateLUTTable(m_colorTable, m_selectedLabels);
+    break;
+  }
 }
 
 void LayerTrack::VectorToColor(float *pt1, float *pt2, float *c_out, int nMappingType)
@@ -477,4 +498,51 @@ void LayerTrack::GetScalarRange(double *range, int nIndex)
 vtkRGBAColorTransferFunction* LayerTrack::GetColorTable() const
 {
   return m_colorTable;
+}
+
+QList<int> LayerTrack::GetAvailableLabels(int nProperty)
+{
+  if (m_mapAvailableLabels.contains(nProperty))
+    return m_mapAvailableLabels[nProperty];
+  else
+  {
+    QList<int> nlist;
+    foreach (Track t, m_trackData->m_tracks)
+    {
+      int nval = (int)(t.fProperty[nProperty]);
+      if (!nlist.contains(nval))
+        nlist << nval;
+    }
+    std::sort(nlist.begin(), nlist.end());
+    m_mapAvailableLabels[nProperty] = nlist;
+    return nlist;
+  }
+}
+
+void LayerTrack::ResetSelectedLabels()
+{
+  int nProperty = GetProperty()->GetScalarIndex() - GetScalarNames().size();
+  if (nProperty >= 0)
+  {
+    m_selectedLabels = GetAvailableLabels(nProperty);
+    UpdateColorTable();
+    emit ActorUpdated();
+  }
+}
+
+void LayerTrack::SetSelectLabel(int nVal, bool bSelected)
+{
+  if (bSelected && !m_selectedLabels.contains(nVal))
+    m_selectedLabels << nVal;
+  else if (!bSelected)
+    m_selectedLabels.removeOne(nVal);
+  UpdateColorTable();
+  emit ActorUpdated();
+}
+
+void LayerTrack::SetUnselectAllLabels()
+{
+  m_selectedLabels.clear();
+  UpdateColorTable();
+  emit ActorUpdated();
 }

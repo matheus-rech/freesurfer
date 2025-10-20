@@ -22,6 +22,8 @@
 #include "LayerPropertyTrack.h"
 #include "LUTDataHolder.h"
 #include <QFileInfo>
+#include "ColorTableItem.h"
+#include <QTimer>
 
 PanelTrack::PanelTrack(QWidget *parent) :
   PanelLayer("Tract", parent),
@@ -35,6 +37,8 @@ PanelTrack::PanelTrack(QWidget *parent) :
     ui->toolbar->addAction(mainwnd->ui->actionCloseTrack);
     m_luts = mainwnd->GetLUTData();
   }
+
+  ui->checkBoxShowExistingLabels->hide();
 
   m_widgetlistDirectionalColor << ui->labelDirectionScheme
                                << ui->comboBoxDirectionScheme
@@ -56,6 +60,9 @@ PanelTrack::PanelTrack(QWidget *parent) :
   connect(ui->lineEditScalarMin, SIGNAL(textChanged(QString)), SLOT(OnLineEditScalarThreshold(QString)));
   connect(ui->lineEditScalarMax, SIGNAL(textChanged(QString)), SLOT(OnLineEditScalarThreshold(QString)));
   connect(ui->comboBoxScalarLut, SIGNAL(currentIndexChanged(int)), SLOT(OnComboLookupTable(int)));
+  connect(ui->treeWidgetColorTable, SIGNAL(itemChanged(QTreeWidgetItem*,int)), SLOT(OnColorTableItemChanged(QTreeWidgetItem*)),
+          Qt::QueuedConnection);
+  connect(ui->checkBoxSelectAllLabels, SIGNAL(stateChanged(int)), SLOT(OnCheckBoxSelectAllLabels(int)));
 }
 
 PanelTrack::~PanelTrack()
@@ -117,9 +124,12 @@ void PanelTrack::DoUpdateWidgets()
     if (layer->IsCluster())
       fn = QFileInfo(fn).absolutePath() + "/*.trk";
     ui->lineEditFileName->setText(fn);
+
+    QStringList scalarNames = layer->GetScalarNames();
+    scalarNames << layer->GetPropertyNames();
     ui->lineEditFileName->setCursorPosition( ui->lineEditFileName->text().size() );
     ui->comboBoxColorCode->setCurrentIndex(layer->GetProperty()->GetColorCode());
-    ui->comboBoxColorCode->setItemData(LayerPropertyTrack::Scalar, layer->GetScalarNames().isEmpty()?0:33, Qt::UserRole-1);
+    ui->comboBoxColorCode->setItemData(LayerPropertyTrack::Scalar, scalarNames.isEmpty()?0:33, Qt::UserRole-1);
     ui->comboBoxColorCode->setItemData(LayerPropertyTrack::EmbeddedColor, layer->HasEmbeddedColor()?33:0, Qt::UserRole-1);
     ui->comboBoxDirectionMapping->setCurrentIndex(layer->GetProperty()->GetDirectionMapping());
     ui->comboBoxDirectionScheme->setCurrentIndex(layer->GetProperty()->GetDirectionScheme());
@@ -129,7 +139,6 @@ void PanelTrack::DoUpdateWidgets()
     ui->sliderOpacity->setValue(layer->GetProperty()->GetOpacity()*100);
 
     ui->comboBoxScalar->clear();
-    QStringList scalarNames = layer->GetScalarNames();
     foreach (QString name, scalarNames)
       ui->comboBoxScalar->addItem(name);
     ui->comboBoxScalar->setCurrentIndex(layer->GetProperty()->GetScalarIndex());
@@ -174,6 +183,21 @@ void PanelTrack::DoUpdateWidgets()
   ui->labelFileName->setEnabled( layer );
   ui->lineEditFileName->setEnabled( layer );
   ui->pushButtonShowClusterMap->setVisible(layer && layer->IsCluster());
+
+  ui->widgetColorTable->setVisible(layer && layer->GetProperty()->GetColorCode() == LayerPropertyTrack::Scalar &&
+                                   layer->GetProperty()->GetScalarColorMap() == LayerPropertyTrack::LUT &&
+                                   layer->GetProperty()->GetScalarIndex() >= layer->GetScalarNames().size());
+
+  if ( layer && layer->GetProperty()->GetColorCode() == LayerPropertyTrack::Scalar )
+  {
+    if (layer->GetProperty()->GetScalarColorMap() == LayerPropertyTrack::LUT)
+    {
+      if ( m_curCTAB != layer->GetProperty()->GetLUTCTAB() )
+      {
+        PopulateColorTable( layer->GetProperty()->GetLUTCTAB() );
+      }
+    }
+  }
 
   BlockAllSignals( false );
 }
@@ -266,5 +290,123 @@ void PanelTrack::OnComboLookupTable(int nSel)
         layer->GetProperty()->SetLUTCTAB( ct );
       }
     }
+  }
+}
+
+void PanelTrack::PopulateColorTable(COLOR_TABLE *ct, bool bForce)
+{
+  ui->treeWidgetColorTable->blockSignals(true);
+  LayerTrack* layer = GetCurrentLayer<LayerTrack*>();
+  if ( ct && (bForce || ct != m_curCTAB) )
+  {
+    m_curCTAB = ct;
+    ui->treeWidgetColorTable->clear();
+    int nTotalCount = 0;
+    CTABgetNumberOfTotalEntries( ct, &nTotalCount );
+    int nValid = 0;
+    char name[1000];
+    int nSel = -1;
+
+    QList<int> labels;
+    QList<int> selectedLabels;
+    if (layer)
+    {
+      int nProperty = layer->GetProperty()->GetScalarIndex()-layer->GetScalarNames().size();
+      labels = layer->GetAvailableLabels(nProperty);
+      selectedLabels = layer->GetSelectedLabels();
+    }
+    int nValidCount = 0;
+    bool bHasSelected = false, bHasUnselected = false;
+    for ( int i = 0; i < nTotalCount; i++ )
+    {
+      CTABisEntryValid( ct, i, &nValid );
+      if ( nValid )
+      {
+        CTABcopyName( ct, i, name, 1000 );
+        ColorTableItem* item = new ColorTableItem();
+        if (ColorTableItem::SortType == ColorTableItem::ST_VALUE)
+          item->setText( 0, QString("%1 %2").arg(i).arg(name) );
+        else
+          item->setText(0, QString("%1 (%2)").arg(name).arg(i));
+        item->setToolTip( 0, name );
+        int nr, ng, nb;
+        CTABrgbAtIndexi( ct, i, &nr, &ng, &nb );
+        QColor color( nr, ng, nb );
+        QPixmap pix(13, 13);
+        pix.fill( color );
+        item->setIcon(0, QIcon(pix) );
+        item->setData(0, Qt::UserRole, color );
+        item->setData(0, Qt::UserRole+1, i);
+        item->setCheckState(0,  selectedLabels.contains(i)?Qt::Checked:Qt::Unchecked);
+        if (i > 0)
+        {
+          if (item->checkState(0) == Qt::Checked)
+            bHasSelected = true;
+          else
+            bHasUnselected = true;
+        }
+        nValidCount++;
+        ui->treeWidgetColorTable->addTopLevelItem(item);
+      }
+    }
+    if (bHasSelected && !bHasUnselected)
+      ui->checkBoxSelectAllLabels->setCheckState(Qt::Checked);
+    else if (bHasSelected)
+      ui->checkBoxSelectAllLabels->setCheckState(Qt::PartiallyChecked);
+    else
+      ui->checkBoxSelectAllLabels->setCheckState(Qt::Unchecked);
+
+    if (!labels.isEmpty())
+    {
+      for (int i = 0; i < ui->treeWidgetColorTable->topLevelItemCount(); i++)
+      {
+        QTreeWidgetItem* item = ui->treeWidgetColorTable->topLevelItem(i);
+        item->setHidden(!labels.contains(item->data(0, Qt::UserRole+1).toInt()));
+      }
+    }
+  }
+  ui->treeWidgetColorTable->blockSignals(false);
+}
+
+void PanelTrack::OnColorTableItemChanged(QTreeWidgetItem *item)
+{
+  ui->checkBoxSelectAllLabels->blockSignals(true);
+  ui->checkBoxSelectAllLabels->setCheckState(Qt::PartiallyChecked);
+  LayerTrack* layer = GetCurrentLayer<LayerTrack*>();
+  if ( layer )
+  {
+    int nVal = item->data(0, Qt::UserRole+1).toInt();
+    QList<int> selected;
+    layer->SetSelectLabel(nVal, item->checkState(0) == Qt::Checked);
+    selected = layer->GetSelectedLabels();
+    ui->checkBoxSelectAllLabels->setCheckState(selected.isEmpty()?Qt::Unchecked:Qt::PartiallyChecked);
+  }
+
+  ui->checkBoxSelectAllLabels->blockSignals(false);
+}
+
+void PanelTrack::OnCheckBoxSelectAllLabels(int nState)
+{
+  ui->treeWidgetColorTable->blockSignals(true);
+  if (nState == Qt::PartiallyChecked)
+  {
+    ui->checkBoxSelectAllLabels->blockSignals(true);
+    ui->checkBoxSelectAllLabels->setCheckState(Qt::Checked);
+    ui->checkBoxSelectAllLabels->blockSignals(false);
+  }
+  for ( int i = 0; i < ui->treeWidgetColorTable->topLevelItemCount(); i++ )
+  {
+    QTreeWidgetItem* item = ui->treeWidgetColorTable->topLevelItem( i );
+    item->setCheckState(0, nState == Qt::Unchecked ? Qt::Unchecked : Qt::Checked);
+  }
+  ui->treeWidgetColorTable->blockSignals(false);
+
+  LayerTrack* layer = GetCurrentLayer<LayerTrack*>();
+  if ( layer )
+  {
+    if (nState == Qt::Unchecked)
+      layer->SetUnselectAllLabels();
+    else
+      layer->ResetSelectedLabels();
   }
 }

@@ -7,6 +7,7 @@ TEMPLATE = app
 
 SOURCES += \
     Annotation2D.cpp \
+    ColorTableItem.cpp \
     CommandEdit.cpp \
     Contour2D.cpp \
     Cursor2D.cpp \
@@ -206,6 +207,7 @@ SOURCES += \
 HEADERS  += \
     Annotation2D.h \
     BrushProperty.h \
+    ColorTableItem.h \
     CommandEdit.h \
     Contour2D.h \
     Cursor2D.h \

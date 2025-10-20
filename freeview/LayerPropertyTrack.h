@@ -93,7 +93,7 @@ public:
 
   void InitializeScalarThreshold(const QList< QPair<double, double> >& ranges);
 
-  void UpdateLUTTable(vtkRGBAColorTransferFunction* lut);
+  void UpdateLUTTable(vtkRGBAColorTransferFunction* lut, const QList<int>& selected);
 
 signals:
   void ColorCodeChanged(int);

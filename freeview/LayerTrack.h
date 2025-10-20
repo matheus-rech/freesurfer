@@ -70,9 +70,21 @@ public:
 
   QStringList GetScalarNames();
 
+  QStringList GetPropertyNames();
+
   void GetScalarRange(double* range, int nIndex = -1);
 
   vtkRGBAColorTransferFunction* GetColorTable() const;
+
+  QList<int> GetAvailableLabels(int nProperty);
+  QList<int> GetSelectedLabels()
+  {
+    return m_selectedLabels;
+  }
+
+  void SetSelectLabel(int nVal, bool bSelected);
+
+  void SetUnselectAllLabels();
 
 signals:
   void Progress(int n);
@@ -86,6 +98,8 @@ public slots:
     LoadTrackFromFiles();
   }
   void UpdateOpacity(double val);
+  void ResetSelectedLabels();
+  void UpdateColorTable();
 
 protected:
   virtual void OnSlicePositionChanged(int nPlane);
@@ -98,6 +112,8 @@ protected:
   QList<vtkActor*>  m_actors;
   QStringList m_listFilenames;
   QVariantMap m_mapCluster;
+  QMap<int, QList<int> > m_mapAvailableLabels;
+  QList<int> m_selectedLabels;
   vtkSmartPointer<vtkRGBAColorTransferFunction> m_colorTable;
 };
 

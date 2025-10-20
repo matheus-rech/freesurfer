@@ -17,8 +17,10 @@
 
 #include "PanelLayer.h"
 #include <QList>
+#include "colortab.h"
 
 class LUTDataHolder;
+class QTreeWidgetItem;
 
 namespace Ui
 {
@@ -44,8 +46,12 @@ protected slots:
   void OnSliderScalarThreshold(int);
   void OnLineEditScalarThreshold(const QString&);
   void OnComboLookupTable(int nSel);
+  void OnColorTableItemChanged(QTreeWidgetItem *item);
+  void OnCheckBoxSelectAllLabels(int nState);
 
 private:
+  void PopulateColorTable( COLOR_TABLE* ctab, bool bForce = false );
+
   Ui::PanelTrack *ui;
 
   QList<QWidget*> m_widgetlistDirectionalColor;
@@ -55,6 +61,7 @@ private:
   QList<QWidget*> m_widgetlistScalarThreshold;
 
   LUTDataHolder* m_luts;
+  COLOR_TABLE* m_curCTAB;
 };
 
 #endif // PANELTRACK_H

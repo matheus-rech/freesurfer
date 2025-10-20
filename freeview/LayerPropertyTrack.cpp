@@ -164,7 +164,7 @@ void LayerPropertyTrack::SetLUTCTAB( COLOR_TABLE* ct )
   }
 }
 
-void LayerPropertyTrack::UpdateLUTTable(vtkRGBAColorTransferFunction* lut)
+void LayerPropertyTrack::UpdateLUTTable(vtkRGBAColorTransferFunction* lut, const QList<int>& selected)
 {
   if (m_ctab)
   {
@@ -184,7 +184,7 @@ void LayerPropertyTrack::UpdateLUTTable(vtkRGBAColorTransferFunction* lut)
 
         float red, green, blue, alpha;
         CTABrgbaAtIndexf( m_ctab, nEntry, &red, &green, &blue, &alpha );
-        lut->AddRGBAPoint( nEntry, red, green, blue, 1 );
+        lut->AddRGBAPoint( nEntry, red, green, blue, selected.contains(nEntry)?1:0);
       }
       else if (last_is_valid)
       {
