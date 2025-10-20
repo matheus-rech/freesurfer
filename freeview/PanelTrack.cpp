@@ -312,7 +312,8 @@ void PanelTrack::PopulateColorTable(COLOR_TABLE *ct, bool bForce)
     if (layer)
     {
       int nProperty = layer->GetProperty()->GetScalarIndex()-layer->GetScalarNames().size();
-      labels = layer->GetAvailableLabels(nProperty);
+      if (nProperty >= 0)
+        labels = layer->GetAvailableLabels(nProperty);
       selectedLabels = layer->GetSelectedLabels();
     }
     int nValidCount = 0;
