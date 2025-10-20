@@ -189,6 +189,7 @@ MATRIX *Mtrans = NULL;
 
 char *vsmfile = NULL;
 MRI *vsm = NULL;
+LTA *vsmlta = NULL;
 int pedir = 2;
 int UseOld = 1;
 MRI *MRIvol2surf(MRI *SrcVol, MATRIX *Rtk, MRI_SURFACE *TrgSurf, 
@@ -511,8 +512,9 @@ int main(int argc, char **argv) {
       }
       else{
         printf("using new\n");
+	if(vsmlta) printf("using vsmreg\n");
         SurfValsP = 
-          MRIvol2surfVSM(SrcVol, Dsrc, Surf, vsm, interpmethod, SrcHitVol, 
+          MRIvol2surfVSM(SrcVol, Dsrc, Surf, vsm, vsmlta, interpmethod, SrcHitVol, 
                          ProjFrac, ProjDistFlag,1,NULL,pedir);
       }
       fflush(stdout);
@@ -857,6 +859,12 @@ static int parse_commandline(int argc, char **argv) {
       srcsubject = pargv[0];
       nargsused = 1;
     } 
+    else if (!strcmp(option, "--vsm-reg")) {
+      if (nargc < 1) argnerr(option,1);
+      vsmlta = LTAread(pargv[0]);
+      if(!vsmlta) exit(1);
+      nargsused = 1;
+    } 
     else if(!strcasecmp(option, "--vg-thresh")) {
       if(nargc < 1) CMDargNErr(option,1);
       sscanf(pargv[0],"%lf",&vg_isEqual_Threshold);
@@ -1165,6 +1173,7 @@ static int parse_commandline(int argc, char **argv) {
 	printf("   LTA files can go in either direction if surf has a valid vol geom\n");
 	printf(" vsm : voxel shift map for B0 correction (or 'novsm')\n");
 	printf(" interp 0=nearest, 1=trilin, 5=cubicbspline\n");
+        printf(" To include a vsmlta, spec --vsm-reg before --vol2surf");
 	exit(1);
       }
       MRI *mri = MRIread(pargv[0]);
@@ -1217,7 +1226,7 @@ static int parse_commandline(int argc, char **argv) {
       int interpmethod=0;
       sscanf(pargv[7],"%d",&interpmethod);
       printf("projtype %d, projdist %g, interp %d\n",projtype,projdist,interpmethod);
-      MRI *sval = MRIvol2surfVSM(mri, RegMat, surf, vsm, interpmethod, NULL, projdist, projtype, 1,NULL,pedir);
+      MRI *sval = MRIvol2surfVSM(mri, RegMat, surf, vsm, vsmlta,interpmethod, NULL, projdist, projtype, 1,NULL,pedir);
       err = MRIwrite(sval,pargv[8]);
       printf("mri_vol2surf --volsurf done\n");
       exit(err);
@@ -1367,6 +1376,7 @@ static void print_usage(void) {
   printf("  --vsm vsmvol <pedir> : Apply a voxel shift map. pedir: +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)\n");
   printf("  --vsm-pedir pedir : set pedir +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)\n");
   printf("  --vsm-pedir pedir : set pedir 1=x, 2=y, 3=z (default 2)\n");
+  printf("  --vsm-reg vsm.lta : registration between the vsm and the mov\n");
   printf("\n");
   printf("\n");
   printf("   --help      print out information on how to use this program\n");

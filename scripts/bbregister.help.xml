@@ -42,6 +42,8 @@
       <explanation>Phase encode direction. +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default is +2)</explanation>
       <argument>--vsm-mul MultFactor </argument>
       <explanation>Multiply VSM by the given factor</explanation>
+      <argument>--vsm-reg vsmreg.lta </argument>
+      <explanation>Linear reg from VSM space to (distorted) movable space (eg, to account for movement between VSM and movable acqs)</explanation>
       <intro>Initialization Arguments</intro>
       <argument>--init-coreg (Default)</argument>
       <explanation>Initialize the FreeSurfer mri_coreg program.</explanation>

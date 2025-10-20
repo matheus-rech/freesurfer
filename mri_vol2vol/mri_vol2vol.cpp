@@ -611,6 +611,7 @@ double SliceBiasAlpha = 1.0;
 int useold = 1;
 MRI *vsm = NULL;
 char *vsmvolfile=NULL;
+LTA *vsmlta=NULL;
 
 int defM3zPath = 1; // use default path to the m3z file
 int TargMNI152 = 0;
@@ -989,7 +990,8 @@ int main(int argc, char **argv) {
 	  vsm = MRIread(vsmvolfile);
 	  if(vsm == NULL) exit(1);
 	}
-	MRIvol2VolVSM(in,out,vox2vox,interpcode,sinchw,vsm,pedir);
+	if(vsmlta) printf("Using vsmlta\n");
+	MRIvol2VolVSM(in,out,vox2vox,interpcode,sinchw,vsm,vsmlta,pedir);
       }
     }
   }
@@ -1289,6 +1291,12 @@ static int parse_commandline(int argc, char **argv) {
 	sscanf(pargv[1],"%d",&pedir);
 	nargsused++;
       }
+    } 
+    else if (istringnmatch(option, "--vsm-reg",0)) {
+      if(nargc < 1) argnerr(option,1);
+      vsmlta = LTAread(pargv[0]);
+      if(vsmlta==NULL) exit(1);
+      nargsused = 1;
     } 
     else if (!strcmp(option, "--vsm-pedir")) {
       if(nargc < 1) argnerr(option,1);
@@ -1734,6 +1742,7 @@ printf("  --mul mulval   : multiply output by mulval\n");
 printf("\n");
 printf("  --vsm vsmvol <pedir> : Apply a voxel shift map. pedir: +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)\n");
 printf("  --vsm-pedir pedir : set pedir +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)\n");
+printf("  --vsm-reg vsmlta : lta from VSM space to (distorted) movable space\n");
 printf("\n");
 printf("  --precision precisionid : output precision (def is float)\n");
 printf("  --keep-precision  : set output precision to that of input\n");

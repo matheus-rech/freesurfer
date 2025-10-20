@@ -42,6 +42,8 @@ public:
   MRI *mov=NULL;
   MRI *targ=NULL;// only used for headerreg
   MRI *vsm=NULL;
+  int pedir=2;
+  LTA *vsmlta = NULL;
   int InterpCode=SAMPLE_TRILINEAR;
   double sinchw=0;
   MRI *vol2vol(MRI *outvol);
@@ -111,12 +113,12 @@ MRI *MRIsegMergeDiff(MRI *oldseg, MRI *diff);
 MRI *MRIhalfCosBias(MRI *in, double alpha, MRI *out);
 MRI *MRIvol2VolFill(MRI *src, MRI *mask, LTA *lta, int UpsampleFactor, int Average, MRI *outfill);
 int MRIvol2VolVSM(MRI *src, MRI *targ, MATRIX *Vt2s,
-		  int InterpCode, float param, MRI *vsm, int pedir=2);
+		  int InterpCode, float param, MRI *vsm, const LTA *vsmlta, int pedir=2);
 int MRIvol2VolTkRegVSM(MRI *mov, MRI *targ, MATRIX *Rtkreg,
-		       int InterpCode, float param, MRI *vsm, int pedir=2);
+		       int InterpCode, float param, MRI *vsm, LTA *vsmlta, int pedir=2);
 MRI *MRIvol2surfVSM( const MRI *SrcVol,
                      const MATRIX *Rtk, const MRI_SURFACE *TrgSurf,
-                     const MRI *vsm, int InterpMethod, MRI *SrcHitVol,
+                     const MRI *vsm, const LTA *vsmlta, int InterpMethod, MRI *SrcHitVol,
                      float ProjFrac, int ProjType, int nskip, 
 		     MRI *TrgVol, int pedir=2);
 MRI *MRImaskAndUpsample(MRI *src, MRI *mask, int UpsampleFactor, int nPad, int DoConserve, LTA **src2out);

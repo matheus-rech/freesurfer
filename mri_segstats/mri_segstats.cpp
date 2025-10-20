@@ -581,7 +581,7 @@ int main(int argc, char **argv)
       printf("Allocating %d frames\n",invol->nframes);
       tmp = MRIcloneBySpace(seg,-1,invol->nframes);
       printf("Vol2Vol\n");
-      err = MRIvol2VolVSM(invol,tmp,vox2vox,SAMPLE_NEAREST,-1,NULL);
+      err = MRIvol2VolVSM(invol,tmp,vox2vox,SAMPLE_NEAREST,-1,NULL,NULL);
       if(err)
       {
         exit(1);

@@ -338,6 +338,7 @@ MRI *vsm=NULL;
 int pedir = 2;
 char *vsmfile = NULL;
 double vsmscale = 0;
+LTA *vsmlta = NULL;
 int ApplyVSMScale = 0;
 double angles[3],xyztrans[3],scale[3],shear[3];
 const char *surfname = "white";
@@ -928,7 +929,7 @@ int main(int argc, char **argv) {
     out = MRIallocSequence(anat->width,  anat->height,
 			   anat->depth,  MRI_FLOAT, 1);
     MRIcopyHeader(anat,out);
-    MRIvol2VolTkRegVSM(mov, out, R, SAMPLE_TRILINEAR, sinchw, vsm, pedir);
+    MRIvol2VolTkRegVSM(mov, out, R, SAMPLE_TRILINEAR, sinchw, vsm, vsmlta, pedir);
     printf("Writing output volume to %s \n",outfile);
     MRIwrite(out,outfile);
   }
@@ -1188,6 +1189,12 @@ static int parse_commandline(int argc, char **argv) {
     else if (!strcmp(option, "--vsm-pedir")) {
       if(nargc < 1) argnerr(option,1);
       sscanf(pargv[0],"%d",&pedir);
+      nargsused = 1;
+    } 
+    else if (!strcmp(option, "--vsm-reg")) {
+      if (nargc < 1) argnerr(option,1);
+      vsmlta = LTAread(pargv[0]);
+      if(!vsmlta) exit(1);
       nargsused = 1;
     } 
     else if (istringnmatch(option, "--frame",0)) {
@@ -2172,14 +2179,14 @@ double *GetSurfCosts(MRI *mov, MRI *notused, MATRIX *R0, MATRIX *R,
   //printf("Scale: %g %g %g\n",p[6],p[7],p[8]);
 
   if(UseLH){
-    vlhwm  = MRIvol2surfVSM(mov,R,lhwm,  vsm, interpcode, NULL, 0, 0, nsubsamp, vlhwm, pedir);
-    vlhctx = MRIvol2surfVSM(mov,R,lhctx, vsm, interpcode, NULL, 0, 0, nsubsamp, vlhctx, pedir);
+    vlhwm  = MRIvol2surfVSM(mov,R,lhwm,  vsm, vsmlta, interpcode, NULL, 0, 0, nsubsamp, vlhwm, pedir);
+    vlhctx = MRIvol2surfVSM(mov,R,lhctx, vsm, vsmlta, interpcode, NULL, 0, 0, nsubsamp, vlhctx, pedir);
     if(lhcost == NULL) lhcost = MRIclone(vlhctx,NULL);
     if(lhcon == NULL)  lhcon  = MRIclone(vlhctx,NULL);
   }
   if(UseRH){
-    vrhwm  = MRIvol2surfVSM(mov,R,rhwm,  vsm, interpcode, NULL, 0, 0, nsubsamp, vrhwm, pedir);
-    vrhctx = MRIvol2surfVSM(mov,R,rhctx, vsm, interpcode, NULL, 0, 0, nsubsamp, vrhctx, pedir);
+    vrhwm  = MRIvol2surfVSM(mov,R,rhwm,  vsm, vsmlta, interpcode, NULL, 0, 0, nsubsamp, vrhwm, pedir);
+    vrhctx = MRIvol2surfVSM(mov,R,rhctx, vsm, vsmlta, interpcode, NULL, 0, 0, nsubsamp, vrhctx, pedir);
     if(rhcost == NULL) rhcost = MRIclone(vrhctx,NULL);
     if(rhcon == NULL)  rhcon  = MRIclone(vrhctx,NULL);
   }
