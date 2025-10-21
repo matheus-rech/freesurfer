@@ -2091,6 +2091,16 @@ void MainWindow::RunScript()
   {
     CommandSetSurfaceOverlayOffset(sa);
   }
+  else if ( cmd == "setsurfaceoverlayname")
+  {
+    LayerSurface* surf = (LayerSurface*)GetLayerCollection( "Surface" )->GetActiveLayer();
+    if ( surf )
+    {
+      SurfaceOverlay* overlay = surf->GetActiveOverlay();
+      if ( overlay )
+        overlay->SetName(sa[1]);
+    }
+  }
   else if ( cmd == "setsurfaceoverlayframe")
   {
     CommandSetSurfaceOverlayFrame( sa );
@@ -3703,7 +3713,7 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
   QVariantMap sup_options;
   valid_overlay_options << "overlay_reg" << "overlay_method" << "overlay_threshold" << "overlay_color"
                         << "overlay_rh" << "overlay_opacity" << "overlay_frame" << "overlay_smooth" << "overlay_custom"
-                        << "overlay_mask" << "overlay_offset";
+                        << "overlay_mask" << "overlay_offset" << "overlay_name";
   bool bNoAutoLoad = m_defaultSettings["no_autoload"].toBool();
   bool bLinked = false;
   for (int nOverlay = 0; nOverlay < overlay_list.size(); nOverlay++)
@@ -3724,6 +3734,7 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
     QStringList overlay_custom;
     QStringList overlay_mask;
     QString overlay_offset;
+    QString overlay_name;
     bool bSecondHalfData = false;
     for ( int k = sa_fn.size()-1; k >= 0; k-- )
     {
@@ -3754,6 +3765,8 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
           overlay_mask = subArgu.split(",", MD_SkipEmptyParts);
         else if (subOption == "overlay_offset")
           overlay_offset = subArgu;
+        else if (subOption == "overlay_name")
+          overlay_name = subArgu;
       }
     }
     if (overlay_reg.isEmpty())
@@ -3874,6 +3887,9 @@ void MainWindow::CommandLoadSurface( const QStringList& cmd )
 
           if (!overlay_offset.isEmpty())
             m_scripts.insert(1, QStringList("setsurfaceoverlayoffset") << overlay_offset);
+
+          if (!overlay_name.isEmpty())
+            m_scripts.insert(1, QStringList("setsurfaceoverlayname") << overlay_name);
         }
         else if ( subOption == "mrisps" )
         {
