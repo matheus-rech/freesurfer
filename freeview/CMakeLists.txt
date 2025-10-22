@@ -229,7 +229,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
      set(SOURCES ${SOURCES} DialogLineProfile.cpp LayerLineProfile.cpp)
   endif()
 
-  if(BUILD_SCRIBBLE AND HOST_OS MATCHES "Rocky8")
+  if(BUILD_SCRIBBLE AND (HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Rocky9"))
      message(STATUS "For HOST_OS=${HOST_OS} Build of freeview with ScribblePrompt enabled")
      set(SOURCES ${SOURCES} TorchScriptModule.cpp ScribblePromptWorker.cpp)
      set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:/space/freesurfer/packages/libtorch/2.3.0.dev20240124+cpu/lib")
