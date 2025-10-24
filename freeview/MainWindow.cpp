@@ -7428,7 +7428,13 @@ void MainWindow::LoadSurfaceOverlay(bool bCorrelation)
                      "Overlay files (*)");
 */
   DialogLoadSurfaceOverlay dlg;
-  dlg.SetLastDir(AutoSelectLastDir("surf"));
+  LayerSurface* layer = ( LayerSurface* )GetLayerCollection( "Surface" )->GetActiveLayer();
+  SurfaceOverlay* ol = NULL;
+  if (layer)
+    ol = layer->GetActiveOverlay();
+  if (!ol)
+    ol = layer->GetOverlays().last();
+  dlg.SetLastDir(ol ? QFileInfo(ol->GetFileName()).absolutePath() : AutoSelectLastDir("surf"));
   if (dlg.exec() == QDialog::Accepted)
   {
     QString filename = dlg.GetFileName();
