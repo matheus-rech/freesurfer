@@ -1,6 +1,6 @@
 # Define base image. Set HOME to avoid Matplotlib warning about non-writable
 # MPLCONFIGDIR on Neurite import when running as non-root user.
-FROM tensorflow/tensorflow:2.17.0-gpu AS base
+FROM tensorflow/tensorflow:2.17.0 AS base
 ENV FREESURFER_HOME=/freesurfer
 ENV PYTHONUSERBASE="$FREESURFER_HOME/env"
 ENV PATH="$FREESURFER_HOME:$PATH"
