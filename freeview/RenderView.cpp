@@ -214,7 +214,7 @@ void RenderView::mousePressEvent( QMouseEvent* event )
   }
   else
   {
-    event->ignore();
+    event->accept();
   }
 }
 
@@ -224,6 +224,8 @@ void RenderView::mouseReleaseEvent( QMouseEvent* event )
   {
     GenericRenderView::mouseReleaseEvent( event );
   }
+  else
+    event->accept();
 }
 
 void RenderView::mouseMoveEvent( QMouseEvent* event )
@@ -237,7 +239,7 @@ void RenderView::mouseMoveEvent( QMouseEvent* event )
   }
   else
   {
-    event->ignore();
+    event->accept();
   }
 
   m_interactor->ProcessPostMouseMoveEvent( event, this );
@@ -248,6 +250,10 @@ void RenderView::wheelEvent( QWheelEvent* event )
   if ( m_interactor->ProcessMouseWheelEvent( event, this ) )
   {
     GenericRenderView::wheelEvent( event );
+  }
+  else
+  {
+    event->accept();
   }
 
   m_interactor->ProcessPostMouseWheelEvent( event, this );
@@ -266,6 +272,8 @@ void RenderView::enterEvent( QEvent* event )
   {
     GenericRenderView::enterEvent( event );
   }
+  else
+    event->accept();
 }
 
 void RenderView::leaveEvent( QEvent* event )
@@ -276,6 +284,10 @@ void RenderView::leaveEvent( QEvent* event )
   {
     GenericRenderView::leaveEvent( event );
   }
+  else
+  {
+    event->accept();
+  }
 }
 
 void RenderView::keyPressEvent( QKeyEvent* event )
@@ -284,6 +296,10 @@ void RenderView::keyPressEvent( QKeyEvent* event )
   {
     GenericRenderView::keyPressEvent( event );
   }
+  else
+  {
+    event->accept();
+  }
 }
 
 void RenderView::keyReleaseEvent( QKeyEvent* event )
@@ -291,6 +307,10 @@ void RenderView::keyReleaseEvent( QKeyEvent* event )
   if ( m_interactor->ProcessKeyUpEvent( event, this ) )
   {
     GenericRenderView::keyReleaseEvent( event );
+  }
+  else
+  {
+    event->accept();
   }
 }
 

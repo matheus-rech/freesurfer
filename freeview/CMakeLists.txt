@@ -197,7 +197,6 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
     geos/kde.cpp
     BusyIndicator.cpp
     vtkInteractorStyleMyTrackballCamera.cxx
-    vtkInteractorStyleNoRotation.cxx
     FlowLayout.cpp
     WindowLayerInfo.cpp
     WindowEditAnnotation.cpp

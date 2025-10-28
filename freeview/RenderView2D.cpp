@@ -61,15 +61,10 @@
 #include <QPainter>
 #include <QInputDialog>
 #include <QFileDialog>
-#include "vtkInteractorStyleNoRotation.h"
 #include <vtkRenderWindow.h>
 
 RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent )
 {
-#if VTK_MAJOR_VERSION > 8
-  vtkNew<vtkInteractorStyleNoRotation> style;
-  this->GetRenderWindow()->GetInteractor()->SetInteractorStyle(style);
-#endif
   m_renderer->GetActiveCamera()->ParallelProjectionOn();
   m_contour2D = new Contour2D( this );
   m_cursor2D = new Cursor2D( this );
