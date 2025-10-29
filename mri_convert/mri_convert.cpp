@@ -71,6 +71,7 @@ int SplitFrames=0;
 int DeleteCMDs = 0;
 char NewTransformFname[2000];
 int DoNewTransformFname=0;
+int RemoveCTab = 0;
 
 std::vector<MRI*> mri_vector;
 
@@ -837,6 +838,8 @@ int main(int argc, char *argv[])
     {
       get_string(argc, argv, &i, colortablefile);
     }
+    else if(strcmp(argv[i], "--no-ctab") == 0) strcpy(colortablefile,"remove");
+    else if(strcmp(argv[i], "--remove-ctab") == 0) strcpy(colortablefile,"remove");
     else if(strcmp(argv[i], "-io") == 0 ||
             strcmp(argv[i], "--in_orientation") == 0)
     {
