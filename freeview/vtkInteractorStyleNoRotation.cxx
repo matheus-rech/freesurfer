@@ -23,3 +23,4 @@ vtkInteractorStyleNoRotation::vtkInteractorStyleNoRotation()
 }
 
 vtkInteractorStyleNoRotation::~vtkInteractorStyleNoRotation () {}
+

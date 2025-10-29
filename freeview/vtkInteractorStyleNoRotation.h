@@ -11,6 +11,7 @@ public:
   vtkTypeMacro(vtkInteractorStyleNoRotation,vtkInteractorStyleTrackballCamera);
 
   void Rotate() override {}
+  void Spin() override {}
 
 protected:
  vtkInteractorStyleNoRotation();
