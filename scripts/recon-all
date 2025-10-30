@@ -3346,6 +3346,11 @@ if($DoSegmentation) then
     echo "\n $cmd \n"|& tee -a $LF |& tee -a $CF
     if($RunIt) $fs_time $cmd |& tee -a $LF
     if($status) goto error_exit;
+    # Force to uchar or else mri_edit_wm_with_aseg gets upset
+    set cmd = (mri_convert wm.seg.mgz -odt uchar --no_scale 1 wm.seg.mgz)
+    echo "\n $cmd \n"|& tee -a $LF |& tee -a $CF
+    if($RunIt) $fs_time $cmd |& tee -a $LF
+    if($status) goto error_exit;
     # Silly way to keep track of whether this was run or not
     touch $SUBJECTS_DIR/$subjid/scripts/wmseg-from-aseg
   endif
