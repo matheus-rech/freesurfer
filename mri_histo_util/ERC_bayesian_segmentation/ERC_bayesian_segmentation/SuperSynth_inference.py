@@ -188,7 +188,7 @@ def run_inference(im, flipping, model_file, mode, volfile, device, force_tiling=
             row2 = []
             for l in range(len(llist)):
                 lab = llist[l]
-                if (lab > 0) and (lab != 24) and (lab < 900) and (lab != 99):
+                if (lab > 0) and ((lab != 24) or (mode=='invivo')) and (lab < 900) and (lab != 99):
                     row1.append(str(lab))
                     row2.append(str(vols[l]))
             writer.writerow(row1)
