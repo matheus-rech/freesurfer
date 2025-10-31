@@ -172,13 +172,17 @@ FixEntoWM:
     flags: -fix-ento-wm
     action: enable
     descr: Fix the WM in the area around entorhinal cortex and gyrus ambiens
+NoFixEntoWM:
+    value: False
+    flags: -no-fix-ento-wm
+    action: enable
+    descr: Do not fix the WM in the area around entorhinal cortex and gyrus ambiens
     
 FixGA:
     value: False
     flags: -fix-ga
     action: enable
     descr: Fix the cortex label around gyrus ambiens
-    
 NoFixGA:
     value: False
     flags: -no-fix-ga
@@ -190,7 +194,6 @@ FixACJ:
     flags: -fix-acj
     action: enable
     descr: Fix the WM in the area between amygdala and cortex
-    
 # Note: this will overrride -fix-acj regardless of argument order
 NoFixACJ:
     value: False
@@ -203,12 +206,22 @@ FixMCADura:
     flags: -fix-mca-dura
     action: enable
     descr: Segment the MCA/dura area between front and temp and remove from brain mask
+NoFixMCADura:
+    value: False
+    flags: -no-fix-mca-dura
+    action: enable
+    descr: Do not segment the MCA/dura area between front and temp and remove from brain mask
 
 FixVSinus:
     value: False
     flags: -fix-vsinus
     action: enable
     descr: Segment the venous sinuses and remove from brain mask
+NoFixVSinus:
+    value: False
+    flags: -no-fix-vsinus
+    action: enable
+    descr: Do not segment the venous sinuses and remove from brain mask
     
 SkipDone:
     value: False

@@ -8768,6 +8768,12 @@ check_params:
     endif
   endif
 
+  if($NoFixMCADura) set FixMCADura = 0
+  if($NoFixVSinus)  set FixVSinus = 0
+  if($NoFixEntoWM) then
+     set FixEntoWM = 0
+     set FixGA = 0
+  endif
   if($NoFixGA) set FixGA = 0
 
   if($FixGA && ! $FixEntoWM) then
