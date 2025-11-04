@@ -356,7 +356,7 @@ void PanelVolume::DoUpdateWidgets()
     bool bPercentile = layer->GetProperty()->GetUsePercentile();
     ui->checkBoxPercentile->setChecked(bPercentile);
     ui->checkBoxPercentile->setVisible(layer->GetProperty()->GetColorMap() != LayerPropertyMRI::LUT && layer->HasValidHistogram());
-    ui->sliderOpacity->setValue( (int)( layer->GetProperty()->GetOpacity() * 100 ) );
+    ui->sliderOpacity->setValue( (int)( layer->GetProperty()->GetOpacity() * 100.0 ) );
     ChangeDoubleSpinBoxValue( ui->doubleSpinBoxOpacity, layer->GetProperty()->GetOpacity() );
     ui->checkBoxClearBackground->setChecked( layer->GetProperty()->GetClearBackground() );
     ChangeLineEditNumber(ui->lineEditClearBackgroundValue, layer->GetProperty()->GetClearBackgroundValue());

@@ -36,7 +36,7 @@ void ScribblePromptWorker::DoInitialization(const QString &fn)
   m_module->Load(fn);
   m_strModelFilename = fn;
 }
-
+#include "FSVolume.h"
 void ScribblePromptWorker::Compute(LayerMRI *mri_ref, LayerMRI* seg, LayerMRI* seeds, int nPlane, int nSlice, double fill_val, bool include_existing, LayerMRI* mri_exit)
 {
   m_ref = mri_ref;

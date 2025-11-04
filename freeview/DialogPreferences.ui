@@ -38,7 +38,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -576,7 +576,7 @@
       <attribute name="title">
        <string>Special Settings</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_9" stretch="0,0,0,0,0,1">
+      <layout class="QVBoxLayout" name="verticalLayout_9" stretch="0,0,0,0,0,0,1">
        <property name="spacing">
         <number>9</number>
        </property>
@@ -756,6 +756,44 @@
             </property>
             <property name="checked">
              <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBoxRender">
+         <property name="title">
+          <string>Render</string>
+         </property>
+         <property name="flat">
+          <bool>false</bool>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_13">
+          <property name="spacing">
+           <number>3</number>
+          </property>
+          <item>
+           <widget class="QCheckBox" name="checkBoxDepthPeeling">
+            <property name="text">
+             <string>Enable depth peeling</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_22">
+            <property name="text">
+             <string> This will improve transparency accuracy but will slow down rendering.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="indent">
+             <number>12</number>
             </property>
            </widget>
           </item>
