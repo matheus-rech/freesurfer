@@ -333,6 +333,8 @@ public slots:
 
   void SetNeurologicalView(bool b);
 
+  void SetBrainstemView(bool b);
+
   void OnFlattendSurfacePatchLoaded();
 
   void OnSaveGif();

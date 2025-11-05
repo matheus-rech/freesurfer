@@ -525,8 +525,9 @@ void LayerTrack::ResetSelectedLabels()
   if (nProperty >= 0)
   {
     m_selectedLabels = GetAvailableLabels(nProperty);
-    UpdateColorTable();
-    emit ActorUpdated();
+    RebuildActors();
+    // UpdateColorTable();
+    // emit ActorUpdated();
   }
 }
 
@@ -536,13 +537,15 @@ void LayerTrack::SetSelectLabel(int nVal, bool bSelected)
     m_selectedLabels << nVal;
   else if (!bSelected)
     m_selectedLabels.removeOne(nVal);
-  UpdateColorTable();
-  emit ActorUpdated();
+  RebuildActors();
+  // UpdateColorTable();
+  // emit ActorUpdated();
 }
 
 void LayerTrack::SetUnselectAllLabels()
 {
   m_selectedLabels.clear();
-  UpdateColorTable();
-  emit ActorUpdated();
+  RebuildActors();
+  // UpdateColorTable();
+  // emit ActorUpdated();
 }

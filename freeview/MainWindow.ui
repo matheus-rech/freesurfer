@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1213</width>
+    <width>1118</width>
     <height>872</height>
    </rect>
   </property>
@@ -301,7 +301,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1213</width>
+     <width>1118</width>
      <height>24</height>
     </rect>
    </property>
@@ -408,6 +408,7 @@
     <addaction name="actionSetCamera"/>
     <addaction name="separator"/>
     <addaction name="actionNeurologicalView"/>
+    <addaction name="actionBrainstemView"/>
     <addaction name="separator"/>
     <addaction name="actionShowCommandConsole"/>
     <addaction name="actionTimeCourse"/>
@@ -1889,6 +1890,17 @@
   <action name="actionSaveGif">
    <property name="text">
     <string>Save GIF...</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionBrainstemView">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Brainstem View</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
@@ -3925,6 +3937,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionBrainstemView</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>SetBrainstemView(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>558</x>
+     <y>435</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <signal>CycleOverlayRequested()</signal>
@@ -4044,5 +4072,6 @@
   <slot>SetNeurologicalView(bool)</slot>
   <slot>OnShowLabelOutline(bool)</slot>
   <slot>OnSaveGif()</slot>
+  <slot>SetBrainstemView(bool)</slot>
  </slots>
 </ui>
