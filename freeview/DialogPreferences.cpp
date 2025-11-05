@@ -132,6 +132,8 @@ DialogPreferences::DialogPreferences(QWidget *parent) :
     }
     connect(combo, SIGNAL(currentTextChanged(QString)), this, SLOT(OnComboShortcutChanged(QString)));
   }
+
+  ui->tabWidget->setCurrentIndex(0);
 }
 
 DialogPreferences::~DialogPreferences()
