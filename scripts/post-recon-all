@@ -19,7 +19,10 @@ set scriptname = `basename $0`
 # I have run into memory errors with subfields if nthreads=1
 if($?FS_OMP_NUM_THREADS == 0) setenv FS_OMP_NUM_THREADS 1
 
+set vmrun = ()
 set cos7run = /cluster/batch/IMAGES/centos7run
+set rocky8run = /cluster/batch/IMAGES/rocky8run
+set rocky9run = /cluster/batch/IMAGES/rocky9run
 set nthreads = $FS_OMP_NUM_THREADS 
 set subject = ()
 @ ExitStatus = 0
@@ -122,7 +125,7 @@ if($DoQAStats) then
   if($ud || $ForceUpdate) then
     set cmd = (mri_segstats --qa-stats $subject $qastats)
     echo $cmd | tee -a $LF
-    fs_time $cos7run $cmd | tee -a $LF
+    fs_time $vmrun $cmd | tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -147,7 +150,7 @@ if($DoSubfields) then
     if($ud || $ForceUpdate) then
       set cmd = ($scr $subject)
       echo $cmd | tee -a $LF
-      fs_time $cos7run $cmd | tee -a $LF
+      fs_time $vmrun $cmd | tee -a $LF
       if($status) then
         if($ExitOnError) then
           echo "$cmd failed" | tee -a $LF
@@ -172,7 +175,7 @@ if($DoSegmentSubregions) then
     if($ud || $ForceUpdate) then
       set cmd = (segment_subregions $subregion --cross $subject --threads $threads --suffix .segsub)
       echo $cmd | tee -a $LF
-      fs_time $cos7run $cmd | tee -a $LF
+      fs_time $vmrun $cmd | tee -a $LF
       if($status) then
         if($ExitOnError) then
           echo "$cmd failed" | tee -a $LF
@@ -192,7 +195,7 @@ if($DoSynthStrip) then
   if($ud || $ForceUpdate) then
     set cmd = (mri_synthstrip -i $origvol -o $synthstrip)
     echo $cmd | tee -a $LF
-    fs_time $cos7run $cmd | tee -a $LF
+    fs_time $vmrun $cmd | tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -211,7 +214,7 @@ if($DoSynthSeg) then
   if($ud || $ForceUpdate) then
     set cmd = (mri_synthseg --i $origvol --o $synthseg --cpu --threads $threads)
     echo $cmd | tee -a $LF
-    fs_time $cos7run $cmd | tee -a $LF
+    fs_time $vmrun $cmd | tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -232,7 +235,7 @@ if($DoSCLimbic) then
     set cmd = (mri_sclimbic_seg --s $subject --percentile 99.9 --conform \
      --write_qa_stats --threads $threads)
     echo $cmd | tee -a $LF
-    fs_time $cos7run $cmd | tee -a $LF
+    fs_time $vmrun $cmd | tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -251,7 +254,7 @@ if($DoHThSU) then
   if($ud || $ForceUpdate) then
     set cmd = (mri_segment_hypothalamic_subunits --s $subject --threads $threads)
     echo $cmd | tee -a $LF
-    fs_time $cos7run $cmd | tee -a $LF
+    fs_time $vmrun $cmd | tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -265,14 +268,14 @@ if($DoHThSU) then
     set ctab = $FREESURFER/FreeSurferColorLUT.txt
     set cmd = (mri_convert --ctab $ctab $hthsu $hthsu)
     echo $cmd | tee -a $LF
-     $cos7run $cmd | tee -a $LF
+     $vmrun $cmd | tee -a $LF
   endif
 endif
 
 if($DoMCADura) then
   set cmd = (mri_mcadura_seg --s $subject --threads $threads)
   echo $cmd | tee -a $LF
-  fs_time $cos7run $cmd | tee -a $LF
+  fs_time $vmrun $cmd | tee -a $LF
   if($status) then
     if($ExitOnError) then
       echo "$cmd failed" | tee -a $LF
@@ -287,7 +290,7 @@ endif
 if($DoVSinus) then
   set cmd = (mri_vsinus_seg --s $subject --threads $threads)
   echo $cmd | tee -a $LF
-  fs_time $cos7run $cmd | tee -a $LF
+  fs_time $vmrun $cmd | tee -a $LF
   if($status) then
     if($ExitOnError) then
       echo "$cmd failed" | tee -a $LF
@@ -306,7 +309,7 @@ if($DoSamseg) then
   if($ud || $ForceUpdate) then
     set cmd = (samseg --i $origvol --o $sd/mri/samseg --threads $FS_OMP_NUM_THREADS)
     echo $cmd |& tee -a $LF
-    fs_time $cos7run $cmd |& tee -a $LF
+    fs_time $vmrun $cmd |& tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -326,7 +329,7 @@ if($DoGTMSeg) then
   if($ud || $ForceUpdate) then
     set cmd = (gtmseg --s $subject --xcerseg --samseg)
     echo $cmd |& tee -a $LF
-    fs_time $cos7run $cmd |& tee -a $LF
+    fs_time $vmrun $cmd |& tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -347,7 +350,7 @@ if($DoXhemi) then
     set cmd = (surfreg --s $subject --t fsaverage_sym --lh)
     set cmd = ($cmd --aparc) # to be conistent with previous version
     echo $cmd |& tee -a $LF
-    fs_time $cos7run $cmd |& tee -a $LF
+    fs_time $vmrun $cmd |& tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -365,7 +368,7 @@ if($DoXhemi) then
     set cmd = (surfreg --s $subject --t fsaverage_sym --lh --xhemi )
     set cmd = ($cmd --aparc) # to be conistent with previous version
     echo $cmd |& tee -a $LF
-    fs_time $cos7run $cmd |& tee -a $LF
+    fs_time $vmrun $cmd |& tee -a $LF
     if($status) then
       if($ExitOnError) then
         echo "$cmd failed" | tee -a $LF
@@ -385,7 +388,7 @@ if($DoQCache) then
   pwd |& tee -a $LF
   set cmd = (recon-all -s $subject -qcache)
   echo $cmd |& tee -a $LF
-  fs_time $cos7run $cmd |& tee -a $LF
+  fs_time $vmrun $cmd |& tee -a $LF
   if($status) then
     if($ExitOnError) then
       echo "$cmd failed" | tee -a $LF
@@ -403,7 +406,7 @@ if($DoCVS) then
   pwd |& tee -a $LF
   set cmd = (mri_cvs_register --mov $subject --mni --openmp $FS_OMP_NUM_THREADS)
   echo $cmd |& tee -a $LF
-  fs_time $cos7run $cmd |& tee -a $LF
+  fs_time $vmrun $cmd |& tee -a $LF
   if($status) then
     if($ExitOnError) then
       echo "$cmd failed" | tee -a $LF
@@ -421,7 +424,7 @@ if($DoSynthMorph) then
   pwd |& tee -a $LF
   set cmd = (fs-synthmorph-reg --s $subject --threads $FS_OMP_NUM_THREADS)
   echo $cmd |& tee -a $LF
-  fs_time $cos7run $cmd |& tee -a $LF
+  fs_time $vmrun $cmd |& tee -a $LF
   if($status) then
     if($ExitOnError) then
       echo "$cmd failed" | tee -a $LF
@@ -587,10 +590,23 @@ while( $#argv != 0 )
       breaksw
 
     case "--cos7":
-      set cos7run = /cluster/batch/IMAGES/centos7run
+      set vmrun = $cos7run
       breaksw
+    case "--rocky8":
+      set vmrun = $rocky8run
+      breaksw
+    case "--rocky9":
+      set vmrun = $rocky9run
+      breaksw
+    case "--vm":
+      if($#argv < 1) goto arg1err;
+      set vmrun = $argv[1]; shift
+      breaksw
+    case "--no-vm":
     case "--no-cos7":
-      set cos7run = ()
+    case "--no-rocky8":
+    case "--no-rocky9":
+      set vmrun = ()
       breaksw
 
     case "--force":
@@ -662,10 +678,10 @@ if(! $ok) then
   exit 1
 endif
 
-if($#cos7run) then
-  if(! -e $cos7run) then
-    echo "ERROR: cannot find $cos7run"
-    echo "If you do not want to run using CentOS7, then add --no-cos7"
+if($#vmrun) then
+  if(! -e $vmrun) then
+    echo "ERROR: cannot find $vmrun"
+    echo "If you do not want to run using CentOS7, then add --no-vm"
     exit 1;
   endif
 endif
@@ -705,6 +721,10 @@ usage_exit:
   echo " --threads nthreads (or setenv FS_OMP_NUM_THREADS)"
   echo " --force : force rerunning even if output is newer tha input"
   echo " --exit-on-error : exit immediately if an error occurs"
+  echo " --cos7 : run using cos7 vm"
+  echo " --rocky8 : run using rocky8 vm"
+  echo " --rocky9 : run using rocky9 vm"
+  echo " --vm vmpath: run using given vm"
   echo ""
 
   if(! $PrintHelp) exit 1;
