@@ -204,6 +204,7 @@ install_configured(
   rca-base-init
   rca-fix-ento
   rca-long-tp-init
+  rca-rcac-prep
   recon-all
   recon-all-exvivo
   recon-all.makefile

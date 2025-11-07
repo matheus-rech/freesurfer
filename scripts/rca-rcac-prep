@@ -1,0 +1,466 @@
+#!/bin/tcsh -f
+
+# rca-rcac-prep - uses recon-all-clinical commands to preprocess the
+# input for use with recon-all. 
+
+if(-e $FREESURFER_HOME/sources.csh) then
+  source $FREESURFER_HOME/sources.csh
+endif
+
+set VERSION = '$Id$';
+set scriptname = `basename $0`
+set PYTHON_SCRIPT_DIR = $FREESURFER_HOME/python/scripts
+set MODEL = $FREESURFER_HOME/models/synthsurf_v10_230420.h5
+
+set subject = ();
+set ForceUpdate = 0
+set RunReconAll = 0;
+set threads = 1
+
+set tmpdir = ();
+set cleanup = 1;
+set LF = ();
+
+set inputargs = ($argv);
+set PrintHelp = 0;
+if($#argv == 0) goto usage_exit;
+set n = `echo $argv | grep -e -help | wc -l` 
+if($n != 0) then
+  set PrintHelp = 1;
+  goto usage_exit;
+endif
+set n = `echo $argv | grep -e -version | wc -l` 
+if($n != 0) then
+  echo $VERSION
+  exit 0;
+endif
+goto parse_args;
+parse_args_return:
+goto check_params;
+check_params_return:
+
+set StartTime = `date`;
+set tSecStart = `date '+%s'`;
+set year  = `date +%Y`
+set month = `date +%m`
+set day   = `date +%d`
+set hour   = `date +%H`
+set min    = `date +%M`
+
+mkdir -p $outdir/scripts $rcacdir/transforms
+pushd $outdir > /dev/null
+set outdir = `pwd`;
+popd > /dev/null
+
+if($#tmpdir == 0) then
+  if(-dw /scratch)   set tmpdir = /scratch/tmpdir.rca-rcac-prep.$$
+  if(! -dw /scratch) set tmpdir = $outdir/tmpdir.rca-rcac-prep.$$
+endif
+#mkdir -p $tmpdir
+
+# Set up log file
+if($#LF == 0) set LF = $outdir/scripts/rca-rcac-prep.Y$year.M$month.D$day.H$hour.M$min.log
+if($LF != /dev/null) rm -f $LF
+echo "Log file for rca-rcac-prep" >> $LF
+date  | tee -a $LF
+echo "" | tee -a $LF
+echo "setenv SUBJECTS_DIR $SUBJECTS_DIR" | tee -a $LF
+echo "cd `pwd`"  | tee -a $LF
+echo $0 $inputargs | tee -a $LF
+ls -l $0  | tee -a $LF
+echo "" | tee -a $LF
+cat $FREESURFER_HOME/build-stamp.txt | tee -a $LF
+echo $VERSION | tee -a $LF
+uname -a  | tee -a $LF
+echo "pid $$" | tee -a $LF
+if($?PBS_JOBID) then
+  echo "pbsjob $PBS_JOBID"  >> $LF
+endif
+if($?SLURM_JOB_ID) then
+  echo SLURM_JOB_ID $SLURM_JOB_ID >> $LF
+endif
+
+#========================================================
+# Copy and conform the input
+set source = $outdir/mri/source.mgz
+if($#invol) then
+  # Note: invol will not be set if running on an existing folder
+  set ud = `UpdateNeeded $source $invol`
+  if($ud || $ForceUpdate) then
+    set cmd = (mri_convert  $invol $source -odt float)
+    echo $cmd | tee -a $LF
+    fs_time $cmd |& tee -a $LF
+    if($status) goto error_exit
+  endif
+endif
+set sourceconf = $outdir/mri/source.conf.mgz
+set ud = `UpdateNeeded $sourceconf $source`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_convert --conform $source $sourceconf -odt float --no_scale 1)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+# SynthSeg with aparc
+set synthsegapas = $rcacdir/synthseg.apas.mgz
+set ud = `UpdateNeeded $synthsegapas $sourceconf`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_synthseg --i $source --o $synthsegapas --parc \
+    --threads $threads --robust --vol $rcacdir/synthseg.apas.csv \
+    --cpu --qc $rcacdir/synthseg.apas.qc.csv)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+# SynthSR
+set synthsr = $rcacdir/synthSR.raw.mgz
+set ud = `UpdateNeeded $synthsr $source`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_synthsr --i $source --o $synthsr --threads $threads --cpu)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+# SynthSurf. This creates the basic recon-all-clinical output that
+# will be used below.
+set normrcac = $rcacdir/norm.mgz
+set mss =  $PYTHON_SCRIPT_DIR/mri_synth_surf.py
+set ud = `UpdateNeeded $normrcac $synthsr $source $synthsegapas`
+if($ud || $ForceUpdate) then
+  set cmd = (fspython $mss --subject_mri_dir $rcacdir --input_image $source \
+    --input_synthseg $synthsegapas --cpu --threads $threads --pad 5 \
+    --model_file $MODEL)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+# The only thing we need from this is norm and wm.seg.
+# RCAC outputs 266^3 volumes, so crop them back down to 256^3
+set normrcacconf = $rcacdir/norm.conf.mgz
+set ud = `UpdateNeeded $normrcacconf $normrcac $sourceconf`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_convert $normrcac --reslice_like $sourceconf $normrcacconf)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+set wmsegrcac = $rcacdir/wm.seg.mgz
+set wmsegrcacconf = $rcacdir/wm.seg.conf.mgz
+set ud = `UpdateNeeded $wmsegrcacconf $wmsegrcac $sourceconf`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_convert $wmsegrcac --reslice_like $sourceconf $wmsegrcacconf -odt uchar --no_scale 1)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+pushd $outdir/mri
+
+set vollist = (orig.mgz orig_nu.mgz nu.mgz T1.mgz brainmask.auto.mgz synthstrip.mgz\
+  norm.mgz brain.mgz brainmask.mgz antsdn.brain.mgz rawavg.mgz)
+foreach vol ($vollist)
+  if(! -e $vol) ln -fs rcac/norm.conf.mgz $vol
+end
+if(! -e wm.seg.mgz) ln -fs rcac/wm.seg.conf.mgz wm.seg.mgz
+if(! -e transforms) ln -fs rcac/transforms
+if(! -e source.mgz) ln -fs rcac/conf.mgz
+
+# ------------------------------------------------------------------
+# Below are commands that would be run by recon-all that prepare
+# the output folder so that -autorecon2-wm can be run
+# ------------------------------------------------------------------
+
+# Run synthseg on the conformed original source without --parc (but
+# with --robust, which recon-all does not use). Could probably convert
+# the RCAC synthseg output to replace the aparc with the cortex
+# label. Currently running it on the conformed source, but maybe need
+# to revisit this.
+set synthseg = $outdir/mri/synthseg.rca.mgz
+set synthsegcsv = $outdir/stats/synthseg.vol.csv
+set ud = `UpdateNeeded $synthseg $sourceconf`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_synthseg --i $sourceconf --o $synthseg --threads $threads \
+    --vol $synthsegcsv --keepgeom --addctab --robust)
+  #if(! $UseGPU)  set cmd = ($cmd --cpu)
+  echo "\n $cmd \n" |& tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit;
+  pushd $subjdir/mri 
+  if(! -e aseg.auto_noCCseg.mgz) ln -sf synthseg.rca.mgz aseg.auto_noCCseg.mgz
+  popd
+endif
+
+# Creates aseg.auto 
+set cmd = (seg2cc --s $subject)
+echo "\n $cmd \n" |& tee -a $LF
+fs_time $cmd |& tee -a $LF
+if($status) goto error_exit;
+set ud = `UpdateNeeded aseg.presurf.mgz aseg.auto.mgz`
+if($ud || $ForceUpdate) then
+  set cmd = (cp aseg.auto.mgz aseg.presurf.mgz)
+  echo $cmd | tee -a $LF
+  $cmd | tee -a $LF
+endif
+
+set DoCleanWM = 0
+set norm = $outdir/mri/norm.mgz
+set wmseg = $outdir/mri/wm.seg.mgz
+set wmasegedit = $outdir/mri/wm.asegedit.mgz
+set ud = `UpdateNeeded $wmasegedit $wmseg $norm $synthseg`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_edit_wm_with_aseg)
+  if(! $DoCleanWM) set cmd = ($cmd -keep-in)
+  #if($SynthSegForSurf) set cmd = ($cmd -wmsa aseg.presurf.mgz) # could use -fill-seg-wm
+  set cmd = ($cmd -fill-seg-wm) # no aseg to fill wmsas
+  set cmd = ($cmd wm.seg.mgz brain.mgz synthseg.rca.mgz wm.asegedit.mgz)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+set wm = $outdir/mri/wm.mgz
+set ud = `UpdateNeeded $wm $wmasegedit $norm`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_pretess wm.asegedit.mgz wm norm.mgz wm.mgz)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+if($RunReconAll) then
+  set cmd = (recon-all -s $subject -autorecon2-wm -autorecon3 -threads $threads)
+  echo $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+#========================================================
+
+# Cleanup
+# if($cleanup) rm -rf $tmpdir
+
+# Done
+echo " " |& tee -a $LF
+set tSecEnd = `date '+%s'`;
+@ tSecRun = $tSecEnd - $tSecStart;
+set tRunMin = `echo $tSecRun/60|bc -l`
+set tRunMin = `printf %5.2f $tRunMin`
+set tRunHours = `echo $tSecRun/3600|bc -l`
+set tRunHours = `printf %5.2f $tRunHours`
+echo "Started at $StartTime " |& tee -a $LF
+echo "Ended   at `date`" |& tee -a $LF
+echo "Rca-Rcac-Prep-Run-Time-Sec $tSecRun" |& tee -a $LF
+echo "Rca-Rcac-Prep-Run-Time-Min $tRunMin" |& tee -a $LF
+echo "Rca-Rcac-Prep-Run-Time-Hours $tRunHours" |& tee -a $LF
+echo " " |& tee -a $LF
+echo "rca-rcac-prep Done" |& tee -a $LF
+exit 0
+
+###############################################
+
+############--------------##################
+error_exit:
+echo "ERROR:"
+
+exit 1;
+###############################################
+
+############--------------##################
+parse_args:
+set cmdline = ($argv);
+while( $#argv != 0 )
+
+  set flag = $argv[1]; shift;
+  
+  switch($flag)
+
+    case "--i":
+      if($#argv < 1) goto arg1err;
+      set invol = $argv[1]; shift;
+      breaksw
+
+    case "--s":
+      if($#argv < 1) goto arg1err;
+      set subject = $argv[1]; shift;
+      breaksw
+
+    case "--sd":
+      if($#argv < 1) goto arg1err;
+      setenv SUBJECTS_DIR $argv[1]; shift;
+      breaksw
+
+    case "--threads":
+      if($#argv < 1) goto arg1err;
+      set threads = $argv[1]; shift;
+      breaksw
+
+    case "--rca":
+    case "--run-recon-all":
+     set RunReconAll = 1
+     breaksw
+
+    case "--force":
+     set ForceUpdate = 1
+     breaksw
+    case "--no-force":
+     set ForceUpdate = 0
+     breaksw
+
+    case "--log":
+      if($#argv < 1) goto arg1err;
+      set LF = $argv[1]; shift;
+      breaksw
+
+    case "--nolog":
+    case "--no-log":
+      set LF = /dev/null
+      breaksw
+
+    case "--tmp":
+    case "--tmpdir":
+      if($#argv < 1) goto arg1err;
+      set tmpdir = $argv[1]; shift;
+      set cleanup = 0;
+      breaksw
+
+    case "--nocleanup":
+      set cleanup = 0;
+      breaksw
+
+    case "--cleanup":
+      set cleanup = 1;
+      breaksw
+
+    case "--debug":
+      set verbose = 1;
+      set echo = 1;
+      breaksw
+
+    default:
+      echo ERROR: Flag $flag unrecognized. 
+      echo $cmdline
+      exit 1
+      breaksw
+  endsw
+
+end
+
+goto parse_args_return;
+############--------------##################
+
+############--------------##################
+check_params:
+
+if($#subject == 0) then
+  echo "ERROR: must spec subject"
+  exit 1;
+endif
+
+set outdir = $SUBJECTS_DIR/$subject
+set subjdir = $outdir
+set rcacdir = $outdir/mri/rcac
+
+if($#invol && -e $rcacdir/conf.mgz) then
+  echo "ERROR: subject $subject has already been started. Do not pass an input"
+  echo " volume or delete the subject and re-run"
+  exit 1;
+endif
+if($#invol == 0 && ! -e $rcacdir/conf.mgz) then
+  echo "ERROR: must spec invol"
+  exit 1;
+endif
+
+goto check_params_return;
+############--------------##################
+
+############--------------##################
+arg1err:
+  echo "ERROR: flag $flag requires one argument"
+  exit 1
+############--------------##################
+arg2err:
+  echo "ERROR: flag $flag requires two arguments"
+  exit 1
+############--------------##################
+
+############--------------##################
+usage_exit:
+  echo ""
+  echo "rca-rcac-prep uses recon-all-clinical commands to preprocess the input for use with recon-all."
+  echo " --s subject"
+  echo " --threads nthreads"
+  echo " --run-recon-all -- run recon-all -s subject -autorecon2-wm -autorecon3 -threads threads"
+  echo ""
+  echo ""
+
+  if(! $PrintHelp) exit 1;
+  echo $VERSION
+  cat $0 | awk 'BEGIN{prt=0}{if(prt) print $0; if($1 == "BEGINHELP") prt = 1 }'
+exit 1;
+
+#---- Everything below here is printed out as part of help -----#
+BEGINHELP
+
+This program uses recon-all-clinical commands to preprocess the
+input for use with recon-all, eg,
+
+rca-rcac-prep --s subject --i input.mgz --threads 20
+recon-all -s subject -autorecon2-wm -autorecon3 -threads 20
+
+Can also add
+  -no-fix-ento-wm -no-fix-ga -no-fix-mca-dura -no-fix-acj -no-fix-vsinus
+
+Or you can run 
+rca-rcac-prep --s subject --i input.mgz --threads 20 --run-recon-all
+
+
+rca-rcac-prep can take any contrast. It generates orig.mgz orig_nu.mgz
+nu.mgz T1.mgz brainmask.auto.mgz synthstrip.mgz norm.mgz brain.mgz
+brainmask.mgz antsdn.brain.mgz wm.seg.mgz rawavg.mgz and taliarach.xfm in
+transforms. The input data is conformed and shows up as source.mgz
+Note that all other volumes (eg, orig.mgz, nu.mgz, etc) appear as
+T1-weighted so they work with the rest of recon-all.
+
+After the recon-all-clinical commands are run, then other FS commands
+are run to bring it up to the place where -autorecon2-wm can be run.
+Do not run recon-all in a way that it calls commands prior to
+autorecon2-wm. Of note, synthseg is run on the conformed input, not
+the orig.mgz, because orig.mgz is a synthetic T1.
+
+The results are not idential to recon-all-clinical.sh, but they are
+very close.  One of the reasons is that RCAC includes the hipp+amyg as
+part of the subcortical mass. By default, recon-all also includes
+fixes for entowm, vsinus, mca/dura, and acj, and these will cause
+differences too if they are turned on. There may be other places 
+where RCAC does something different than recon-all.
+
+There are worries about the surface placement on the synthSR synthetic
+T1 as synthSR does have a heavy hand, but it can also remove a bunch
+of junk in white matter (could be good for ex vivo).
+
+The original intent of this script was to be able to use
+recon-all-clinical to process volumes of arbitrary contrast in a way
+that would produce all of the regular recon-all output, take
+advantages of changes to recon-all, and also be editable (eg, to be
+able to edit the filled.mgz, brain.finalsurfs.manedit.mgz; note that
+control points will not do anything; I think aseg edits should work
+but not sure). The current recon-all-clinical.sh does not respect
+edits.
+
+If you re-run rca-rcac-prep on the same folder, then do not include
+the input, eg,
+# First run
+rca-rcac-prep --s subject --i input.mgz --threads 20
+# Second and subsequent runs
+rca-rcac-prep --s subject  --threads 20
+
+
+
+
+
+
+
