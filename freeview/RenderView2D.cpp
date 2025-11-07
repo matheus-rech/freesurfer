@@ -63,7 +63,8 @@
 #include <QFileDialog>
 #include <vtkRenderWindow.h>
 
-RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent )
+RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent ), m_bNeurologicalView(false),
+  m_bBrainstemView(false)
 {
   m_renderer->GetActiveCamera()->ParallelProjectionOn();
   m_contour2D = new Contour2D( this );
@@ -222,6 +223,7 @@ void RenderView2D::UpdateViewByWorldCoordinate()
     break;
   case 2:
     cam->SetPosition( wcenter[0], wcenter[1], m_bNeurologicalView? (wcenter[2] + len):(wcenter[2] - len) );
+    cam->SetViewUp(0, m_bBrainstemView?-1:1, 0);
     break;
   }
   m_renderer->ResetCameraClippingRange();
@@ -1048,6 +1050,17 @@ void RenderView2D::OnMoveAllPointsToLocalMaximum()
 void RenderView2D::SetNeurologicalView(bool b)
 {
   m_bNeurologicalView = b;
+  if (b)
+    m_bBrainstemView = false;
+  Reset();
+  UpdateAnnotation();
+}
+
+void RenderView2D::SetBrainstemView(bool b)
+{
+  m_bBrainstemView = b;
+  if (b)
+    m_bNeurologicalView = false;
   Reset();
   UpdateAnnotation();
 }

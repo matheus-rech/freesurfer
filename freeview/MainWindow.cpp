@@ -1818,6 +1818,7 @@ void MainWindow::OnIdle()
     m_dlgTransformVolume->hide();
 
   ui->actionNeurologicalView->setChecked(((RenderView2D*)m_views[0])->GetNeurologicalView());
+  ui->actionBrainstemView->setChecked(((RenderView2D*)m_views[0])->GetBrainstemView());
 }
 
 bool MainWindow::IsBusy()
@@ -10259,6 +10260,14 @@ void MainWindow::SetNeurologicalView(bool b)
   for (int i = 0; i < 3; i++)
   {
     ((RenderView2D*)m_views[i])->ResetCameraClippingRange();
+  }
+}
+
+void MainWindow::SetBrainstemView(bool b)
+{
+  for (int i = 0; i < 3; i++)
+  {
+    ((RenderView2D*)m_views[i])->SetBrainstemView(b);
   }
 }
 

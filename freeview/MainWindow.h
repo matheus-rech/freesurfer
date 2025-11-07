@@ -177,6 +177,11 @@ public:
     return m_views[m_nMainView];
   }
 
+  RenderView* Get3DView()
+  {
+    return m_views[3];
+  }
+
   void RotateVolume( std::vector<RotationElement>& rotations, bool bAllVolumes );
 
   void TransformVolume(double* mat, int sample_method);
@@ -327,6 +332,8 @@ public slots:
   }
 
   void SetNeurologicalView(bool b);
+
+  void SetBrainstemView(bool b);
 
   void OnFlattendSurfacePatchLoaded();
 

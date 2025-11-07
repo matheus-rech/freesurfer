@@ -152,6 +152,7 @@ public slots:
   void SetBackLightIntensity(double d, bool redraw = true);
   void SetLightIntensity(double key, double head, double fill, double back);
   void SetLightToDefault();
+  void SetUseDepthPeeling(bool b = true);
 
   inline void EmitRenderTriggeredByInteractor()
   {

@@ -132,6 +132,11 @@ public:
     return m_bNeurologicalView;
   }
 
+  bool GetBrainstemView()
+  {
+    return m_bBrainstemView;
+  }
+
   bool GetShowGrid();
 
   double GetGridSize();
@@ -152,6 +157,7 @@ public slots:
   void OnInsertPointAfter();
   void ShowGrid(bool bShow);
   void SetGridSize(double val);
+  void SetBrainstemView(bool b);
 
 signals:
   void RegionSelected( Region2D* );
@@ -194,6 +200,7 @@ private:
   Interactor2DVolumeCrop* m_interactorVolumeCrop;
 
   bool      m_bNeurologicalView;
+  bool      m_bBrainstemView;
   bool      m_bAutoScaleText;
   int       m_nTextSize;
 };

@@ -644,3 +644,18 @@ void GenericRenderView::ResetCameraClippingRange()
 {
   GetRenderer()->ResetCameraClippingRange();
 }
+
+void GenericRenderView::SetUseDepthPeeling(bool b)
+{
+  if (m_renderer)
+  {
+    m_renderer->SetUseDepthPeeling(b?1:0);
+    vtkRenderWindow* renWin = m_renderer->GetRenderWindow();
+    if (renWin)
+    {
+      renWin->SetAlphaBitPlanes(b?1:0);
+      renWin->SetMultiSamples(b?0:1);
+    }
+    m_renderer->Render();
+  }
+}
