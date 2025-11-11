@@ -40,6 +40,8 @@
       <explanation> apply an LTA registration to a surface</explanation>
       <argument>--lta-rot source-surf ltafile outputsurf</argument>
       <explanation> apply just the rotational components of an LTA registration to a surface</explanation>
+      <argument>--center</argument>
+      <explanation> force xyz of centroid to be 0</explanation>
     </required-flagged>
     <optional-flagged>
       <argument>--streg srcreg2 trgreg2</argument>

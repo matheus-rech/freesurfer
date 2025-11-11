@@ -4950,18 +4950,19 @@ LTA *LTAcreate(MRI *src, MRI *dst, MATRIX *T, int type)
 
 /*!
   \fn LTA *LTAmat2RotMat(LTA *lta)
-  \brief Convert LTA into a pure rotation matrix
+  \brief Convert LTA into a pure rotation matrix. Now (11/11/2025) does not change
+  the lta type (used to change it to ras2ras to extract then back to native after).
  */
 int LTAmat2RotMat(LTA *lta)
 {
-  int ltatype = lta->type;
-  if(lta->type != LINEAR_RAS_TO_RAS)
-    LTAchangeType(lta,LINEAR_RAS_TO_RAS);
-  LTAinvert(lta,lta);
+  int k;
+  //int ltatype = lta->type;
+  //if(lta->type != LINEAR_RAS_TO_RAS)
+  //  LTAchangeType(lta,LINEAR_RAS_TO_RAS);
+  LTAinvert(lta,lta); // not sure why this is needed
   double par[12];
   TranformExtractAffineParams(lta->xforms[0].m_L,par);
   // Only keep the rotational components
-  int k;
   for(k=0; k <  3; k++) par[k] = 0; // trans
   for(k=6; k <  9; k++) par[k] = 1; // scale must stay 1
   for(k=9; k < 12; k++) par[k] = 0; // shear
@@ -4969,7 +4970,9 @@ int LTAmat2RotMat(LTA *lta)
   MatrixCopy(T, lta->xforms[0].m_L);
   MatrixFree(&T);
   LTAinvert(lta,lta);
-  if(ltatype != LINEAR_RAS_TO_RAS) LTAchangeType(lta,ltatype);
+  TranformExtractAffineParams(lta->xforms[0].m_L,par);
+  //if(ltatype != LINEAR_RAS_TO_RAS) LTAchangeType(lta,ltatype);
+  //MatrixPrint(stdout,lta->xforms[0].m_L);
   return(0);
 }
 

@@ -87,10 +87,14 @@ int main(int argc, char *argv[]) {
 
   if(regfile){
     printf("Applying rotational components from regfile, ignoring alpha, beta, gamma\n");
-    MRIScenter(mris, mris) ; // not sure this is needed if this is a sphere
+    //MRIScenter(mris, mris) ; // not sure this is needed if this is a sphere
     printf("Reading in reg file %s\n",regfile);
     LTA *lta = LTAread(regfile);
     if(lta==NULL) exit(1);
+    if(lta->type != REGISTER_DAT){
+      printf("Changing LTA to TKR\n");
+      LTAchangeType(lta, REGISTER_DAT);
+    }
     printf("Extracting rotational components\n");
     LTAmat2RotMat(lta);
     printf("Applying rotation matrix to surface\n");
@@ -98,8 +102,10 @@ int main(int argc, char *argv[]) {
     int err = MRISltaMultiply(mris, lta);
     if(err) exit(1);
     LTAfree(&lta);
-    // This may be needed because lta is changed to tkreg and it gets an offset
-    MRIScenter(mris, mris) ;
+    // This may be needed because lta is changed to tkreg and it gets an offset.
+    // But now just changing to tkreg before converting to pure rot, so this is not needed
+    //printf("Centering surface\n");
+    //MRIScenter(mris, mris) ;
   }
   else {
     printf("alpha = %g  beta = %g gamma = %g\n",alpha,beta,gamma);

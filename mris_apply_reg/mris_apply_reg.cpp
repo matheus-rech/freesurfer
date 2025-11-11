@@ -451,14 +451,17 @@ static int parse_commandline(int argc, char **argv) {
       printf("Reading in %s\n",pargv[1]);
       LTA *lta = LTAread(pargv[1]);
       if(lta==NULL) exit(1);
+      if(lta->type != REGISTER_DAT){
+	printf("Changing LTA to TKR\n");
+	LTAchangeType(lta, REGISTER_DAT);
+      }
       if(!strcasecmp(option, "--lta-rot")){
 	printf("Extracting rotational components\n");
 	LTAmat2RotMat(lta);
       }
       int err = MRISltaMultiply(ltasurf, lta);
       if(err) exit(1);
-      if (center_surface)
-	MRIScenter(ltasurf, ltasurf);
+      if(center_surface) MRIScenter(ltasurf, ltasurf);
       printf("Writing surf to %s\n",pargv[2]);
       err = MRISwrite(ltasurf,pargv[2]);
       if(err) exit(1);

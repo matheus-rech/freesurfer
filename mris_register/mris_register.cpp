@@ -243,6 +243,10 @@ main(int argc, char *argv[])
     printf("Reading in reg file %s\n",regfile);
     LTA *lta = LTAread(regfile);
     if(lta==NULL) exit(1);
+    if(lta->type != REGISTER_DAT){
+      printf("Changing LTA to TKR\n");
+      LTAchangeType(lta, REGISTER_DAT);
+    }
     printf("Extracting rotational components\n");
     LTAmat2RotMat(lta);
     printf("Applying rotation matrix to surface\n");
