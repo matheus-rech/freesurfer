@@ -16,6 +16,8 @@ set subject = ();
 set ForceUpdate = 0
 set RunReconAll = 0;
 set threads = 1
+set hemilist = ()
+set invol = ()
 
 set tmpdir = ();
 set cleanup = 1;
@@ -233,6 +235,7 @@ endif
 
 if($RunReconAll) then
   set cmd = (recon-all -s $subject -autorecon2-wm -autorecon3 -threads $threads)
+  if($#hemilist == 1) set cmd = ($cmd -hemi $hemilist)
   echo $cmd | tee -a $LF
   fs_time $cmd |& tee -a $LF
   if($status) goto error_exit
@@ -298,7 +301,16 @@ while( $#argv != 0 )
       set threads = $argv[1]; shift;
       breaksw
 
+    case "--lh":
+      set hemilist = ($hemilist lh);
+      breaksw
+
+    case "--rh":
+      set hemilist = ($hemilist rh);
+      breaksw
+
     case "--rca":
+    case "--recon-all":
     case "--run-recon-all":
      set RunReconAll = 1
      breaksw
@@ -369,10 +381,12 @@ if($#invol && -e $rcacdir/conf.mgz) then
   echo " volume or delete the subject and re-run"
   exit 1;
 endif
-if($#invol == 0 && ! -e $rcacdir/conf.mgz) then
+if($#invol == 0 && ! -e $outdir/mri/source.conf.mgz) then
   echo "ERROR: must spec invol"
   exit 1;
 endif
+
+if($#hemilist != 1) set hemilist = (lh rh)
 
 goto check_params_return;
 ############--------------##################
@@ -392,9 +406,10 @@ usage_exit:
   echo ""
   echo "rca-rcac-prep uses recon-all-clinical commands to preprocess the input for use with recon-all."
   echo " --s subject"
+  echo " --i invol"
   echo " --threads nthreads"
   echo " --run-recon-all -- run recon-all -s subject -autorecon2-wm -autorecon3 -threads threads"
-  echo ""
+  echo " --lh, --rh : run recon-all with given hemi"
   echo ""
 
   if(! $PrintHelp) exit 1;
