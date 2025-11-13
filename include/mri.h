@@ -306,6 +306,25 @@ struct VOL_GEOM
 
     return *this;
   }
+
+  void update_ras_xform(const VOL_GEOM& vg)
+  {
+    x_r = vg.x_r;
+    x_a = vg.x_a;
+    x_s = vg.x_s;
+    y_r = vg.y_r;
+    y_a = vg.y_a;
+    y_s = vg.y_s;
+    z_r = vg.z_r;
+    z_a = vg.z_a;
+    z_s = vg.z_s;
+    c_r = vg.c_r;
+    c_a = vg.c_a;
+    c_s = vg.c_s;
+    s_r = vg.s_r;
+    s_a = vg.s_a;
+    s_s = vg.s_s;
+  }
   
   void vgprint(bool nocheck=false)
   {
@@ -332,6 +351,7 @@ struct VOL_GEOM
   // otherwise, return 0
   int operator== (const VOL_GEOM& vg)
   {
+    // include/transform.h:double vg_isEqual_Threshold=FLT_EPSILON;
     extern double vg_isEqual_Threshold;
     int rt = isNotEqualThresh(this, &vg, vg_isEqual_Threshold);
     return (rt == 0) ? 1 : 0;
@@ -1712,7 +1732,7 @@ float MRIvolumeDeterminant(MRI *mri);
 
 MRI *MRISreadCurvAsMRI(const char *curvfile, int read_volume);
 
-void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderextension=false, long long mgztaglen=-1, int *has_ras_xform=NULL);
+void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderextension=false, long long mgztaglen=-1, VOL_GEOM *ras_xform=NULL);
 void MRITAGwrite(MRI *mri, znzFile fp, bool niftiheaderextension=false);
 
 int mriio_command_line(int argc, char *argv[]);
