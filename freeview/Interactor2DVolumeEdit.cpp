@@ -147,6 +147,20 @@ bool Interactor2DVolumeEdit::ProcessMouseDownEvent( QMouseEvent* event, RenderVi
       return false;
     }
   }
+  if (m_nAction == EM_Freehand && event->button() == Qt::RightButton)
+  {
+    if (event->modifiers() & Qt::ShiftModifier)
+    {
+      LayerMRI* mri = (LayerMRI*)MainWindow::GetMainWindow()->GetActiveLayer("MRI");
+      if (mri)
+      {
+        double ras[3];
+        view->MousePositionToRAS( event->x(), event->y(), ras );
+        MainWindow::GetMainWindow()->SetEditRefPoint((LayerMRI*)mri, ras);
+        return false;
+      }
+    }
+  }
 
   if ( event->button() == Qt::LeftButton ||
        ( event->button() == Qt::RightButton && (event->buttons() & Qt::LeftButton) ) )
