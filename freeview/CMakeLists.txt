@@ -1,7 +1,7 @@
 project(freeview)
 
 # if(BUILD_GUIS AND VTK_FOUND AND PETSC_FOUND AND TARGET vtkutils)
-if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
+if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils AND ITK_FOUND)
 
   include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -321,6 +321,15 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
 
   add_executable(freeview ${SOURCES})
 
+  if(HOST_OS MATCHES "Ubuntu24" AND UB24_SYSLIBS)
+     if(ITK_SYSLIBS)
+        set(ITK_LIBRARIES "")
+     endif()
+     if(VTK_SYSLIBS)
+        set(VTK_LIBRARIES "")
+     endif()
+  endif()
+
   # petsc and/or profiling may not work/compile on some platforms
   if(PETSC_FOUND AND NOT DISABLE_LINEPROF)
      target_link_libraries(freeview
@@ -356,6 +365,18 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils)
 
   if(NOT APPLE)
     target_link_libraries(freeview ${GLUT_LIBRARIES} ${X11_LIBRARIES})
+  endif()
+
+  if(HOST_OS MATCHES "Ubuntu24" AND UB24_SYSLIBS)
+     set(UB24_BASE "/usr/lib/x86_64-linux-gnu")
+
+     set(UB24_ITK_LIBS libITKCommon-5.3.so.1 libITKgiftiio-5.3.so.1 libITKniftiio-5.3.so.1 libitkv3p_netlib-5.3.so.1 libitkvnl-5.3.so.1 libitkvnl_algo-5.3.so.1)
+
+     set(UB24_VTK_LIBS libvtkCommonComputationalGeometry-9.1.so.1 libvtkCommonCore-9.1.so.1 libvtkCommonDataModel-9.1.so.1 libvtkCommonExecutionModel-9.1.so.1 libvtkCommonMath-9.1.so.1 libvtkCommonMisc-9.1.so.1 libvtkCommonTransforms-9.1.so.1 libvtkFiltersCore-9.1.so.1 libvtkFiltersExtraction-9.1.so.1 libvtkFiltersGeneral-9.1.so.1 libvtkFiltersHybrid-9.1.so.1 libvtkFiltersModeling-9.1.so.1 libvtkFiltersSources-9.1.so.1 libvtkGUISupportQt-9.1.so.1 libvtkIOCore-9.1.so.1 libvtkIOExport-9.1.so.1 libvtkIOGeometry-9.1.so.1 libvtkIOImage-9.1.so.1 libvtkIOLegacy-9.1.so.1 libvtkImagingCore-9.1.so.1 libvtkImagingGeneral-9.1.so.1 libvtkImagingMath-9.1.so.1 libvtkImagingMorphological-9.1.so.1 libvtkInteractionStyle-9.1.so.1 libvtkRenderingAnnotation-9.1.so.1 libvtkRenderingCore-9.1.so.1 libvtkRenderingOpenGL2-9.1.so.1)
+
+     foreach(LIB ${UB24_ITK_LIBS} ${UB24_VTK_LIBS})
+        target_link_libraries(freeview ${UB24_BASE}/${LIB})
+     endforeach()
   endif()
 
   if(LINK_SHARED_AS_NEEDED)
