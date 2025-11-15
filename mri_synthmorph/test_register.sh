@@ -3,6 +3,9 @@
 
 t() { test_command mri_synthmorph "$@" ; }
 
+# added per commit c4e558ba58ac721fe7858f500be82d7d0dabf383
+export IGNORE_TAG_RAS_XFORM=1
+
 # affine registration
 t -m affine -o out.mgz moving.mgz fixed.mgz
 compare_vol out.mgz affine.mgz --thresh 0.02
