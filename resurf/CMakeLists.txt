@@ -128,20 +128,24 @@ if(ITK_FOUND AND VTK_FOUND)
   #install(TARGETS sigmoidFit DESTINATION bin)
 
   # also needs ITKLabelMap
-  add_executable(mri_vessel_segment mri_vessel_segment.cxx)
   if(HOST_OS MATCHES "Ubuntu24" AND UB24_SYSLIBS)
+     # builds in Ubuntu24 container with system vtk libs
+     add_executable(mri_vessel_segment mri_vessel_segment.cxx)
      foreach(LIB ${MRI_VESSEL_SEGMENT_ITK_LIBS} ${MRI_VESSEL_SEGMENT_VTK_LIBS})
         target_link_libraries(mri_vessel_segment ${UB24_BASE}/${LIB})
      endforeach()
      target_link_libraries(mri_vessel_segment utils nifti)
      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${UB24_COMMON_LINK_OPTIONS}")
+     install(TARGETS mri_vessel_segment DESTINATION bin)
   elseif(NOT ((HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "Rocky9" OR (HOST_OS MATCHES "Ubuntu24" AND NOT UB24_SYSLIBS) OR HOST_OS MATCHES "Ubuntu22") AND HOST_OS_GCC_VERSION MATCHES "11"))
+     # fails if some vtk packages are not installed/present
+     add_executable(mri_vessel_segment mri_vessel_segment.cxx)
      target_link_libraries(mri_vessel_segment utils nifti "${ITK_LIBRARIES};ITKLabelMap" ${VTK_LIBRARIES})
      if(LINK_SHARED_AS_NEEDED)
         target_link_options(mri_vessel_segment PRIVATE "LINKER:--as-needed")
      endif()
+     install(TARGETS mri_vessel_segment DESTINATION bin)
   endif()
-  install(TARGETS mri_vessel_segment DESTINATION bin)
 
   add_executable(mris_multimodal_surface_placement mris_multimodal_surface_placement.cxx ${TRACKIO})
   if(HOST_OS MATCHES "Ubuntu24" AND UB24_SYSLIBS)
