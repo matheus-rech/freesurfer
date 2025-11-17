@@ -218,6 +218,7 @@ if(BUILD_GUIS AND VTK_FOUND AND TARGET vtkutils AND ITK_FOUND)
     GifWriterWrapper.cpp
     DialogWayPointsAngle.cpp
     ColorTableItem.cpp
+    DialogLabelStatsInRange.cpp
     freeview.qrc
   )
 

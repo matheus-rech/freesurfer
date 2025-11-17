@@ -4710,3 +4710,37 @@ bool LayerMRI::IsRGB()
 {
   return m_volumeSource && m_volumeSource->IsRGB();
 }
+
+int LayerMRI::GetLabelCount(int nVal, int nPlane, int nStart, int nEnd)
+{
+  vtkImageData* image = GetImageData();
+  int* dim = image->GetDimensions();
+  char* ptr = (char*)image->GetScalarPointer();
+  int scalar_type = image->GetScalarType();
+  int n_frames = image->GetNumberOfScalarComponents();
+  int nCount = 0;
+  if (nStart == 0 && nEnd == dim[nPlane]-1)
+    return GetLabelCount(nVal);
+
+  for (int i = 0; i < dim[0]; i++)
+  {
+    if (nPlane == 0 && (i < nStart || i > nEnd))
+      continue;
+    for (int j = 0; j < dim[1]; j++)
+    {
+      if (nPlane == 1 && (j < nStart || j > nEnd))
+        continue;
+      for (int k = 0; k < dim[2]; k++)
+      {
+        if (nPlane == 2 && (k < nStart || k > nEnd))
+          continue;
+        int val = (int)MyVTKUtils::GetImageDataComponent(ptr, dim, n_frames, i, j, k, m_nActiveFrame, scalar_type);
+        if (val == nVal)
+        {
+          nCount++;
+        }
+      }
+    }
+  }
+  return nCount;
+}

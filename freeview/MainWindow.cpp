@@ -85,6 +85,7 @@
 #include "DialogRepositionSurface.h"
 #include "WindowTimeCourse.h"
 #include "DialogLabelStats.h"
+#include "DialogLabelStatsInRange.h"
 #include "VolumeFilterWorkerThread.h"
 #include "FSGroupDescriptor.h"
 #include "WindowGroupPlot.h"
@@ -352,6 +353,9 @@ MainWindow::MainWindow( QWidget *parent, MyCmdLineParser* cmdParser ) :
   connect(this, SIGNAL(SlicePositionChanged()), m_dlgLabelStats, SLOT(UpdateStats()), Qt::QueuedConnection);
   connect(m_layerCollections["MRI"], SIGNAL(ActiveLayerChanged(Layer*)), m_dlgLabelStats, SLOT(UpdateStats()), Qt::QueuedConnection);
   connect(m_layerCollections["ROI"], SIGNAL(ActiveLayerChanged(Layer*)), m_dlgLabelStats, SLOT(UpdateStats()), Qt::QueuedConnection);
+
+  m_dlgLabelStatsInRange = new DialogLabelStatsInRange(this);
+  m_dlgLabelStatsInRange->hide();
 
 #if !defined(ARM64) && !defined(DISABLE_LINEPROF)
   m_dlgLineProfile = new DialogLineProfile(this);
@@ -10383,4 +10387,16 @@ void MainWindow::SetEditRefPoint(LayerMRI *mri, double *pos_in)
 bool MainWindow::IsWSL()
 {
   return QFile::exists("/proc/sys/fs/binfmt_misc/WSLInterop");
+}
+
+void MainWindow::OnShowLabelStatsInRange()
+{
+  QAction* act = qobject_cast<QAction*>(sender());
+  if (act)
+  {
+    m_dlgLabelStatsInRange->SetInfo((LayerMRI*)act->property("label_mri").value<QObject*>(), act->property("label_name").toString(),
+        act->property("label_value").toInt(), act->property("label_plane").toInt());
+    m_dlgLabelStatsInRange->show();
+    m_dlgLabelStatsInRange->raise();
+  }
 }
