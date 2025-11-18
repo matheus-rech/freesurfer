@@ -52,6 +52,15 @@ extern const char *Progname;
 #include "voxlist.h"
 
 #include "mri.h"
+
+double MRIsampleVolumeDerivativeSign = 1.0;
+double MRIsetSampleVolumeDerivativeSign(double newsign){
+  MRIsampleVolumeDerivativeSign = newsign;
+  printf("Settting MRIsampleVolumeDerivativeSign to %g\n",MRIsampleVolumeDerivativeSign);
+  return(MRIsampleVolumeDerivativeSign);
+}
+
+
 #include "log.h"
 
 extern int errno;
@@ -10989,6 +10998,7 @@ int MRIsampleVolumeDirectionScale(
   everything is in voxels, meaning that the behavior will change
   depending on the voxel size. Eg, at highres, the max distance and sigma
   are less in mm terms. The derivative magnitude is per voxel, not per mm.
+  Sign can be controlled with extern double MRIsampleVolumeDerivativeSign;
 */
 int MRIsampleVolumeDerivativeScale(
     MRI *mri, double x, double y, double z, double dx, double dy, double dz, double *pmag, double sigma)
@@ -11034,6 +11044,7 @@ int MRIsampleVolumeDerivativeScale(
   vp1 /= (double)ktotal;
   len /= (double)ktotal;
   *pmag = (vp1 - vm1) / (2.0 * len);
+  *pmag *= MRIsampleVolumeDerivativeSign;
   return (NO_ERROR);
 }
 /*-----------------------------------------------------
@@ -11083,6 +11094,7 @@ int MRIsampleVolumeDerivative(MRI *mri, double x, double y, double z, double dx,
   }
 
   *pmag = (vp1 - vm1) / (2.0 * len);
+  *pmag *= MRIsampleVolumeDerivativeSign;
   return (NO_ERROR);
 }
 /*-----------------------------------------------------

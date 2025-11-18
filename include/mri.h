@@ -670,6 +670,7 @@ typedef struct
 } MOTIONBLUR2D, MB2D;
 
 
+
 MRI *MRImotionBlur2D(MRI *src, MB2D *mb, MRI *out);
 int MB2Dfree(MB2D **pmb);
 MB2D *MB2Dcopy(MB2D *src, int CopyMRI, MB2D *copy);
@@ -1240,6 +1241,7 @@ int   MRIsampleVolumeGradientFrame( const MRI *mri,
 				    double x, double y, double z,
 				    double *pdx, double *pdy, double *pdz,
 				    int frame ) ;
+double MRIsetSampleVolumeDerivativeSign(double newsign);
 int   MRIsampleVolumeDerivative(MRI *mri,
                                 double x, double y, double z,
                                 double dx, double dy, double dz,
