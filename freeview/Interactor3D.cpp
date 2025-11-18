@@ -110,6 +110,11 @@ bool Interactor3D::ProcessMouseUpEvent( QMouseEvent* event, RenderView* rendervi
       {
         view->ZoomAtCursor(event->x(), event->y(), 0.5);
       }
+      else if (event->modifiers() & Qt::ShiftModifier && view->GetInteractionMode() == RenderView::IM_VoxelEdit)
+      {
+        view->setProperty("set_edit_ref_point", true);
+        view->UpdateCursorRASPosition(event->x(), event->y());
+      }
     }
   }
   else
@@ -179,7 +184,8 @@ bool Interactor3D::ProcessMouseMoveEvent( QMouseEvent* event, RenderView* render
     }
     else
     {
-      view->UpdateMouseRASPosition( posX, posY, event->modifiers() != Qt::ShiftModifier );
+      if (view->GetInteractionMode() != RenderView::IM_VoxelEdit)
+        view->UpdateMouseRASPosition( posX, posY, event->modifiers() != Qt::ShiftModifier );
     }
 
     return Interactor::ProcessMouseMoveEvent( event, view );
@@ -226,7 +232,7 @@ bool Interactor3D::ProcessKeyDownEvent( QKeyEvent* event, RenderView* renderview
   {
     view->DeleteCurrentSelectRegion();
   }
-  else if ( nKeyCode == Qt::Key_Shift)
+  else if ( nKeyCode == Qt::Key_Shift && view->GetInteractionMode() != RenderView::IM_VoxelEdit)
   {
     QPoint pt = view->mapFromGlobal(QCursor::pos());
     view->UpdateMouseRASPosition(pt.x(), pt.y());

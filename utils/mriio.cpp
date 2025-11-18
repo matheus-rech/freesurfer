@@ -101,7 +101,7 @@ static int niiPrintHdr(FILE *fp, struct nifti_1_header *hdr);
 #define KEEP_NII_OPEN 1
 
 static long long __getMRITAGlength(MRI *mri, bool niftiheaderext=false);
-static int __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag);
+static VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag);
 static int __niiReadSetVox2ras(MRI *mri, struct nifti_1_header *niihdr);
 static void __readFSniiextensionHeader(znzFile fp, MRI *mri);
 static void __writeFSniiextensionHeader(znzFile fp, MRI *mri, int intent=MGZ_INTENT_UNKNOWN);
@@ -8594,15 +8594,50 @@ static MRI *niiRead(const char *fname, int read_volume)
     printf("[DEBUG] niiRead(): hdr.vox_offset = %ld, file position = %ld\n", (long)hdr.vox_offset, here);
   }
 
+  if (__niiReadSetVox2ras(mri, &hdr))  // error
+      return NULL;
+
+  if (Gdiag & DIAG_INFO)
+  {
+    printf("[DEBUG] niiRead(): from Nifti sform/qform:\n");
+    printf("              : x_r = %8.4f, y_r = %8.4f, z_r = %8.4f, c_r = %10.4f\n",
+	   mri->x_r, mri->y_r, mri->z_r, mri->c_r);
+    printf("              : x_a = %8.4f, y_a = %8.4f, z_a = %8.4f, c_a = %10.4f\n",
+	   mri->x_a, mri->y_a, mri->z_a, mri->c_a);
+    printf("              : x_s = %8.4f, y_s = %8.4f, z_s = %8.4f, c_s = %10.4f\n",
+	   mri->x_s, mri->y_s, mri->z_s, mri->c_s);
+  }
+  
   // implement reading nifti1 header extension  
-  int has_ras_xform = 0;
   nifti1_extender extdr;   /* defines extension existence  */
   znzread(extdr.extension, 1, 4, fp); /* get extender */
   if (extdr.extension[0] == 1)
   {
     if (Gdiag & DIAG_INFO)
       printf("[DEBUG] niiRead(): processing extension ...\n");
-    has_ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag);
+    VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag);
+    const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");
+    if (ignore_tag_ras_xform == NULL && !(ras_xform == *mri))
+    {
+      // donot ignore TAG_RAS_XFORM and vol_geom differs
+      mri->vgprint(true);
+      ras_xform.vgprint(true);
+      printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension\n", fname);
+      printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
+      printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
+      printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
+      printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
+      exit(1);
+    }
+
+    if (ignore_tag_ras_xform != NULL)
+      printf("[INFO] niiRead(): ignore TAG_RAS_XFORM in FS header extension, use Nifti sform/qform\n");
+    else
+    {
+      // if we got here, difference between ras_xform and *mri is within threshold
+      printf("[INFO] niiRead(): update vol geom with TAG_RAS_XFORM in FS header extension\n");
+      mri->update_ras_xform(ras_xform);
+    }
   }
   else
   {
@@ -8615,24 +8650,6 @@ static MRI *niiRead(const char *fname, int read_volume)
       printf("[INFO] niiRead(): (no header extension) NIFTI_INTENT_DISPVECT => MGZ_INTENT_WARPMAP, mri->version = %d, mri->intent = %d (%s)\n", mri->version, mri->intent, MRI::intentName(mri->intent));
     }
   }
-
-  if (!has_ras_xform)
-  {
-    int ret = __niiReadSetVox2ras(mri, &hdr);
-    if (ret)  // error
-      return NULL;
-  }
-
-  if (Gdiag & DIAG_INFO)
-  {
-    printf("[DEBUG] niiRead() xform_info:\n");
-    printf("              : x_r = %8.4f, y_r = %8.4f, z_r = %8.4f, c_r = %10.4f\n",
-	   mri->x_r, mri->y_r, mri->z_r, mri->c_r);
-    printf("              : x_a = %8.4f, y_a = %8.4f, z_a = %8.4f, c_a = %10.4f\n",
-	   mri->x_a, mri->y_a, mri->z_a, mri->c_a);
-    printf("              : x_s = %8.4f, y_s = %8.4f, z_s = %8.4f, c_s = %10.4f\n",
-	   mri->x_s, mri->y_s, mri->z_s, mri->c_s);
-  }  
 
   mri->xsize = mri->xsize * space_units_factor;
   mri->ysize = mri->ysize * space_units_factor;
@@ -12163,7 +12180,7 @@ static int niiPrintHdr(FILE *fp, struct nifti_1_header *hdr)
  *        and it may not be at vox_offset either
  *   - niiRead() needs to znzseek() to vox_offset before reading the image data
  */
-void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, long long mgztaglen, int *has_ras_xform)
+void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, long long mgztaglen, VOL_GEOM *ras_xform)
 {
   // tag reading
   if (getenv("FS_SKIP_TAGS") != NULL)
@@ -12209,11 +12226,8 @@ void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, lo
         break;
       case TAG_RAS_XFORM:
 	// nifti header extension only
-	if (has_ras_xform != NULL)
-	  *has_ras_xform = 1;
-	
 	if (niftiheaderext)
-	  fstagsio.read_ras_xform(mri);
+	  fstagsio.read_ras_xform(ras_xform);
 	else
 	{
 	  printf("[WARN] skip unexpected tag TAG_RAS_XFORM, nifti header extension only\n");
@@ -12664,9 +12678,9 @@ long long __getMRITAGlength(MRI *mri, bool niftiheaderext)
 
 // esize/ecode read is based on nifti_read_extensions()/nifti_read_next_extension()
 // return 1 if TAG_RAS_FORM is available in NIFTI_ECODE_FREESURFER; otherwise, return 0
-int __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag)
+VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag)
 {
-  int has_ras_xform = 0;
+  VOL_GEOM ras_xform = *mri;
   
   // loop through header extensions until we find NIFTI_ECODE_FREESURFER, or reach the end
   while (1)
@@ -12723,14 +12737,14 @@ int __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swappe
           printf("[DEBUG] __niiReadHeaderextension(): version = %d, intent = %d (%s)\n", mri->version, mri->intent, MRI::intentName(mri->intent));
 	
         bool niftiheaderext = true;
-        MRITAGread(mri, fp, fname, niftiheaderext, mgztaglen, &has_ras_xform);
+        MRITAGread(mri, fp, fname, niftiheaderext, mgztaglen, &ras_xform);
 
         break;
       }
     }
   }
 
-  return has_ras_xform;
+  return ras_xform;
 } // end of __niiReadHeaderextension()
 
 

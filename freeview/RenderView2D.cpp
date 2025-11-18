@@ -62,6 +62,7 @@
 #include <QInputDialog>
 #include <QFileDialog>
 #include <vtkRenderWindow.h>
+#include "DialogLabelStatsInRange.h"
 
 RenderView2D::RenderView2D( QWidget* parent ) : RenderView( parent ), m_bNeurologicalView(false),
   m_bBrainstemView(false)
@@ -845,9 +846,17 @@ void RenderView2D::TriggerContextMenu( QMouseEvent* event )
         act->setData(mri->GetLabelCount(val)*vs[0]*vs[1]*vs[2]);
         connect(act, SIGNAL(triggered()), SLOT(OnCopyLabelStats()));
         submenu->addAction(act);
+        submenu->addSeparator();
+        act = new QAction("Stats within a range of slices...");
+        act->setProperty("label_value", val);
+        act->setProperty("label_name", name);
+        act->setProperty("label_mri", QVariant::fromValue((QObject*)mri));
+        act->setProperty("label_plane", m_nViewPlane);
+        connect(act, SIGNAL(triggered(bool)), mainwnd, SLOT(OnShowLabelStatsInRange()), Qt::QueuedConnection);
+        submenu->addAction(act);
         menu.addSeparator();
         act = new QAction(tr("Save Label %1 (%2) as Volume...").arg(name).arg(val), this);
-        act->setProperty("label_value", val);
+
         connect(act, SIGNAL(triggered(bool)), mainwnd, SLOT(OnSaveLabelAsVolume()));
         menu.addAction(act);
       }

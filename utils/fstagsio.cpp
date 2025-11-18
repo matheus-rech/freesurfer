@@ -262,7 +262,7 @@ long long FStagsIO::getlen_scan_parameters(MRI *mri, bool addtaglength)
 }
 
 
-long long FStagsIO::getlen_ras_xform(MRI *mri, bool addtaglength)
+long long FStagsIO::getlen_ras_xform(VOL_GEOM *vg, bool addtaglength)
 {
   long long dlen = 0;
   if (addtaglength)
@@ -272,10 +272,10 @@ long long FStagsIO::getlen_ras_xform(MRI *mri, bool addtaglength)
   }
 
   // this needs to be consistent with write_ras_xform()
-  dlen += sizeof(mri->x_r); dlen += sizeof(mri->x_a); dlen += sizeof(mri->x_s);
-  dlen += sizeof(mri->y_r); dlen += sizeof(mri->y_a); dlen += sizeof(mri->y_s);
-  dlen += sizeof(mri->z_r); dlen += sizeof(mri->z_a); dlen += sizeof(mri->z_s);
-  dlen += sizeof(mri->c_r); dlen += sizeof(mri->c_a); dlen += sizeof(mri->c_s);
+  dlen += sizeof(vg->x_r); dlen += sizeof(vg->x_a); dlen += sizeof(vg->x_s);
+  dlen += sizeof(vg->y_r); dlen += sizeof(vg->y_a); dlen += sizeof(vg->y_s);
+  dlen += sizeof(vg->z_r); dlen += sizeof(vg->z_a); dlen += sizeof(vg->z_s);
+  dlen += sizeof(vg->c_r); dlen += sizeof(vg->c_a); dlen += sizeof(vg->c_s);
 
   return dlen;  
 }
@@ -656,7 +656,7 @@ int FStagsIO::write_scan_parameters(MRI *mri)
 
   
 // write TAG_RAS_XFORM (nifti header extension only)
-int FStagsIO::write_ras_xform(MRI *mri)
+int FStagsIO::write_ras_xform(VOL_GEOM *vg)
 {
   long long fstart = 0;
   if (Gdiag & DIAG_INFO)
@@ -664,22 +664,22 @@ int FStagsIO::write_ras_xform(MRI *mri)
   
   znzwriteInt(TAG_RAS_XFORM, fp);
 
-  long long dlen = getlen_ras_xform(mri, false);
+  long long dlen = getlen_ras_xform(vg, false);
   znzwriteLong(dlen, fp);
-  znzwriteFloat(mri->x_r, fp); znzwriteFloat(mri->x_a, fp); znzwriteFloat(mri->x_s, fp);
-  znzwriteFloat(mri->y_r, fp); znzwriteFloat(mri->y_a, fp); znzwriteFloat(mri->y_s, fp);
-  znzwriteFloat(mri->z_r, fp); znzwriteFloat(mri->z_a, fp); znzwriteFloat(mri->z_s, fp);
-  znzwriteFloat(mri->c_r, fp); znzwriteFloat(mri->c_a, fp); znzwriteFloat(mri->c_s, fp);
+  znzwriteFloat(vg->x_r, fp); znzwriteFloat(vg->x_a, fp); znzwriteFloat(vg->x_s, fp);
+  znzwriteFloat(vg->y_r, fp); znzwriteFloat(vg->y_a, fp); znzwriteFloat(vg->y_s, fp);
+  znzwriteFloat(vg->z_r, fp); znzwriteFloat(vg->z_a, fp); znzwriteFloat(vg->z_s, fp);
+  znzwriteFloat(vg->c_r, fp); znzwriteFloat(vg->c_a, fp); znzwriteFloat(vg->c_s, fp);
 
   if (Gdiag & DIAG_INFO)
   {
     printf("[DEBUG] FStagsIO::write_ras_xform() ras xform info:\n");
     printf("              : x_r = %8.4f, y_r = %8.4f, z_r = %8.4f, c_r = %10.4f\n",
-	   mri->x_r, mri->y_r, mri->z_r, mri->c_r);
+	   vg->x_r, vg->y_r, vg->z_r, vg->c_r);
     printf("              : x_a = %8.4f, y_a = %8.4f, z_a = %8.4f, c_a = %10.4f\n",
-	   mri->x_a, mri->y_a, mri->z_a, mri->c_a);
+	   vg->x_a, vg->y_a, vg->z_a, vg->c_a);
     printf("              : x_s = %8.4f, y_s = %8.4f, z_s = %8.4f, c_s = %10.4f\n",
-	   mri->x_s, mri->y_s, mri->z_s, mri->c_s);
+	   vg->x_s, vg->y_s, vg->z_s, vg->c_s);
 
     long long fend = znztell(fp);
     printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_RAS_XFORM, fend-fstart, fstart, fend);
@@ -989,22 +989,22 @@ int FStagsIO::read_scan_parameters(MRI *mri, long long dlen)
 
 
 // read TAG_RAS_XFORM (nifti header extension only)
-int FStagsIO::read_ras_xform(MRI *mri)
+int FStagsIO::read_ras_xform(VOL_GEOM *vg)
 {
-  mri->x_r = znzreadFloat(fp); mri->x_a = znzreadFloat(fp); mri->x_s = znzreadFloat(fp);
-  mri->y_r = znzreadFloat(fp); mri->y_a = znzreadFloat(fp); mri->y_s = znzreadFloat(fp);
-  mri->z_r = znzreadFloat(fp); mri->z_a = znzreadFloat(fp); mri->z_s = znzreadFloat(fp);
-  mri->c_r = znzreadFloat(fp); mri->c_a = znzreadFloat(fp); mri->c_s = znzreadFloat(fp);
+  vg->x_r = znzreadFloat(fp); vg->x_a = znzreadFloat(fp); vg->x_s = znzreadFloat(fp);
+  vg->y_r = znzreadFloat(fp); vg->y_a = znzreadFloat(fp); vg->y_s = znzreadFloat(fp);
+  vg->z_r = znzreadFloat(fp); vg->z_a = znzreadFloat(fp); vg->z_s = znzreadFloat(fp);
+  vg->c_r = znzreadFloat(fp); vg->c_a = znzreadFloat(fp); vg->c_s = znzreadFloat(fp);
 
   if (Gdiag & DIAG_INFO)
   {
-    printf("[DEBUG] FStagsIO::read_ras_xform() ras xform_info:\n");
+    printf("[DEBUG] FStagsIO::read_ras_xform(VOL_GEOM*): from FS header extension:\n");
     printf("              : x_r = %8.4f, y_r = %8.4f, z_r = %8.4f, c_r = %10.4f\n",
-	   mri->x_r, mri->y_r, mri->z_r, mri->c_r);
+	   vg->x_r, vg->y_r, vg->z_r, vg->c_r);
     printf("              : x_a = %8.4f, y_a = %8.4f, z_a = %8.4f, c_a = %10.4f\n",
-	   mri->x_a, mri->y_a, mri->z_a, mri->c_a);
+	   vg->x_a, vg->y_a, vg->z_a, vg->c_a);
     printf("              : x_s = %8.4f, y_s = %8.4f, z_s = %8.4f, c_s = %10.4f\n",
-	   mri->x_s, mri->y_s, mri->z_s, mri->c_s);
+	   vg->x_s, vg->y_s, vg->z_s, vg->c_s);
   }
 
   return NO_ERROR;  

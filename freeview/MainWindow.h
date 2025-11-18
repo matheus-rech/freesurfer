@@ -62,6 +62,7 @@ class DialogTransformSurface;
 class DialogMovePoint;
 class QUrl;
 class DialogGifMaker;
+class DialogLabelStatsInRange;
 
 #define MAX_RECENT_FILES    10
 
@@ -659,6 +660,8 @@ protected slots:
 
   void OnShowLabelOutline(bool bShow);
 
+  void OnShowLabelStatsInRange();
+
 private:
   bool DoParseCommand(MyCmdLineParser* parser, bool bAutoQuit);
   void SaveSettings();
@@ -744,6 +747,7 @@ private:
   QWidget*              m_widgetFloatInfoPanel;
   DialogMovePoint*      m_dlgMovePoint;
   DialogGifMaker*       m_dlgSaveGif;
+  DialogLabelStatsInRange*  m_dlgLabelStatsInRange;
 
   VolumeFilterWorkerThread* m_threadVolumeFilter;
 

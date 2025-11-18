@@ -339,6 +339,8 @@ public:
 
   int GetLabelCount(int nVal);
 
+  int GetLabelCount(int nVal, int nPlane, int nStart, int nEnd);
+
   QVariantMap GetTimeSeriesInfo();
 
   QString GetGeoSegErrorMessage();
