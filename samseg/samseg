@@ -193,6 +193,7 @@ else
   set cmd0 = ($FREESURFER_HOME/python/scripts/run_samseg)
 endif
 set cmd0 = ($cmd0  -o $outdir --threads $threads)
+if($FatShift) set cmd0 = ($cmd0 --fat-shift)
 if($SaveMesh) set cmd0 = ($cmd0 --save-mesh)
 if($#regmat)  set cmd0 = ($cmd0 --reg $regmat)
 if($#initlta) set cmd0 = ($cmd0 --init-reg $initlta)
@@ -773,6 +774,10 @@ while( $#argv != 0 )
     case "--debug":
       set verbose = 1;
       set echo = 1;
+      breaksw
+
+    case "--fat-shift":
+      set FatShift = 1;
       breaksw
 
     default:
