@@ -110,8 +110,22 @@ if [ $expand -eq 1 ]; then
    all_args="$@"
    req_file=`echo $all_args | sed 's;^.*-r;-r;' | awk '{print $2}'`
    remaining_cmd=`echo $all_args | sed 's;\-r[ ][ ]*'$req_file';;' | sed 's;[ ][ ]*$;;'`
-   # ignore any commented out package entries in the requirements file
-   package_list=`cat $req_file | grep -v "^#.*" | tr -s '\n' ' '`
+   # Ignore any commented out package entries in the requirements file beginning with pound sign.
+   #
+   # Strip off +cpu from the end of any python package name if FSPYTHON_INSTALL_CUDA enabled.
+   #
+   # It has not turned out to be practical to make default for packages like torch = torch==2.1.2 in the python requirements file used by pip.
+   # The non-cpu package version installs various gpu/NVIDIA related files (in addition to any NVIDA files installed by other packages).
+   # Also the build has to work on systems w/o NVIDIA hardware/gpu's.  So the default in requirements should be, e.g., torch==2.1.2+cpui, which
+   # makes less work to clean up via the --uninstall option in this script. Note that we cannot ship files with NVIDIA copyrights.
+
+   if [ "${FSPYTHON_INSTALL_CUDA}" == "ON" ]; then
+      echo "Stripping +cpu from the end of any package name to install since FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA}"
+      package_list=`cat $req_file | grep -v "^#.*" | sed 's;\+cpu$;;' | tr -s '\n' ' '`
+   else
+      package_list=`cat $req_file | grep -v "^#.*" | tr -s '\n' ' '`
+   fi
+
    expanded_cmd="$remaining_cmd $package_list"
    echo "============================"
    date
