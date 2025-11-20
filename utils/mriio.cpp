@@ -101,7 +101,7 @@ static int niiPrintHdr(FILE *fp, struct nifti_1_header *hdr);
 #define KEEP_NII_OPEN 1
 
 static long long __getMRITAGlength(MRI *mri, bool niftiheaderext=false);
-static VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag);
+static VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag, bool *has_ras_xform);
 static int __niiReadSetVox2ras(MRI *mri, struct nifti_1_header *niihdr);
 static void __readFSniiextensionHeader(znzFile fp, MRI *mri);
 static void __writeFSniiextensionHeader(znzFile fp, MRI *mri, int intent=MGZ_INTENT_UNKNOWN);
@@ -8615,29 +8615,33 @@ static MRI *niiRead(const char *fname, int read_volume)
   {
     if (Gdiag & DIAG_INFO)
       printf("[DEBUG] niiRead(): processing extension ...\n");
-    VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag);
-    const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");
-    if (ignore_tag_ras_xform == NULL && !(ras_xform == *mri))
+    bool has_ras_xform = false;
+    VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag, &has_ras_xform);
+    if (has_ras_xform)
     {
-      // donot ignore TAG_RAS_XFORM and vol_geom differs
-      mri->vgprint(true);
-      ras_xform.vgprint(true);
-      printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension\n", fname);
-      printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
-      printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
-      printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
-      printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
-      exit(1);
-    }
+      const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");
+      if (ignore_tag_ras_xform == NULL && !(ras_xform == *mri))
+      {
+	// donot ignore TAG_RAS_XFORM and vol_geom differs
+	mri->vgprint(true);
+	ras_xform.vgprint(true);
+	printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%.10lf)\n", fname, vg_isEqual_Threshold);
+	printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
+	printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
+	printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
+	printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
+	exit(1);
+      }
 
-    if (ignore_tag_ras_xform != NULL)
-      printf("[INFO] niiRead(): ignore TAG_RAS_XFORM in FS header extension, use Nifti sform/qform\n");
-    else
-    {
-      // if we got here, difference between ras_xform and *mri is within threshold
-      printf("[INFO] niiRead(): update vol geom with TAG_RAS_XFORM in FS header extension\n");
-      mri->update_ras_xform(ras_xform);
-    }
+      if (ignore_tag_ras_xform != NULL)
+	printf("[INFO] niiRead(): ignore TAG_RAS_XFORM in FS header extension, use Nifti sform/qform\n");
+      else
+      {
+	// if we got here, difference between ras_xform and *mri is within threshold
+	printf("[INFO] niiRead(): update vol geom with TAG_RAS_XFORM in FS header extension\n");
+	mri->update_ras_xform(ras_xform);
+      }
+    } // end of has_ras_xform
   }
   else
   {
@@ -12180,7 +12184,7 @@ static int niiPrintHdr(FILE *fp, struct nifti_1_header *hdr)
  *        and it may not be at vox_offset either
  *   - niiRead() needs to znzseek() to vox_offset before reading the image data
  */
-void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, long long mgztaglen, VOL_GEOM *ras_xform)
+void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, long long mgztaglen, VOL_GEOM *ras_xform, bool *has_ras_xform)
 {
   // tag reading
   if (getenv("FS_SKIP_TAGS") != NULL)
@@ -12227,11 +12231,17 @@ void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, lo
       case TAG_RAS_XFORM:
 	// nifti header extension only
 	if (niftiheaderext)
+	{
 	  fstagsio.read_ras_xform(ras_xform);
+	  if (has_ras_xform!= NULL)
+	    *has_ras_xform = true;
+	}
 	else
 	{
 	  printf("[WARN] skip unexpected tag TAG_RAS_XFORM, nifti header extension only\n");
           fstagsio.skip_tag(tag, len);
+	  if (has_ras_xform!= NULL)
+	    *has_ras_xform = false;
 	}	
         break;
       case TAG_MRI_FRAME:
@@ -12678,7 +12688,7 @@ long long __getMRITAGlength(MRI *mri, bool niftiheaderext)
 
 // esize/ecode read is based on nifti_read_extensions()/nifti_read_next_extension()
 // return 1 if TAG_RAS_FORM is available in NIFTI_ECODE_FREESURFER; otherwise, return 0
-VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag)
+VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int swapped_flag, bool *has_ras_xform)
 {
   VOL_GEOM ras_xform = *mri;
   
@@ -12737,7 +12747,7 @@ VOL_GEOM __niiReadHeaderextension(znzFile fp, MRI *mri, const char *fname, int s
           printf("[DEBUG] __niiReadHeaderextension(): version = %d, intent = %d (%s)\n", mri->version, mri->intent, MRI::intentName(mri->intent));
 	
         bool niftiheaderext = true;
-        MRITAGread(mri, fp, fname, niftiheaderext, mgztaglen, &ras_xform);
+        MRITAGread(mri, fp, fname, niftiheaderext, mgztaglen, &ras_xform, has_ras_xform);
 
         break;
       }
