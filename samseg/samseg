@@ -61,6 +61,7 @@ set stiffness = ()
 set Profile = ()
 set biasFieldSmoothingKernelSize = ()
 set DoSegStats = 0
+set FatShift = 0
 
 set inputargs = ($argv);
 set PrintHelp = 0;
