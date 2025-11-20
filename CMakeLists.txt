@@ -50,11 +50,15 @@ option(BUILD_FORTRAN "Build subdirs with source using gfortran" ON)
 option(PATCH_FSPYTHON "Build subdirs with source using gfortran" OFF)
 option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" ON)
 option(FSL_INSTALL "force install of FSL binaries for linux platforms only" OFF)
-option(TEST_WITH_CUDA "Allow tests to run that use cuda libs and require install of cuda drivers" OFF)
 option(INTEGRATE_SAMSEG "Integrate standalone SAMSEG" ON)
 option(FIPS_SUPPORT "allow FS license to be read on FIPS system" OFF)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
+#
+# all cuda options can be enabled on Linux (only) with -DCUDA_ALL=ON as listed below
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
+option(TEST_WITH_CUDA "Allow tests to run that use cuda libs and require install of cuda drivers" OFF)
+# option(GEMS_BUILD_CUDA "add include subdirs etc. for cuda build. See gems/CMakeLists.txt" OFF)
+
 option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house builds only" OFF)
 option(QT_SYSLIBS "link with system Qt libs" OFF)
 option(VTK_SYSLIBS "link with system vtk libs" OFF)
@@ -70,6 +74,15 @@ include(CheckFunctionExists)
 
 # Use host_os() to get HOST_OS to reference the correct 3rd party package build
 host_os()
+
+if(NOT APPLE AND CUDA_ALL)
+   set(FSPYTHON_INSTALL_CUDA ON)
+   set(TEST_WITH_CUDA ON)
+   set(GEMS_BUILD_CUDA ON)
+   message(STATUS "For HOST_OS=${HOST_OS} CUDA_ALL=${CUDA_ALL} has enabled FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} TEST_WITH_CUDA=${TEST_WITH_CUDA} GEMS_BUILD_CUDA=${GEMS_BUILD_CUDA}")
+   cuda_info()
+   message(STATUS "CUDA_INFO=${CUDA_INFO}")
+endif()
 
 if(APPLE)
    option(TIFF_SYSLIBS "link with system tiff libs" OFF)

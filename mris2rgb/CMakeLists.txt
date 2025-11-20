@@ -1,6 +1,6 @@
 project(mris2rgb)
 
-if(OPENGL_FOUND)
+if(BUILD_GUIS AND OPENGL_FOUND)
 
   if(NOT TIFF_SYSLIBS)
     include_directories(

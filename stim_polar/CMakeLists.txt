@@ -1,6 +1,6 @@
 project(stim_polar)
 
-if(OPENGL_FOUND)
+if(BUILD_GUIS AND OPENGL_FOUND)
 
   include_directories(${FS_INCLUDE_DIRS} ${GLUT_INCLUDE_DIR} ${X11_INCLUDE_DIR})
 

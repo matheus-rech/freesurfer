@@ -7,6 +7,7 @@
 #
 # For Mac use the sw_vers command
 # For linux, use the mostly common /etc/os-release file
+
 function(host_os)
    set(HOST_OS undefined)
    if(EXISTS "/usr/bin/sw_vers")
@@ -51,6 +52,19 @@ function(host_os)
    # message(STATUS "FROM functions.cmake building on host running ${HOST_OS}")
    set(HOST_OS ${HOST_OS} PARENT_SCOPE)
    set(HOST_OS_GCC_VERSION ${HOST_OS_GCC_VERSION} PARENT_SCOPE)
+endfunction()
+
+function(cuda_info)
+   set(CUDA_INFO undefined)
+   if(NOT APPLE AND EXISTS "/usr/local/cuda/bin/nvcc")
+      # FIX ME - does not strip inter-line CRLF, but does list cuda info
+      execute_process(COMMAND /usr/local/cuda/bin/nvcc \-\-version | tr \-s \'\\n\' \' \' OUTPUT_VARIABLE CUDA_IDENT)
+      string(STRIP ${CUDA_IDENT} CUDA_IDENT)
+      set(CUDA_INFO "${CUDA_IDENT}")
+   else()
+      message(WARNING "You are presumably building for CUDA on a machine without /usr/local/cuda/bin/nvcc installed")
+   endif()
+   set(CUDA_INFO ${CUDA_INFO} PARENT_SCOPE)
 endfunction()
 
 # add_subdirectories(<subdirs>)
