@@ -898,7 +898,7 @@ usage_exit:
   echo "   -fsv3-whiten   : perform whitening like FreeSurfer Version 3 (and -no-)"
   echo ""
   echo "Other Optional Arguments"
-  echo "  -b0dc : apply B0 distortion correction (sets expkey to b0dc)"
+  echo "  -b0dc : apply B0 distortion correction (sets expkey to b0dc, sess/fsd/b0dcmap.nii.gz)"
   echo "  -expkey expkey : a code string used during preproc-sess to create a unique file name"
   echo "  -runlistfile filename : file with list of runs to include in analysis"
   echo "  -funcstem stem  : override default"
@@ -1224,3 +1224,10 @@ turn off whitening (or use -no-whiten).
 
 Do not correct the autocorrelation function because of the estimation 
 from residuals.
+
+-b0dc 
+
+Apply B0 distortion correction (sets expkey to b0dc). Put the B0 map into
+sess/fsd/b0dcmap.nii.gz. The units should be voxels.
+
+
