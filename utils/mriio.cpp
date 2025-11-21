@@ -106,6 +106,8 @@ static int __niiReadSetVox2ras(MRI *mri, struct nifti_1_header *niihdr);
 static void __readFSniiextensionHeader(znzFile fp, MRI *mri);
 static void __writeFSniiextensionHeader(znzFile fp, MRI *mri, int intent=MGZ_INTENT_UNKNOWN);
 
+static bool __checkgeom(VOL_GEOM *vg1, VOL_GEOM *vg2);
+
 MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int end_frame, std::vector<MRI*> *mrivector=NULL);
 static MRI *corRead(const char *fname, int read_volume);
 static int corWrite(MRI *mri, const char *fname);
@@ -8598,15 +8600,7 @@ static MRI *niiRead(const char *fname, int read_volume)
       return NULL;
 
   if (Gdiag & DIAG_INFO)
-  {
-    printf("[DEBUG] niiRead(): from Nifti sform/qform:\n");
-    printf("              : x_r = %8.4f, y_r = %8.4f, z_r = %8.4f, c_r = %10.4f\n",
-	   mri->x_r, mri->y_r, mri->z_r, mri->c_r);
-    printf("              : x_a = %8.4f, y_a = %8.4f, z_a = %8.4f, c_a = %10.4f\n",
-	   mri->x_a, mri->y_a, mri->z_a, mri->c_a);
-    printf("              : x_s = %8.4f, y_s = %8.4f, z_s = %8.4f, c_s = %10.4f\n",
-	   mri->x_s, mri->y_s, mri->z_s, mri->c_s);
-  }
+    mri->geomprint("[DEBUG] niiRead(): from Nifti sform/qform:");
   
   // implement reading nifti1 header extension  
   nifti1_extender extdr;   /* defines extension existence  */
@@ -8619,14 +8613,20 @@ static MRI *niiRead(const char *fname, int read_volume)
     VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag, &has_ras_xform);
     if (has_ras_xform)
     {
+      bool geodiff = __checkgeom(&ras_xform, mri);
+      if (geodiff)
+      {
+	mri->geomprint("vol geom from Nifti sform/qform:");
+	ras_xform.geomprint("vol geom from TAG_RAS_XFORM in FS header extension:");	
+      }
+      
       const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");
-      if (ignore_tag_ras_xform == NULL && !(ras_xform == *mri))
+      if (ignore_tag_ras_xform == NULL && geodiff)
       {
 	// donot ignore TAG_RAS_XFORM and vol_geom differs
-	mri->vgprint(true);
-	ras_xform.vgprint(true);
-	printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%.10lf)\n", fname, vg_isEqual_Threshold);
+	printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%g)\n", fname, vg_isEqual_Threshold);
 	printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
+	printf("*** - Set environment variable VOL_GEOM_THRESH to change the threshold.\n");
 	printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
 	printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
 	printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
@@ -12871,3 +12871,35 @@ void __writeFSniiextensionHeader(znzFile fp, MRI *mri, int intentcode)
   
   znzwrite(extheader, sizeof(unsigned char), 4, fp);  // output intent encoded version
 }  // end of __writeFSniiextensionHeader()
+
+
+static bool __checkgeom(VOL_GEOM *vg1, VOL_GEOM *vg2)
+{
+  // include/transform.h:double vg_isEqual_Threshold=FLT_EPSILON;
+  extern double vg_isEqual_Threshold;
+  double geothresh = vg_isEqual_Threshold;
+  const char *vol_geom_thresh = getenv("VOL_GEOM_THRESH");
+  if (vol_geom_thresh != NULL)
+    geothresh = atof(vol_geom_thresh);
+  
+  MATRIX *geom1 = vg1->toMatrix();  // 4 x 4
+  MATRIX *geom2 = vg2->toMatrix();  // 4 x 4
+  bool geodiff = false;
+  for (int r = 1; r <= 4; r++) {
+    for (int c = 1; c <= 4; c++) {
+      double val1 = geom1->rptr[r][c];
+      double val2 = geom2->rptr[r][c];
+      double diff = fabs(val1-val2);
+      if (diff > geothresh || Gdiag & DIAG_INFO) {
+        printf("%sVolumes differ in geometry row=%d col=%d diff=%lf (thresh=%g)\n", (Gdiag & DIAG_INFO) ? "[DEBUG] " : "", r, c, diff, geothresh);
+	if (diff > geothresh)
+	  geodiff = true;
+      }
+    } // c
+  } // r
+
+  MatrixFree(&geom1);
+  MatrixFree(&geom2);
+
+  return geodiff;
+}

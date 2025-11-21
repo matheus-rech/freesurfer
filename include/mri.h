@@ -346,6 +346,15 @@ struct VOL_GEOM
 
     fflush(stdout);    
   }
+
+  void geomprint(const char *msg=NULL)
+  {
+    if (msg != NULL)
+      printf("%s\n", msg);
+    printf("        : x_r = %8.10f, y_r = %8.10f, z_r = %8.10f, c_r = %10.10f\n", x_r, y_r, z_r, c_r);
+    printf("        : x_a = %8.10f, y_a = %8.10f, z_a = %8.10f, c_a = %10.10f\n", x_a, y_a, z_a, c_a);
+    printf("        : x_s = %8.10f, y_s = %8.10f, z_s = %8.10f, c_s = %10.10f\n", x_s, y_s, z_s, c_s);
+  }
   
   // return 1 if two VOL_GEOMs equal;
   // otherwise, return 0
@@ -507,6 +516,41 @@ struct VOL_GEOM
       MRIsetVox2RASFromMatrix(this, tmp);
       s_r = s_a = s_s = 0;
     }
+  }
+
+
+  MATRIX *toMatrix(MATRIX *m=NULL)
+  {
+    if (m == NULL)
+      m = MatrixAlloc(4, 4, MATRIX_REAL);
+    
+    // x_[ras]
+    m->rptr[1][1] = x_r;
+    m->rptr[2][1] = x_a;
+    m->rptr[3][1] = x_s;
+
+    // y_[ras]
+    m->rptr[1][2] = y_r;
+    m->rptr[2][2] = y_a;
+    m->rptr[3][2] = y_s;
+
+    // z_[ras]
+    m->rptr[1][3] = z_r;
+    m->rptr[2][3] = z_a;
+    m->rptr[3][3] = z_s;
+
+    // c_[ras]
+    m->rptr[1][4] = c_r;
+    m->rptr[2][4] = c_a;
+    m->rptr[3][4] = c_s;
+
+    // last row of matrix
+    m->rptr[4][1] = 0.0;
+    m->rptr[4][2] = 0.0;
+    m->rptr[4][3] = 0.0;
+    m->rptr[4][4] = 0.0;
+    
+    return m;
   }
 };
 
