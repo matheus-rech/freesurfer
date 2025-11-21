@@ -8600,7 +8600,7 @@ static MRI *niiRead(const char *fname, int read_volume)
       return NULL;
 
   if (Gdiag & DIAG_INFO)
-    mri->geomprint("[DEBUG] niiRead(): from Nifti sform/qform:");
+    mri->geomprint("[DEBUG] niiRead(): geom from Nifti sform/qform:\n");
   
   // implement reading nifti1 header extension  
   nifti1_extender extdr;   /* defines extension existence  */
@@ -8616,8 +8616,8 @@ static MRI *niiRead(const char *fname, int read_volume)
       bool geodiff = __checkgeom(&ras_xform, mri);
       if (geodiff)
       {
-	mri->geomprint("vol geom from Nifti sform/qform:");
-	ras_xform.geomprint("vol geom from TAG_RAS_XFORM in FS header extension:");	
+	mri->geomprint("vol geom from Nifti sform/qform:\n");
+	ras_xform.geomprint("vol geom from TAG_RAS_XFORM in FS header extension:\n");
       }
       
       const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");

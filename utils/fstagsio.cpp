@@ -673,7 +673,7 @@ int FStagsIO::write_ras_xform(VOL_GEOM *vg)
 
   if (Gdiag & DIAG_INFO)
   {
-    vg->geomprint("[DEBUG] FStagsIO::write_ras_xform() ras xform info:");
+    vg->geomprint("[DEBUG] FStagsIO::write_ras_xform() ras xform info:\n");
 
     long long fend = znztell(fp);
     printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_RAS_XFORM, fend-fstart, fstart, fend);
@@ -991,7 +991,7 @@ int FStagsIO::read_ras_xform(VOL_GEOM *vg)
   vg->c_r = znzreadFloat(fp); vg->c_a = znzreadFloat(fp); vg->c_s = znzreadFloat(fp);
 
   if (Gdiag & DIAG_INFO)
-    vg->geomprint("[DEBUG] FStagsIO::read_ras_xform(VOL_GEOM*): from FS header extension:");
+    vg->geomprint("[DEBUG] FStagsIO::read_ras_xform(VOL_GEOM*): from FS header extension:\n");
 
   return NO_ERROR;  
 }

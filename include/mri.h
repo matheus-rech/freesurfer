@@ -347,10 +347,18 @@ struct VOL_GEOM
     fflush(stdout);    
   }
 
-  void geomprint(const char *msg=NULL)
+  void geomprint(const char *fmt=NULL, ...)
   {
-    if (msg != NULL)
-      printf("%s\n", msg);
+    if (fmt != NULL) {
+      // print variable length arguments
+      va_list args;
+      va_start(args, fmt);
+      vprintf(fmt, args);
+      va_end(args);
+    }
+
+    printf("        : Dimensions: %d x %d x %d\n", width, height, depth);
+    printf("        : voxel size: %6.6f, %6.6f, %6.6f\n", xsize, ysize, zsize);
     printf("        : x_r = %8.10f, y_r = %8.10f, z_r = %8.10f, c_r = %10.10f\n", x_r, y_r, z_r, c_r);
     printf("        : x_a = %8.10f, y_a = %8.10f, z_a = %8.10f, c_a = %10.10f\n", x_a, y_a, z_a, c_a);
     printf("        : x_s = %8.10f, y_s = %8.10f, z_s = %8.10f, c_s = %10.10f\n", x_s, y_s, z_s, c_s);
@@ -548,7 +556,7 @@ struct VOL_GEOM
     m->rptr[4][1] = 0.0;
     m->rptr[4][2] = 0.0;
     m->rptr[4][3] = 0.0;
-    m->rptr[4][4] = 0.0;
+    m->rptr[4][4] = 1.0;
     
     return m;
   }
