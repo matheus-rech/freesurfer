@@ -647,7 +647,7 @@ static void do_file(char *fname)
   if (intype != MGH_MORPH)  // not .m3z/.m3d
   {
     if (!PrintVoxel && !PrintEntropy && !PrintStats && !PrintVoxVolSum)
-      mri = MRIreadHeader(fname, intype) ;
+      mri = MRIreadHeader(fname, intype, false) ;
     else
       mri = MRIread(fname);
 
