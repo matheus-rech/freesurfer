@@ -35,7 +35,8 @@
 #define TAG_CMDLINE                 3
 #define TAG_USEREALRAS              4
 #define TAG_DOF                     7   // for nifti1 header extension only, dof
-#define TAG_RAS_XFORM               8   // for nifti1 header extension only, mri->x_[r|a|s], mri->y_[r|a|s], mri->z_[r|a|s], mri->c_[r|a|s]
+#define TAG_RAS_XFORM               8   // for nifti1 header extension only, mri->x_[ras], mri->y_[ras], mri->z_[ras], mri->c_[ras]
+#define TAG_RAS_XFORM_EXTRA         9   // for nifti1 header extension only, mri->s_[ras], mri->width, mri->height, mri->depth, mri->[xyz]size
 
 #define TAG_GCAMORPH_GEOM           10
 #define TAG_GCAMORPH_TYPE           11

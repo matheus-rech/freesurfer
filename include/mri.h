@@ -423,7 +423,7 @@ struct VOL_GEOM
 	double val2 = geom2->rptr[r][c];
 	double diff = fabs(val1-val2);
 	if (diff > geothresh || debug) {
-	  printf("%sVolumes differ in geometry row=%d col=%d diff=%lf (thresh=%g)\n", (debug) ? "[DEBUG] " : "", r, c, diff, geothresh);
+	  printf("%sVolumes differ in geometry row=%d col=%d diff=%.10lf (thresh=%g)\n", (debug) ? "[DEBUG] " : "", r, c, diff, geothresh);
 	  if (diff > geothresh)
 	    geodiff = true;
 	}

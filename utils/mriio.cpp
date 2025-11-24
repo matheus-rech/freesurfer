@@ -12242,6 +12242,10 @@ void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderext, lo
 	    *has_ras_xform = false;
 	}	
         break;
+      case TAG_RAS_XFORM_EXTRA:
+	// nifti header extension only
+	fstagsio.read_ras_xform_extra(ras_xform);
+	break;
       case TAG_MRI_FRAME:
         if (fstagsio.read_mri_frames(mri, len) != NO_ERROR)
           fprintf(stderr, "couldn't read frame structure from file\n");
@@ -12453,6 +12457,7 @@ void MRITAGwrite(MRI *mri, znzFile fp, bool niftiheaderext)
     fstagsio.write_dof(mri->dof);
     fstagsio.write_scan_parameters(mri);
     fstagsio.write_ras_xform(mri);
+    fstagsio.write_ras_xform_extra(mri);
   }
 
   // if mri->transform_fname has non-zero length
@@ -12588,6 +12593,11 @@ long long __getMRITAGlength(MRI *mri, bool niftiheaderext)
     dlen += taglen;
     if (Gdiag & DIAG_INFO)
       printf("[DEBUG] __getMRITAGlength(): +%-6lld, dlen = %-6lld (TAG = %-2d)\n", taglen, dlen, TAG_RAS_XFORM);
+
+    taglen = FStagsIO::getlen_ras_xform_extra(mri);
+    dlen += taglen;
+    if (Gdiag & DIAG_INFO)
+      printf("[DEBUG] __getMRITAGlength(): +%-6lld, dlen = %-6lld (TAG = %-2d)\n", taglen, dlen, TAG_RAS_XFORM_EXTRA);
   }
 
   

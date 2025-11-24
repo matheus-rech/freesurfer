@@ -281,6 +281,23 @@ long long FStagsIO::getlen_ras_xform(VOL_GEOM *vg, bool addtaglength)
 }
 
 
+long long FStagsIO::getlen_ras_xform_extra(VOL_GEOM *vg, bool addtaglength)
+{
+  long long dlen = 0;
+  if (addtaglength)
+  {
+    dlen += 4;
+    dlen += sizeof(long long);
+  }
+
+  // this needs to be consistent with write_ras_xform_extra()
+  dlen += sizeof(vg->s_r);   dlen += sizeof(vg->s_a);    dlen += sizeof(vg->s_s);
+  dlen += sizeof(vg->width); dlen += sizeof(vg->height); dlen += sizeof(vg->depth);
+  dlen += sizeof(vg->xsize); dlen += sizeof(vg->ysize);  dlen += sizeof(vg->zsize);  
+  
+  return dlen;  
+}
+
 // this is for nifti1 header extension only
 //   TAG_END_NIIHDREXTENSION data-length=1 '*'
 // needs to be consistent with FStagsIO::write_endtag()
@@ -323,7 +340,7 @@ int FStagsIO::write_tag(int tag, void *data, long long dlen)
   long long fend = znztell(fp);
     
   if (Gdiag & DIAG_INFO)
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld) (%-6lld)\n", tag, fend-fstart, fstart, fend, dlen);
+    printf("[DEBUG] FStagsIO::write_tag() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld) (%-6lld)\n", tag, fend-fstart, fstart, fend, dlen);
   
   return NO_ERROR;
 }
@@ -393,7 +410,7 @@ int FStagsIO::write_old_colortable(COLOR_TABLE *ctab)
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_OLD_COLORTABLE, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_old_colortable() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_OLD_COLORTABLE, fend-fstart, fstart, fend);
   }
     
   return NO_ERROR;
@@ -491,7 +508,7 @@ int FStagsIO::write_mri_frames(MRI *mri)
   if (Gdiag & DIAG_INFO)
   {
     fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_MRI_FRAME, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_mri_frames() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_MRI_FRAME, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;
@@ -534,7 +551,7 @@ int FStagsIO::write_gcamorph_geom(VOL_GEOM *source, VOL_GEOM *target, bool shear
     target->vgprint();
     
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", tag, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_gcamorph_geom() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", tag, fend-fstart, fstart, fend);
 
     src_geom.vgprint();
     trg_geom.vgprint();
@@ -562,7 +579,7 @@ int FStagsIO::write_gcamorph_meta(int warpFieldFormat, int gcamorphSpacing, doub
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_GCAMORPH_META, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_gcamorph_meta() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_GCAMORPH_META, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;
@@ -592,7 +609,7 @@ int FStagsIO::write_gcamorph_labels(int x0, int y0, int z0, int ***gcamorphLabel
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_GCAMORPH_LABELS, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_gcamorph_labels() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_GCAMORPH_LABELS, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;
@@ -615,7 +632,7 @@ int FStagsIO::write_dof(int dof)
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_DOF, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_dof() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_DOF, fend-fstart, fstart, fend);
   }
 
   return NO_ERROR;  
@@ -648,7 +665,7 @@ int FStagsIO::write_scan_parameters(MRI *mri)
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_SCAN_PARAMETERS, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_scan_parameters() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_SCAN_PARAMETERS, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;  
@@ -661,7 +678,7 @@ int FStagsIO::write_ras_xform(VOL_GEOM *vg)
   long long fstart = 0;
   if (Gdiag & DIAG_INFO)
     fstart = znztell(fp);
-  
+
   znzwriteInt(TAG_RAS_XFORM, fp);
 
   long long dlen = getlen_ras_xform(vg, false);
@@ -676,12 +693,38 @@ int FStagsIO::write_ras_xform(VOL_GEOM *vg)
     vg->geomprint("[DEBUG] FStagsIO::write_ras_xform() ras xform info:\n");
 
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_RAS_XFORM, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_ras_xform() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_RAS_XFORM, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;  
 }
 
+
+// write TAG_RAS_XFORM_EXTRA (nifti header extension only)
+int FStagsIO::write_ras_xform_extra(VOL_GEOM *vg)
+{
+  long long fstart = 0;
+  if (Gdiag & DIAG_INFO)
+    fstart = znztell(fp);
+
+  znzwriteInt(TAG_RAS_XFORM_EXTRA, fp);
+
+  long long dlen = getlen_ras_xform_extra(vg, false);
+  znzwriteLong(dlen, fp);
+  znzwriteFloat(vg->s_r, fp);   znzwriteFloat(vg->s_a, fp);   znzwriteFloat(vg->s_s, fp);
+  znzwriteInt(vg->width, fp);   znzwriteInt(vg->height, fp);  znzwriteInt(vg->depth, fp);
+  znzwriteFloat(vg->xsize, fp); znzwriteFloat(vg->ysize, fp); znzwriteFloat(vg->zsize, fp);  
+
+  if (Gdiag & DIAG_INFO)
+  {
+    vg->geomprint("[DEBUG] FStagsIO::write_ras_xform_extra() ras xform info:\n");
+
+    long long fend = znztell(fp);
+    printf("[DEBUG] FStagsIO::write_ras_xform_extra() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_RAS_XFORM_EXTRA, fend-fstart, fstart, fend);
+  }
+  
+  return NO_ERROR;  
+}
 
 /* write TAG_END_NIIHDREXTENSION (nifti header extension only)
  * this needs to be the last tag.
@@ -711,7 +754,7 @@ int FStagsIO::write_endtag()
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_END_NIIHDREXTENSION, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::write_endtag() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_END_NIIHDREXTENSION, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;  
@@ -989,9 +1032,23 @@ int FStagsIO::read_ras_xform(VOL_GEOM *vg)
   vg->y_r = znzreadFloat(fp); vg->y_a = znzreadFloat(fp); vg->y_s = znzreadFloat(fp);
   vg->z_r = znzreadFloat(fp); vg->z_a = znzreadFloat(fp); vg->z_s = znzreadFloat(fp);
   vg->c_r = znzreadFloat(fp); vg->c_a = znzreadFloat(fp); vg->c_s = znzreadFloat(fp);
-
+  
   if (Gdiag & DIAG_INFO)
-    vg->geomprint("[DEBUG] FStagsIO::read_ras_xform(VOL_GEOM*): from FS header extension:\n");
+    vg->geomprint("[DEBUG] FStagsIO::read_ras_xform(): from FS header extension:\n");
+
+  return NO_ERROR;  
+}
+
+
+// read TAG_RAS_XFORM_EXTRA (nifti header extension only)
+int FStagsIO::read_ras_xform_extra(VOL_GEOM *vg)
+{
+  vg->s_r   = znzreadFloat(fp); vg->s_a    = znzreadFloat(fp); vg->s_s   = znzreadFloat(fp);
+  vg->width = znzreadInt(fp);   vg->height = znzreadInt(fp);   vg->depth = znzreadInt(fp);
+  vg->xsize = znzreadFloat(fp); vg->ysize  = znzreadFloat(fp); vg->zsize = znzreadFloat(fp);
+  
+  if (Gdiag & DIAG_INFO)
+    vg->geomprint("[DEBUG] FStagsIO::read_ras_xform_extra(): from FS header extension:\n");
 
   return NO_ERROR;  
 }
@@ -1102,7 +1159,7 @@ int FStagsIO::__write_mri_frames_niftiheaderext(MRI *mri)
   if (Gdiag & DIAG_INFO)
   {
     long long fend = znztell(fp);
-    printf("[DEBUG] TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_MRI_FRAME, fend-fstart, fstart, fend);
+    printf("[DEBUG] FStagsIO::__write_mri_frames_niftiheaderext() TAG = %-4d, dlen = %-6lld (%-6lld - %-6lld)\n", TAG_MRI_FRAME, fend-fstart, fstart, fend);
   }
   
   return NO_ERROR;  
