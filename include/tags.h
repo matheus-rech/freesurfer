@@ -24,12 +24,16 @@
 #define TAGS_H
 
 // notes: existing tags can't be re-numbered for backward data compatibility
+/***
+ *** YJH 2025-11-24: Remove the following tags. Can't find their usages.
+ ***    #define TAG_COLORTABLE              5
+ ***    #define TAG_INTENT_ENCODED_VERSION  6
+ ***    #define TAG_SURF_GEOM               21
+ ***/
 #define TAG_OLD_COLORTABLE          1
 #define TAG_OLD_USEREALRAS          2
 #define TAG_CMDLINE                 3
 #define TAG_USEREALRAS              4
-#define TAG_COLORTABLE              5
-#define TAG_INTENT_ENCODED_VERSION  6   // not used, 6 can be assinged to new tags
 #define TAG_DOF                     7   // for nifti1 header extension only, dof
 #define TAG_RAS_XFORM               8   // for nifti1 header extension only, mri->x_[r|a|s], mri->y_[r|a|s], mri->z_[r|a|s], mri->c_[r|a|s]
 
@@ -41,7 +45,6 @@
 #define TAG_GCAMORPH_GEOM_PLUSSHEAR 15  // warpfield: TAG_GCAMORPH_GEOM + shear component
 
 #define TAG_OLD_SURF_GEOM           20
-#define TAG_SURF_GEOM               21
 #define TAG_SURF_DATASPACE          22  // new: surface [x y z] space
 #define TAG_SURF_MATRIXDATA         23  // new: transform matrix going from TAG_SURF_DATASPACE to TAG_SURF_TRANSFORMEDSPACE
 #define TAG_SURF_TRANSFORMEDSPACE   24  // new: surface [x y z] space after applying the transform matrix
