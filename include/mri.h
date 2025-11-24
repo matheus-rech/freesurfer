@@ -403,6 +403,39 @@ struct VOL_GEOM
     return (0);
   };
 
+  // report the geometry differences between the two VOL_GEOM
+  // return true if there are any differences; otherwise, return false
+  static bool checkgeom(VOL_GEOM *vg1, VOL_GEOM *vg2, bool debug=false)
+  {
+    // include/transform.h:double vg_isEqual_Threshold=FLT_EPSILON;
+    extern double vg_isEqual_Threshold;
+    double geothresh = vg_isEqual_Threshold;
+    const char *vol_geom_thresh = getenv("VOL_GEOM_THRESH");
+    if (vol_geom_thresh != NULL)
+      geothresh = atof(vol_geom_thresh);
+  
+    MATRIX *geom1 = vg1->toMatrix();  // 4 x 4
+    MATRIX *geom2 = vg2->toMatrix();  // 4 x 4
+    bool geodiff = false;
+    for (int r = 1; r <= 4; r++) {
+      for (int c = 1; c <= 4; c++) {
+	double val1 = geom1->rptr[r][c];
+	double val2 = geom2->rptr[r][c];
+	double diff = fabs(val1-val2);
+	if (diff > geothresh || debug) {
+	  printf("%sVolumes differ in geometry row=%d col=%d diff=%lf (thresh=%g)\n", (debug) ? "[DEBUG] " : "", r, c, diff, geothresh);
+	  if (diff > geothresh)
+	    geodiff = true;
+	}
+      } // c
+    } // r
+
+    MatrixFree(&geom1);
+    MatrixFree(&geom2);
+
+    return geodiff;
+  }
+  
   // write VOL_GEOM to znzFile
   void write(znzFile fp, bool niftiheaderext=false, bool shearless=true)
   {
