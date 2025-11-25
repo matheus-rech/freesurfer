@@ -8614,7 +8614,15 @@ static MRI *niiRead(const char *fname, int read_volume, bool nii_ico7_reshape)
     VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag, &has_ras_xform);
     if (has_ras_xform)
     {
-      bool geodiff = VOL_GEOM::checkgeom(&ras_xform, mri, Gdiag & DIAG_INFO);
+      // include/transform.h:double vg_isEqual_Threshold=FLT_EPSILON;
+      extern double vg_isEqual_Threshold;
+      double geothresh = vg_isEqual_Threshold;
+      const char *vol_geom_thresh = getenv("VOL_GEOM_THRESH");
+      if (vol_geom_thresh != NULL)
+	geothresh = atof(vol_geom_thresh);
+    
+      printf("%s niiRead(): volume geometry check, thresh=%g (ras_xform vs sform/qform) ...\n", (Gdiag & DIAG_INFO) ? "[DEBUG]" : "[INFO]", geothresh);
+      bool geodiff = VOL_GEOM::checkgeom(&ras_xform, mri, geothresh, Gdiag & DIAG_INFO);
       if (geodiff)
       {
 	mri->geomprint("vol geom from Nifti sform/qform:\n");
