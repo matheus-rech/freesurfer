@@ -2,6 +2,7 @@ import os
 import tempfile
 import numpy as np
 import torch
+import shutil
 
 from . import error, run, Image, Overlay, Volume, Surface, Geometry, collect_output
 from .deprecations import deprecate, replace, unsure, notneeded, notimplemented
@@ -410,8 +411,13 @@ class Freeview:
         '''
         vgl = all([os.path.exists(path) for path in ('/etc/opt/VirtualGL/vgl_xauth_key', '/usr/pubsw/bin/vglrun')])
         local = any([os.environ.get('DISPLAY', '').endswith(string) for string in (':0', ':0.0')])
+        has_egl = os.path.isfile('/opt/VirtualGL/bin/eglinfo')
         if vgl and not local:
             if not 'NV-GLX' in collect_output('xdpyinfo')[0]:
+                if has_egl:
+                    vgl_path = shutil.which('vglrun')
+                    if vgl_path is not None:
+                        return f'{vgl_path} -d egl '
                 return '/usr/pubsw/bin/vglrun '
         return ''
 
