@@ -185,7 +185,7 @@ while( $#argv != 0 )
       if(! `isargflag $argv`) then
         set overlaylistname = ($overlaylistname $argv[1]); shift
       else
-        set overlaylistname = ($overlaylistname noname]);
+        set overlaylistname = ($overlaylistname noname);
       endif
       breaksw
 
