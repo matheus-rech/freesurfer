@@ -346,6 +346,23 @@ struct VOL_GEOM
 
     fflush(stdout);    
   }
+
+  void geomprint(const char *fmt=NULL, ...)
+  {
+    if (fmt != NULL) {
+      // print variable length arguments
+      va_list args;
+      va_start(args, fmt);
+      vprintf(fmt, args);
+      va_end(args);
+    }
+
+    printf("        : Dimensions: %d x %d x %d\n", width, height, depth);
+    printf("        : voxel size: %6.6f, %6.6f, %6.6f\n", xsize, ysize, zsize);
+    printf("        : x_r = %8.10f, y_r = %8.10f, z_r = %8.10f, c_r = %10.10f\n", x_r, y_r, z_r, c_r);
+    printf("        : x_a = %8.10f, y_a = %8.10f, z_a = %8.10f, c_a = %10.10f\n", x_a, y_a, z_a, c_a);
+    printf("        : x_s = %8.10f, y_s = %8.10f, z_s = %8.10f, c_s = %10.10f\n", x_s, y_s, z_s, c_s);
+  }
   
   // return 1 if two VOL_GEOMs equal;
   // otherwise, return 0
@@ -386,6 +403,31 @@ struct VOL_GEOM
     return (0);
   };
 
+  // report the geometry differences between the two VOL_GEOM
+  // return true if there are any differences; otherwise, return false
+  static bool checkgeom(VOL_GEOM *vg1, VOL_GEOM *vg2, double geothresh, bool debug=false)
+  {
+    MATRIX *geom1 = vg1->toMatrix();  // 4 x 4
+    MATRIX *geom2 = vg2->toMatrix();  // 4 x 4
+    bool geodiff = false;
+    for (int r = 1; r <= 4; r++) {
+      for (int c = 1; c <= 4; c++) {
+	double val1 = geom1->rptr[r][c];
+	double val2 = geom2->rptr[r][c];
+	double diff = fabs(val1-val2);
+	if (diff > geothresh) {
+	  printf("%sVolumes differ in geometry row=%d col=%d diff=%.10lf (thresh=%g)\n", (debug) ? "[DEBUG] " : "", r, c, diff, geothresh);
+	  geodiff = true;
+	}
+      } // c
+    } // r
+
+    MatrixFree(&geom1);
+    MatrixFree(&geom2);
+
+    return geodiff;
+  }
+  
   // write VOL_GEOM to znzFile
   void write(znzFile fp, bool niftiheaderext=false, bool shearless=true)
   {
@@ -507,6 +549,41 @@ struct VOL_GEOM
       MRIsetVox2RASFromMatrix(this, tmp);
       s_r = s_a = s_s = 0;
     }
+  }
+
+
+  MATRIX *toMatrix(MATRIX *m=NULL)
+  {
+    if (m == NULL)
+      m = MatrixAlloc(4, 4, MATRIX_REAL);
+    
+    // x_[ras]
+    m->rptr[1][1] = x_r;
+    m->rptr[2][1] = x_a;
+    m->rptr[3][1] = x_s;
+
+    // y_[ras]
+    m->rptr[1][2] = y_r;
+    m->rptr[2][2] = y_a;
+    m->rptr[3][2] = y_s;
+
+    // z_[ras]
+    m->rptr[1][3] = z_r;
+    m->rptr[2][3] = z_a;
+    m->rptr[3][3] = z_s;
+
+    // c_[ras]
+    m->rptr[1][4] = c_r;
+    m->rptr[2][4] = c_a;
+    m->rptr[3][4] = c_s;
+
+    // last row of matrix
+    m->rptr[4][1] = 0.0;
+    m->rptr[4][2] = 0.0;
+    m->rptr[4][3] = 0.0;
+    m->rptr[4][4] = 1.0;
+    
+    return m;
   }
 };
 
@@ -1734,7 +1811,7 @@ float MRIvolumeDeterminant(MRI *mri);
 
 MRI *MRISreadCurvAsMRI(const char *curvfile, int read_volume);
 
-void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderextension=false, long long mgztaglen=-1, VOL_GEOM *ras_xform=NULL);
+void MRITAGread(MRI *mri, znzFile fp, const char *fname, bool niftiheaderextension=false, long long mgztaglen=-1, VOL_GEOM *ras_xform=NULL, bool *has_ras_xform=NULL);
 void MRITAGwrite(MRI *mri, znzFile fp, bool niftiheaderextension=false);
 
 int mriio_command_line(int argc, char *argv[]);
@@ -1744,7 +1821,7 @@ MRI *MRIread(const char *fname, std::vector<MRI*> *mriVector=NULL);
 MRI *MRIreadEx(const char *fname, int nthframe);
 MRI *MRIreadType(const char *fname, int type);
 MRI *MRIreadInfo(const char *fname);
-MRI *MRIreadHeader(const char *fname, int type);
+MRI *MRIreadHeader(const char *fname, int type, bool nii_ico7_reshape=true);
 int GetSPMStartFrame(void);
 int MRIwrite(MRI *mri,const  char *fname, std::vector<MRI*> *mriVector=NULL, int intent=MGZ_INTENT_UNKNOWN);
 int MRIwriteFrame(MRI *mri,const  char *fname, int frame) ;

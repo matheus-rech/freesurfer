@@ -837,7 +837,7 @@ MATRIX *MatrixMultiply_wkr(const MATRIX *m1, const MATRIX *m2, MATRIX *m3, const
   return (m3);
 }
 
-int MatrixPrint(FILE *fp, const MATRIX *mat)
+int MatrixPrint(FILE *fp, const MATRIX *mat, int precision_real)
 {
   int row, col, rows, cols;
 
@@ -854,7 +854,7 @@ int MatrixPrint(FILE *fp, const MATRIX *mat)
     for (col = 1; col <= cols; col++) {
       switch (mat->type) {
         case MATRIX_REAL:
-          fprintf(fp, "% 2.5f", mat->rptr[row][col]);
+          fprintf(fp, "% 2.*f", precision_real, mat->rptr[row][col]);
           break;
         case MATRIX_COMPLEX:
           fprintf(fp, "% 2.3f + % 2.3f i", MATRIX_CELT_REAL(mat, row, col), MATRIX_CELT_IMAG(mat, row, col));

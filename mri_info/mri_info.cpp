@@ -647,7 +647,7 @@ static void do_file(char *fname)
   if (intype != MGH_MORPH)  // not .m3z/.m3d
   {
     if (!PrintVoxel && !PrintEntropy && !PrintStats && !PrintVoxVolSum)
-      mri = MRIreadHeader(fname, intype) ;
+      mri = MRIreadHeader(fname, intype, false) ;
     else
       mri = MRIread(fname);
 
@@ -1191,6 +1191,8 @@ static void do_file(char *fname)
     return;
   }
 
+  int precision = (Gdiag & DIAG_INFO) ? 10 : 4;
+  
   fprintf(fpout,"Volume information for %s\n", fname);
   // mri_identify has been called but the result is not stored
   // and thus I have to call it again
@@ -1247,15 +1249,15 @@ static void do_file(char *fname)
   }
   printf("       FieldStrength: %lf\n", mri->FieldStrength);
   printf("ras xform %spresent\n", mri->ras_good_flag ? "" : "not ") ;
-  printf("    xform info: x_r = %8.4f, y_r = %8.4f, z_r = %8.4f, "
-         "c_r = %10.4f\n",
-         mri->x_r, mri->y_r, mri->z_r, mri->c_r);
-  printf("              : x_a = %8.4f, y_a = %8.4f, z_a = %8.4f, "
-         "c_a = %10.4f\n",
-         mri->x_a, mri->y_a, mri->z_a, mri->c_a);
-  printf("              : x_s = %8.4f, y_s = %8.4f, z_s = %8.4f, "
-         "c_s = %10.4f\n",
-         mri->x_s, mri->y_s, mri->z_s, mri->c_s);
+  printf("    xform info: x_r = %8.*f, y_r = %8.*f, z_r = %8.*f, "
+         "c_r = %10.*f\n",
+         precision, mri->x_r, precision, mri->y_r, precision, mri->z_r, precision, mri->c_r);
+  printf("              : x_a = %8.*f, y_a = %8.*f, z_a = %8.*f, "
+         "c_a = %10.*f\n",
+         precision, mri->x_a, precision, mri->y_a, precision, mri->z_a, precision, mri->c_a);
+  printf("              : x_s = %8.*f, y_s = %8.*f, z_s = %8.*f, "
+         "c_s = %10.*f\n",
+         precision, mri->x_s, precision, mri->y_s, precision, mri->z_s, precision, mri->c_s);
 
   if (fio_IsDirectory(fname))
   {

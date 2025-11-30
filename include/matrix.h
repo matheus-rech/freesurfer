@@ -117,7 +117,7 @@ MATRIX  *MatrixReadTxt(const char *fname, MATRIX *mat) ;
 MATRIX  *MatrixRead(const char *fname) ;
 int     MatrixWrite(MATRIX *mIn,const char *fname, const char *name) ;
 MATRIX  *MatrixIdentity(int n, MATRIX *mI) ;
-int     MatrixPrint(FILE *fp, const MATRIX *mat) ;
+int     MatrixPrint(FILE *fp, const MATRIX *mat, int precision_real=5) ;
 int     MatrixPrintFmt(FILE *fp,const char *fmt, MATRIX *mat);
 int     MatrixPrintOneLine(FILE *fp, MATRIX *mat) ;
 int     MatrixPrintTranspose(FILE *fp, MATRIX *mat) ;

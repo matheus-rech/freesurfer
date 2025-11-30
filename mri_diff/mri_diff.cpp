@@ -373,6 +373,14 @@ int main(int argc, char *argv[]) {
   if (CheckGeo) {
     vox2ras1 = MRIxfmCRS2XYZ(InVol1,0);
     vox2ras2 = MRIxfmCRS2XYZ(InVol2,0);
+    if (Gdiag & DIAG_INFO) {
+      printf("[DEBUG] mri_diff CheckGeo, thresh=%g ...\n", geothresh);
+      bool geodiff = VOL_GEOM::checkgeom(InVol1, InVol2, geothresh, Gdiag & DIAG_INFO);
+      if (geodiff) {
+	InVol1->geomprint("vol 1 xform:\n");
+	InVol2->geomprint("vol 2 xform:\n");
+      }
+    }
     for (r=1; r<=4; r++) {
       for (c=1; c<=4; c++) {
         val1 = vox2ras1->rptr[r][c];
@@ -398,7 +406,16 @@ int main(int argc, char *argv[]) {
             fclose(fp);
           }
           ExitStatus = 104;
-          if (ExitOnDiff) exit(104);
+          if (ExitOnDiff) {
+	    if (Gdiag & DIAG_INFO) {
+	      int precision = 10;
+	      printf("[DEBUG] checkgeo vox2ras1:\n");
+	      MatrixPrint(stdout, vox2ras1);
+	      printf("[DEBUG] checkgeo vox2ras2:\n");
+	      MatrixPrint(stdout, vox2ras2, precision);
+	    }
+	    exit(104);
+	  }
         }
       } // c
     } // r
