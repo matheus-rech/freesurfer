@@ -18,6 +18,7 @@ set RunReconAll = 0;
 set threads = 1
 set hemilist = ()
 set invol = ()
+set SkipCCSeg = 0;
 
 set tmpdir = ();
 set cleanup = 1;
@@ -197,10 +198,17 @@ if($ud || $ForceUpdate) then
 endif
 
 # Creates aseg.auto 
-set cmd = (seg2cc --s $subject)
-echo "\n $cmd \n" |& tee -a $LF
-fs_time $cmd |& tee -a $LF
-if($status) goto error_exit;
+if(! $SkipCCSeg) then
+  set cmd = (seg2cc --s $subject)
+  echo "\n $cmd \n" |& tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) goto error_exit;
+else
+  pushd $subjdir/mri 
+  if(! -e aseg.auto.mgz) ln -sf aseg.auto_noCCseg.mgz aseg.auto.mgz
+  popd
+endif
+
 set ud = `UpdateNeeded aseg.presurf.mgz aseg.auto.mgz`
 if($ud || $ForceUpdate) then
   set cmd = (cp aseg.auto.mgz aseg.presurf.mgz)
@@ -315,6 +323,13 @@ while( $#argv != 0 )
      set RunReconAll = 1
      breaksw
 
+    case "--skip-cc":
+     set SkipCCSeg = 1
+     breaksw
+    case "--no-skip-cc":
+     set SkipCCSeg = 0
+     breaksw
+
     case "--force":
      set ForceUpdate = 1
      breaksw
@@ -410,6 +425,7 @@ usage_exit:
   echo " --threads nthreads"
   echo " --run-recon-all -- run recon-all -s subject -autorecon2-wm -autorecon3 -threads threads"
   echo " --lh, --rh : run recon-all with given hemi"
+  echo " --skip-cc : do not segment corpus callosum (good for ex vivo)"
   echo ""
 
   if(! $PrintHelp) exit 1;
