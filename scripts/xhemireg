@@ -34,7 +34,7 @@ set gcaprep = 0
 set CoRegThreads = 1
 
 # Not all of the lists below are really needed (orig T1 brain needed by make_ave_vol)
-set vollist = (orig T1 brain brainmask norm aseg aparc+aseg)
+set vollist = (orig T1 brain brainmask norm aseg aseg.presurf aparc+aseg)
 set vollist = ($vollist nu) 
 # Note: T1 is needed by mris_make_average_surface
 set ovlist = (curv sulc area volume thickness inflated.H )
@@ -165,20 +165,22 @@ foreach srchemi ($srchemilist)
           #exit 1;
         endif
       endif
-      set cmd = (mri_vol2vol --mov $invol --targ $invol \
-        --reg $reg --o $outdir/mri/$vol.mgz --keep-precision \
-        --no-save-reg --interp nearest) # nearest needed for segs
-      echo $cmd  | tee -a $LF
-      $cmd | tee -a $LF
-      if($status) exit 1;
-
-      # Left-Right Reverse label codes for segmentations
-      if($vol == aseg || $vol == aparc+aseg || $vol == wmparc || \
-         $vol == aparc.a2009s+aseg) then
-        set cmd = (mri_convert $outdir/mri/$vol.mgz $outdir/mri/$vol.mgz --left-right-swap-label)
+      set ud = `UpdateNeeded $outdir/mri/$vol.mgz $invol $reg`
+      if($ud) then
+        set cmd = (mri_vol2vol --mov $invol --targ $invol \
+          --reg $reg --o $outdir/mri/$vol.mgz --keep-precision \
+          --no-save-reg --interp nearest) # nearest needed for segs
         echo $cmd  | tee -a $LF
         $cmd | tee -a $LF
         if($status) exit 1;
+        # Left-Right Reverse label codes for segmentations
+        if($vol == aseg || $vol == aseg.presurf || $vol == aparc+aseg || $vol == wmparc || \
+           $vol == aparc.a2009s+aseg) then
+          set cmd = (mri_convert $outdir/mri/$vol.mgz $outdir/mri/$vol.mgz --left-right-swap-label)
+          echo $cmd  | tee -a $LF
+          $cmd | tee -a $LF
+          if($status) exit 1;
+        endif
       endif
 
     end
