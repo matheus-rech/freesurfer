@@ -55,6 +55,8 @@
       <explanation>Set number of OpenMP threads</explanation>
       <argument>-no-vol-geom</argument>
       <explanation>Do not save with volume geom (good for spheres)</explanation>
+      <argument>-w No-of-iters-skip</argument>
+      <explanation>write out a snapshot of every nth iter</explanation>
       <argument>See code for more </argument>
       <explanation>See code for more</explanation>
     </optional-flagged>
