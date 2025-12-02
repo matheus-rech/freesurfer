@@ -8611,33 +8611,37 @@ static MRI *niiRead(const char *fname, int read_volume)
     VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag, &has_ras_xform);
     if (has_ras_xform)
     {
-      // include/transform.h:double vg_isEqual_Threshold=FLT_EPSILON;
-      extern double vg_isEqual_Threshold;
-      double geothresh = vg_isEqual_Threshold;
-      const char *vol_geom_thresh = getenv("VOL_GEOM_THRESH");
-      if (vol_geom_thresh != NULL)
-	geothresh = atof(vol_geom_thresh);
-    
-      printf("%s niiRead(): volume geometry check, thresh=%g (ras_xform vs sform/qform) ...\n", (Gdiag & DIAG_INFO) ? "[DEBUG]" : "[INFO]", geothresh);
-      bool geodiff = VOL_GEOM::checkgeom(&ras_xform, mri, geothresh, Gdiag & DIAG_INFO);
-      if (geodiff)
-      {
-	mri->geomprint("vol geom from Nifti sform/qform:\n");
-	ras_xform.geomprint("vol geom from TAG_RAS_XFORM in FS header extension:\n");
-      }
-      
       const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");
-      if (ignore_tag_ras_xform == NULL && geodiff)
-      {
-	// donot ignore TAG_RAS_XFORM and vol_geom differs
-	printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%g)\n", fname, vg_isEqual_Threshold);
-	printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
-	printf("*** - Set environment variable VOL_GEOM_THRESH to change the threshold.\n");
-	printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
-	printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
-	printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
-	exit(1);
-      }
+	
+      // skip the vol geom check for ico7 surface encoded volumes
+      if (!IsIco7) {
+	// include/transform.h:double vg_isEqual_Threshold=FLT_EPSILON;
+	extern double vg_isEqual_Threshold;
+	double geothresh = vg_isEqual_Threshold;
+	const char *vol_geom_thresh = getenv("VOL_GEOM_THRESH");
+	if (vol_geom_thresh != NULL)
+	  geothresh = atof(vol_geom_thresh);
+    
+	printf("%s niiRead(): volume geometry check, thresh=%g (ras_xform vs sform/qform) ...\n", (Gdiag & DIAG_INFO) ? "[DEBUG]" : "[INFO]", geothresh);
+	bool geodiff = VOL_GEOM::checkgeom(&ras_xform, mri, geothresh, Gdiag & DIAG_INFO);
+	if (geodiff)
+	{
+	  mri->geomprint("vol geom from Nifti sform/qform:\n");
+	  ras_xform.geomprint("vol geom from TAG_RAS_XFORM in FS header extension:\n");
+	}
+      
+	if (ignore_tag_ras_xform == NULL && geodiff)
+	{
+	  // donot ignore TAG_RAS_XFORM and vol_geom differs
+	  printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%g)\n", fname, vg_isEqual_Threshold);
+	  printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
+	  printf("*** - Set environment variable VOL_GEOM_THRESH to change the threshold.\n");
+	  printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
+	  printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
+	  printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
+	  exit(1);
+	}
+      } // !IsIco7
 
       if (ignore_tag_ras_xform != NULL)
 	printf("[INFO] niiRead(): ignore TAG_RAS_XFORM in FS header extension, use Nifti sform/qform\n");
