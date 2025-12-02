@@ -1821,7 +1821,7 @@ MRI *MRIread(const char *fname, std::vector<MRI*> *mriVector=NULL);
 MRI *MRIreadEx(const char *fname, int nthframe);
 MRI *MRIreadType(const char *fname, int type);
 MRI *MRIreadInfo(const char *fname);
-MRI *MRIreadHeader(const char *fname, int type, bool nii_ico7_reshape=true);
+MRI *MRIreadHeader(const char *fname, int type);
 int GetSPMStartFrame(void);
 int MRIwrite(MRI *mri,const  char *fname, std::vector<MRI*> *mriVector=NULL, int intent=MGZ_INTENT_UNKNOWN);
 int MRIwriteFrame(MRI *mri,const  char *fname, int frame) ;

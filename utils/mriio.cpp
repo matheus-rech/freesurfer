@@ -106,7 +106,7 @@ static int __niiReadSetVox2ras(MRI *mri, struct nifti_1_header *niihdr);
 static void __readFSniiextensionHeader(znzFile fp, MRI *mri);
 static void __writeFSniiextensionHeader(znzFile fp, MRI *mri, int intent=MGZ_INTENT_UNKNOWN);
 
-MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int end_frame, std::vector<MRI*> *mrivector=NULL, bool nii_ico7_reshape=true);
+MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int end_frame, std::vector<MRI*> *mrivector=NULL);
 static MRI *corRead(const char *fname, int read_volume);
 static int corWrite(MRI *mri, const char *fname);
 static MRI *siemensRead(const char *fname, int read_volume);
@@ -150,7 +150,7 @@ static MRI *ximgRead(const char *fname, int read_volume);
 
 static MRI *nifti1Read(const char *fname, int read_volume);
 static int nifti1Write(MRI *mri, const char *fname);
-static MRI *niiRead(const char *fname, int read_volume, bool nii_ico7_reshape=true);
+static MRI *niiRead(const char *fname, int read_volume);
 static MRI *niiReadFromMriFsStruct(MRIFSSTRUCT *mrifsStruct, std::vector<float> *ascalefactors=NULL);
 static int niiWrite(MRI *mri, const char *fname, int intent=MGZ_INTENT_UNKNOWN);
 static int itkMorphWrite(MRI *mri, const char *fname);
@@ -485,7 +485,7 @@ int MRIgetVolumeName(const char *string, char *name_only)
 
 } /* end MRIgetVolumeName() */
 
-MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int end_frame, std::vector<MRI*> *mriVector, bool nii_ico7_reshape)
+MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int end_frame, std::vector<MRI*> *mriVector)
 {
   MRI *mri, *mri2;
   IMAGE *I;
@@ -773,7 +773,7 @@ MRI *mri_read(const char *fname, int type, int volume_flag, int start_frame, int
     mri = nifti1Read(fname_copy, volume_flag);
   }
   else if (type == NII_FILE) {
-    mri = niiRead(fname_copy, volume_flag, nii_ico7_reshape);
+    mri = niiRead(fname_copy, volume_flag);
   }
   else if (type == NRRD_FILE) {
     mri = mriNrrdRead(fname_copy, volume_flag);
@@ -1065,7 +1065,7 @@ MRI *MRIreadInfo(const char *fname)
   If type is MRI_VOLUME_TYPE_UNKNOWN, then the type will be
   inferred from the file name.
   ---------------------------------------------------------------*/
-MRI *MRIreadHeader(const char *fname, int type, bool nii_ico7_reshape)
+MRI *MRIreadHeader(const char *fname, int type)
 {
   int usetype;
   MRI *mri = NULL;
@@ -1100,7 +1100,7 @@ MRI *MRIreadHeader(const char *fname, int type, bool nii_ico7_reshape)
       return (NULL);
     }
   }
-  mri = mri_read(modFname, usetype, FALSE, -1, -1, NULL, nii_ico7_reshape);
+  mri = mri_read(modFname, usetype, FALSE, -1, -1);
 
   return (mri);
 
@@ -8361,11 +8361,8 @@ static int nifti1Write(MRI *mri0, const char *fname)
   niiRead() - note: there is also an nifti1Read(). Make sure to
   edit both. Automatically detects whether an input is Ico7
   and reshapes.
-  For ico7 surface encoded volumes, if only allocating MRI header and nii_ico7_reshape=false,
-  the MRI will be created with dimensions hdr.dim[1] x hdr.dim[2] x hdr.dim[3] x hdr.dim[4],
-  instead of reshaped dimensions 163842 x 1 x 1 x hdr.dim[4].
   -----------------------------------------------------------------*/
-static MRI *niiRead(const char *fname, int read_volume, bool nii_ico7_reshape)
+static MRI *niiRead(const char *fname, int read_volume)
 {
   znzFile fp;
   MRI *mri, *mritmp;
@@ -8553,7 +8550,7 @@ static MRI *niiRead(const char *fname, int read_volume, bool nii_ico7_reshape)
   if (read_volume)
     mri = MRIallocSequence(ncols, hdr.dim[2], hdr.dim[3], fs_type, nslices);
   else {
-    if (!IsIco7 || !nii_ico7_reshape)
+    if (!IsIco7)
       mri = MRIallocHeader(ncols, hdr.dim[2], hdr.dim[3], fs_type, nslices);
     else
       mri = MRIallocHeader(163842, 1, 1, fs_type, nslices);
