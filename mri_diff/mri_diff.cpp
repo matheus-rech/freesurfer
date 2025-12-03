@@ -374,7 +374,7 @@ int main(int argc, char *argv[]) {
     vox2ras1 = MRIxfmCRS2XYZ(InVol1,0);
     vox2ras2 = MRIxfmCRS2XYZ(InVol2,0);
     if (Gdiag & DIAG_INFO) {
-      printf("[DEBUG] mri_diff CheckGeo, thresh=%g ...\n", geothresh);
+      printf("[DEBUG] mri_diff CheckGeo: geometry check, thresh=%g ...\n", geothresh);
       bool geodiff = VOL_GEOM::checkgeom(InVol1, InVol2, geothresh, Gdiag & DIAG_INFO);
       if (geodiff) {
 	InVol1->geomprint("vol 1 xform:\n");
@@ -410,7 +410,7 @@ int main(int argc, char *argv[]) {
 	    if (Gdiag & DIAG_INFO) {
 	      int precision = 10;
 	      printf("[DEBUG] checkgeo vox2ras1:\n");
-	      MatrixPrint(stdout, vox2ras1);
+	      MatrixPrint(stdout, vox2ras1, precision);
 	      printf("[DEBUG] checkgeo vox2ras2:\n");
 	      MatrixPrint(stdout, vox2ras2, precision);
 	    }
