@@ -1,4 +1,4 @@
-Jinja2==3.1.6
+Jinja2
 Markdown==3.7
 MarkupSafe==2.1.5
 PyWavelets==1.4.1
@@ -52,7 +52,6 @@ protobuf==4.25.6
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pyparsing==3.1.4
-pystrum==0.4
 git+https://github.com/adalca/pystrum.git@ba35d4b357f54e5ed577cbd413076a07ef810a21
 python-dateutil==2.9.0.post0
 pytz==2025.2
