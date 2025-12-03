@@ -34,9 +34,12 @@ if(HOST_OS MATCHES "Ubuntu24")
    endif()
 endif()
 
- # default is least version specific or sparse requirements to allow for latest pkg revisions
+ # should not be used anymore (use requirements-build.txt)
  set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
+ # should not be used anymore (use requirements-build.txt)
  set(requirements_extra "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-extra.txt")
+ # cannot be subsumed into requirements-build.txt until INTEGRATE_SAMSEG option is no longer used
+ set(requirements_samseg "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt")
  if(FSPYTHON_BUILD_REQ)
     # pip install current snapshot of (hardcoded) package revisions into fspython
     if(NOT APPLE)
@@ -146,8 +149,8 @@ endfunction()
 function(sitepackages_install_rev2)
   install(CODE "
     message(STATUS \"Installing python package dependencies into fspython with cmd:\")
-    message(STATUS \"FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
-    execute_process(COMMAND bash -c \"FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
+    message(STATUS \"SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
+    execute_process(COMMAND bash -c \"SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
     if(NOT \${retcode} STREQUAL 0)
       message(FATAL_ERROR \"Could not install python dependencies\")
     endif()
@@ -209,7 +212,8 @@ function(integrate_samseg)
   # setup STANDALONE_SAMSEG_PATH and pip install flags
   # set(PIP_INSTALL_FLAGS "${PIP_NODEP_ARG} ${PIP_NOVER_ARG} --upgrade")
   set(PIP_INSTALL_FLAGS "${PIP_NOVER_ARG} --upgrade")
-  set(requirements_samseg "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt")
+  ## global now as may use with req.sh - can install samseg at same time with all other python pkgs
+  # set(requirements_samseg "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt")
   set(STANDALONE_SAMSEG_PATH ${requirements_samseg})
 
   # set samseg package install location

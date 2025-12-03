@@ -107,9 +107,10 @@ cmake_cache=""
 install_path=""
 
 if [ $expand -eq 1 ]; then
+   # try to install all python packages (from various requirements files) from a single (expanded) pip command line that will be listed in the build log
    all_args="$@"
-   req_file=`echo $all_args | sed 's;^.*-r;-r;' | awk '{print $2}'`
-   remaining_cmd=`echo $all_args | sed 's;\-r[ ][ ]*'$req_file';;' | sed 's;[ ][ ]*$;;'`
+   req_file_cmd_line=`echo $all_args | sed 's;^.*-r;-r;' | awk '{print $2}'`
+   remaining_cmd=`echo $all_args | sed 's;\-r[ ][ ]*'$req_file_cmd_line';;' | sed 's;[ ][ ]*$;;'`
    # Ignore any commented out package entries in the requirements file beginning with pound sign.
    #
    # Strip off +cpu from the end of any python package name if FSPYTHON_INSTALL_CUDA enabled.
@@ -119,17 +120,27 @@ if [ $expand -eq 1 ]; then
    # Also the build has to work on systems w/o NVIDIA hardware/gpu's.  So the default in requirements should be, e.g., torch==2.1.2+cpui, which
    # makes less work to clean up via the --uninstall option in this script. Note that we cannot ship files with NVIDIA copyrights.
 
+   if [ "${INTEGRATE_SAMSEG}" == "ON" ]; then
+      if [ -e ${SAMSEG_REQ} ]; then
+         req_files="${req_file_cmd_line} ${SAMSEG_REQ}"
+      fi
+   else
+      req_files="${req_file_cmd_line}"
+   fi
+
+   # echo "REQ: req_files=X${req_files}X"
+
    if [ "${FSPYTHON_INSTALL_CUDA}" == "ON" ]; then
       echo "Stripping +cpu from the end of any package name to install since FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA}"
-      package_list=`cat $req_file | grep -v "^#.*" | sed 's;\+cpu$;;' | tr -s '\n' ' '`
+      package_list=`cat $req_files | grep -v "^#.*" | sed 's;\+cpu$;;' | tr -s '\n' ' '`
    else
-      package_list=`cat $req_file | grep -v "^#.*" | tr -s '\n' ' '`
+      package_list=`cat $req_files | grep -v "^#.*" | tr -s '\n' ' '`
    fi
 
    expanded_cmd="$remaining_cmd $package_list"
    echo "============================"
    date
-   # echo "REQ FILE=${req_file}"
+   # echo "REQ FILE=${req_files}"
    # echo "REMAINING CMD=${remaining_cmd}"
    echo "ORIGINAL COMMAND:"
    echo "${all_args}"
