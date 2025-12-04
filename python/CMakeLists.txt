@@ -40,6 +40,8 @@ endif()
  set(requirements_extra "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-extra.txt")
  # cannot be subsumed into requirements-build.txt until INTEGRATE_SAMSEG option is no longer used
  set(requirements_samseg "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt")
+ set(pybind11_DIR           "${CMAKE_SOURCE_DIR}/packages/pybind11")
+
  if(FSPYTHON_BUILD_REQ)
     # pip install current snapshot of (hardcoded) package revisions into fspython
     if(NOT APPLE)
@@ -144,13 +146,15 @@ function(sitepackages_install)
   ")
 endfunction()
 
-# expand the packages to install from the requirements file directly on to the pip command line and run via req.sh
-# Apparently needed to avoid an issue in docker (for only linux builds) with pip install.
+# Expand packages to install from all requirements files directly on to a single pip command line via req.sh.
+# This helps pip solve for all dependenices.  Also apparently needed to avoid an issue in docker for linux pip installs.
+# Samseg install complicates setup by adding env vars with cmake config on command line; would be nice to eliminate this.
+
 function(sitepackages_install_rev2)
   install(CODE "
     message(STATUS \"Installing python package dependencies into fspython with cmd:\")
-    message(STATUS \"SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
-    execute_process(COMMAND bash -c \"SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
+    message(STATUS \"ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
+    execute_process(COMMAND bash -c \"ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
     if(NOT \${retcode} STREQUAL 0)
       message(FATAL_ERROR \"Could not install python dependencies\")
     endif()
@@ -228,8 +232,9 @@ function(integrate_samseg)
     #       samseg dependencies modules cannot be found
     set(PIP_INSTALL_FLAGS "${PIP_INSTALL_FLAGS} --editable")
   endif()
-  
-  set(pybind11_DIR           "${CMAKE_SOURCE_DIR}/packages/pybind11")
+ 
+  ## make global now to use with req.sh
+  # set(pybind11_DIR           "${CMAKE_SOURCE_DIR}/packages/pybind11")
 
   if(APPLE)
     set(APPLE_BUILD_SETTING "APPLE=ON APPLE_ARM64=${APPLE_ARM64}")
