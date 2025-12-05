@@ -260,7 +260,7 @@ if($dcm2niix_dicom_dump) then
     ##### ???
 
     foreach series ($SeriesNos)
-      set descr = `cat $SeriesInfo | awk -v s=$series '{if($1 == s) print $2}' | head -n 1`
+      set descr = `cat $SeriesInfo | awk -v s=$series '{if($1 == s) print $2}' | head -n 1 | sed 's/*//g'`
       if($DoAutoRunSeq) then
         if("$descr" == Localizer || "$descr" == Localizer_aligned || "$descr" == localizer || "$descr" == AAHScout || \
            "$descr" == AAHScout_sag || "$descr" == AAHScout_cor || \
