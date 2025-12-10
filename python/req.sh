@@ -194,7 +194,11 @@ fi
 # python_binary="${install_path}/python/bin/python3"
 python_binary="$FSPYTHON_INSTALL_PREFIX/python/bin/python3"
 # nvidia_subdir="$install_path/python/lib/python3.8/site-packages/nvidia"
-nvidia_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python3.8/site-packages/nvidia"
+if [ ! -z ${FSPYTHON_VERSION} ]; then
+   nvidia_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python${FSPYTHON_VERSIONi}/site-packages/nvidia"
+else
+   nvidia_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python3.8/site-packages/nvidia"
+fi
 
 if [ $generate -eq 1 ]; then
    # If requirements files not soft links and modified, then stop and do not clobber
@@ -379,7 +383,11 @@ if [ $uninstall -eq 1 ]; then
 
    # tflow_subdir="$install_path/python/lib/python3.8/site-packages"
    # tflow_subdir="$install_path/python/lib/python3.8/site-packages/tensorflow"
-   tflow_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python3.8/site-packages/tensorflow"
+   if [ ! -z ${FSPYTHON_VERSION} ]; then
+      tflow_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python${FSPYTHON_VERSION}/site-packages/tensorflow"
+   else
+      tflow_subdir="$FSPYTHON_INSTALL_PREFIX/python/lib/python3.8/site-packages/tensorflow"
+   fi
    if [ -e $tflow_subdir ]; then
       rm -f header.list
       (cd ${tflow_subdir} && find -type f ! -name "*LICENSE*" ! -name "*.so*" -exec grep -i "copyright.*nvidia" {} \; -print | grep "^\.\/") > header.list
