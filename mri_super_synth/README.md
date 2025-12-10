@@ -22,9 +22,7 @@ B. For a set of scans: you need to prepare a CSV file, where each row has 3 colu
 Please note that there is no leading/header row in the CSV file. The first row already corresponds to an input volume.
 Tip: you can comment out a line by starting it with #
 
-Important note: for 32 vs 64-bit reasons, inference is tiled on the GPU but not on the CPU, so results are expected to be 
-slightly different on the 2 platforms. 
-You can use --force_tiling option on the CPU to force tiling and get the same results as on the GPU
+Important note: as opposed to the earlier versions of SuperSynth, inference is not tiled anymore.
 
 The command line options are:
 
@@ -43,10 +41,8 @@ The command line options are:
   --device [DEV]     
                         Device used for computations (cpu or cuda). The default is to use cuda if a GPU is available (optional)
                         
-  --force_tiling     
-                        Use this flag to force tiling on CPU and get the same results as on GPU, as explained above (optional)
-
-
+  --sharpen_synths     
+                        Sharpens the Synth-T1/-T2/-FLAIR predictions (optional)
 
 
 
