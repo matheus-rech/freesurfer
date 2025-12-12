@@ -232,6 +232,16 @@ public:
     return m_bCrop;
   }
 
+  void GetNativeToRasMatrix(double* m)
+  {
+    memcpy(m, m_RASToRASMatrix, sizeof(double)*16);
+  }
+
+  void GetVoxelToVoxelMatrix(double* m)
+  {
+    memcpy(m, m_VoxelToVoxelMatrix, sizeof(double)*16);
+  }
+
 Q_SIGNALS:
   void ProgressChanged( int n );
 

@@ -1868,7 +1868,7 @@ bool FSVolume::MapMRIToImage( bool do_not_create_image )
       MATRIX* t2r = MRIgetVoxelToVoxelXform( rasMRI, m_MRIRef );
       MatrixMultiply( vox2vox, t2r, t2r );
 
-      if (m_MRI->nframes == 3)
+      if (false) // m_MRI->nframes == 3)
       {
         MATRIX* rot = MatrixAlloc(3, 3, MATRIX_REAL);
         double scale[4];

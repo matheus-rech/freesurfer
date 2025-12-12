@@ -127,13 +127,10 @@ void LayerDTI::InitializeDTIColorMap()
   MATRIX* reg = m_vectorSource->GetRegMatrix();
   if ( reg )
   {
-    for ( int i = 0; i < 3; i++ )
-    {
-      for ( int j = 0; j < 3; j++ )
-      {
-        rotation_mat->SetElement( j, i, *MATRIX_RELT( reg, i+1, j+1 ) );
-      }
-    }
+    double m[16];
+    m_vectorSource->GetNativeToRasMatrix(m);
+    m[3] = m[7] = m[11] = 0;
+    rotation_mat->DeepCopy(m);
   }
   QString orient = GetOrientationString();
   int flag_assign[3] = { 0, 1, 2 };
