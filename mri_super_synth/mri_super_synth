@@ -30,9 +30,7 @@ then
   echo "   - Column 3: mode (must be invivo, exvivo, cerebrum, left-hemi, or right-hemi) "
   echo "(Please note that there is no leading/header row in the CSV file) "
   echo " "
-  echo "IMPORTANT: for 32 vs 64-bit reasons, inference is tiled on the GPU but not on the CPU, "
-  echo " so results are expected to be slightly different on the 2 platforms. You can use the option"
-  echo " --force_tiling option on the CPU to force tiling and get the same results as on the GPU "
+  echo "IMPORTANT: as opposed to the earlier versions of SuperSynth, inference is not tiled anymore "
   echo " "
   echo "The command line options are: "
   echo " "
@@ -51,8 +49,8 @@ then
   echo "--device [DEV] "     
   echo "           Device used for computations (cpu or cuda). The default is to use cuda if a GPU is available (optional) "
                         
-  echo "--force_tiling "    
-  echo "           Use this flag to force tiling on CPU and get the same results as on GPU, as explained above (optional)"
+  echo "--sharpen_synths "    
+  echo "           Use this flag to sharpen the Synth-T1/-T2/-FLAIR predictions (optional)"
 
   exit 0
 fi
@@ -86,6 +84,4 @@ echo "Running command:"
 echo $cmd
 echo "  "
 $cmd
-
-
 
