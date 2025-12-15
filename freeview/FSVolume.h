@@ -194,6 +194,8 @@ public:
 
   void SetConform( bool bConform );
 
+  void SetKeepOriginalResOnTransform(bool b);
+
   // for saving only
   void SetCropToOriginal(bool bCrop)
   {
@@ -300,6 +302,7 @@ protected:
 
   int       m_nInterpolationMethod;
   bool      m_bConform;
+  bool      m_bKeepOriginalResOnTransform;
   char      m_strOrientation[4];
 
   double    m_dBounds[6];

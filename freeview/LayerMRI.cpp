@@ -114,7 +114,8 @@ LayerMRI::LayerMRI( LayerMRI* ref, QObject* parent ) : LayerVolumeBase( parent )
   m_nGotoLabelOrientation(-1),
   m_layerMask(NULL),
   m_correlationSurface(NULL),
-  m_bIgnoreHeader(false)
+  m_bIgnoreHeader(false),
+  m_bKeepOriginalResOnTransform(false)
 {
   m_strTypeNames.push_back( "Supplement" );
   m_strTypeNames.push_back( "MRI" );
@@ -318,6 +319,11 @@ void LayerMRI::SetConform( bool bConform )
   m_bConform = bConform;
 }
 
+void LayerMRI::SetKeepOriginalResOnTransform(bool b)
+{
+  m_bKeepOriginalResOnTransform = b;
+}
+
 void LayerMRI::ResetRef()
 {
   m_volumeSource->ResetRef();
@@ -379,6 +385,7 @@ bool LayerMRI::LoadVolumeFromFile()
     connect(m_volumeRef, SIGNAL(destroyed(QObject*)), this, SLOT(ResetRef()));
   m_volumeSource->SetResampleToRAS( m_bResampleToRAS );
   m_volumeSource->SetConform( m_bConform );
+  m_volumeSource->SetKeepOriginalResOnTransform(m_bKeepOriginalResOnTransform);
   m_volumeSource->SetInterpolationMethod( m_nSampleMethod );
   m_volumeSource->SetIgnoreHeader(m_bIgnoreHeader);
   

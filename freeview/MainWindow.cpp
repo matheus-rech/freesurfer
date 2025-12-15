@@ -2532,6 +2532,11 @@ void MainWindow::CommandLoadVolume( const QStringList& sa )
           cerr << "Missing vector display argument.\n";
         }
       }
+      else if (subOption == "keep_original_resolution")
+      {
+        QString str = subArgu.toLower();
+        sup_data["keep_original_resolution"] = (str == "yes" || str == "1" || str == "on");
+      }
       else if ( subOption == "vector_width")
       {
         vector_width = subArgu;
@@ -2808,7 +2813,6 @@ void MainWindow::CommandLoadVolume( const QStringList& sa )
   {
     orientation = 0;
   }
-
 
   LoadVolumeFile( fn, reg_fn, bResample, nSampleMethod, bConform, orientation, gotoLabelName, sup_data );
 }
@@ -5869,6 +5873,7 @@ void MainWindow::LoadVolumeFile( const QString& filename,
   layer->GetProperty()->SetLUTCTAB( m_luts->GetColorTable( 0 ) );
   layer->SetName( fi.completeBaseName() );
   layer->SetGotoLabel(nGotoLabelOrientation, strGotoLabelName);
+  layer->SetKeepOriginalResOnTransform(sup_data.value("keep_original_resolution").toBool());
   QString fullpath = fi.absoluteFilePath();
   if ( fullpath.isEmpty() )
   {
