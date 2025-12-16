@@ -59,6 +59,7 @@
 #include "vtkImageMapper3D.h"
 #include "vtkCutter.h"
 #include "vtkPlane.h"
+#include "vtkIndent.h"
 #include "MyUtils.h"
 #include "MyVTKUtils.h"
 #include "FSVolume.h"
@@ -113,7 +114,8 @@ LayerMRI::LayerMRI( LayerMRI* ref, QObject* parent ) : LayerVolumeBase( parent )
   m_nGotoLabelOrientation(-1),
   m_layerMask(NULL),
   m_correlationSurface(NULL),
-  m_bIgnoreHeader(false)
+  m_bIgnoreHeader(false),
+  m_bKeepOriginalResOnTransform(false)
 {
   m_strTypeNames.push_back( "Supplement" );
   m_strTypeNames.push_back( "MRI" );
@@ -317,6 +319,11 @@ void LayerMRI::SetConform( bool bConform )
   m_bConform = bConform;
 }
 
+void LayerMRI::SetKeepOriginalResOnTransform(bool b)
+{
+  m_bKeepOriginalResOnTransform = b;
+}
+
 void LayerMRI::ResetRef()
 {
   m_volumeSource->ResetRef();
@@ -378,6 +385,7 @@ bool LayerMRI::LoadVolumeFromFile()
     connect(m_volumeRef, SIGNAL(destroyed(QObject*)), this, SLOT(ResetRef()));
   m_volumeSource->SetResampleToRAS( m_bResampleToRAS );
   m_volumeSource->SetConform( m_bConform );
+  m_volumeSource->SetKeepOriginalResOnTransform(m_bKeepOriginalResOnTransform);
   m_volumeSource->SetInterpolationMethod( m_nSampleMethod );
   m_volumeSource->SetIgnoreHeader(m_bIgnoreHeader);
   
@@ -1988,6 +1996,17 @@ void LayerMRI::UpdateVectorActor( int nPlane, vtkImageData* imagedata, vtkImageD
   if (nFrames == 6)
     scale *= 2;
 
+  vtkSmartPointer<vtkMatrix4x4> rotation_mat = vtkSmartPointer<vtkMatrix4x4>::New();
+  rotation_mat->Identity();
+  MATRIX* reg = m_volumeSource->GetRegMatrix();
+  if ( reg )
+  {
+    double m[16];
+    m_volumeSource->GetNativeToRasMatrix(m);
+    m[3] = m[7] = m[11] = 0;
+    rotation_mat->DeepCopy(m);
+  }
+
   double brightness = 1;
   switch ( nPlane )
   {
@@ -2053,6 +2072,9 @@ void LayerMRI::UpdateVectorActor( int nPlane, vtkImageData* imagedata, vtkImageD
             v[flag_assign[k]] = v_temp[k]*flag_sign[k];
             v2[flag_assign[k]] = v_temp2[k]*flag_sign[k];
           }
+
+          rotation_mat->MultiplyPoint( v, v );
+          rotation_mat->MultiplyPoint( v2, v2 );
           
           pt[0] = orig[0] + voxel_size[0] * n[0];
           pt[1] = orig[1] + voxel_size[1] * i;
@@ -2162,6 +2184,9 @@ void LayerMRI::UpdateVectorActor( int nPlane, vtkImageData* imagedata, vtkImageD
             v[flag_assign[k]] = v_temp[k]*flag_sign[k];
             v2[flag_assign[k]] = v_temp2[k]*flag_sign[k];
           }
+
+          rotation_mat->MultiplyPoint( v, v );
+          rotation_mat->MultiplyPoint( v2, v2 );
           
           pt[0] = orig[0] + voxel_size[0] * i;
           pt[1] = orig[1] + voxel_size[1] * n[1];
@@ -2271,7 +2296,10 @@ void LayerMRI::UpdateVectorActor( int nPlane, vtkImageData* imagedata, vtkImageD
             v[flag_assign[k]] = v_temp[k]*flag_sign[k];
             v2[flag_assign[k]] = v_temp2[k]*flag_sign[k];
           }
-          
+
+          rotation_mat->MultiplyPoint( v, v );
+          rotation_mat->MultiplyPoint( v2, v2 );
+
           pt[0] = orig[0] + voxel_size[0] * i;
           pt[1] = orig[1] + voxel_size[1] * j;
           pt[2] = orig[2] + voxel_size[2] * n[2];

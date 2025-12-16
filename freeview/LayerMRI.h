@@ -174,6 +174,8 @@ public:
 
   void SetConform( bool bConform );
 
+  void SetKeepOriginalResOnTransform(bool b);
+
   bool GetVoxelValueRange( const double* pt0, const double* pt1,
                            int nPlane, double* range_out );
 
@@ -494,6 +496,7 @@ protected:
   bool    m_bConform;
   bool    m_bWriteResampled;
   bool    m_bIgnoreHeader;
+  bool    m_bKeepOriginalResOnTransform;
 
   vtkImageActor*  m_sliceActor2D[3];
   vtkImageActor*  m_sliceActor3D[3];

@@ -85,7 +85,8 @@ FSVolume::FSVolume( FSVolume* ref, QObject* parent ) : QObject( parent ),
   m_bValidHistogram(false),
   m_bSharedMRI(false),
   m_lta(NULL),
-  m_bIgnoreHeader(false)
+  m_bIgnoreHeader(false),
+  m_bKeepOriginalResOnTransform(false)
 {
   m_imageData = NULL;
   if ( ref )
@@ -1659,14 +1660,19 @@ bool FSVolume::MapMRIToImage( bool do_not_create_image )
   {
     // if there is registration matrix, set target as the reference's target
     MRI* mri = m_volumeRef->m_MRITarget;
-    try {
-      rasMRI = MRIallocSequence( mri->width,
-                                 mri->height,
-                                 mri->depth,
-                                 m_MRI->type,
-                                 m_MRI->nframes );
-    } catch (int ret) {
-      return false;
+    if (m_bKeepOriginalResOnTransform)
+      rasMRI = CreateTargetMRI( m_MRI, mri, true, m_bConform );
+    else
+    {
+      try {
+        rasMRI = MRIallocSequence( mri->width,
+                                   mri->height,
+                                   mri->depth,
+                                   m_MRI->type,
+                                   m_MRI->nframes );
+      } catch (int ret) {
+        return false;
+      }
     }
 
     if ( rasMRI == NULL )
@@ -1675,7 +1681,8 @@ bool FSVolume::MapMRIToImage( bool do_not_create_image )
       MatrixFree( &m );
       return false;
     }
-    MRIcopyHeader( mri, rasMRI );
+    if (!m_bKeepOriginalResOnTransform)
+      MRIcopyHeader( mri, rasMRI );
   }
   else if ( m_bResampleToRAS && ( !m_volumeRef ) )
   {
@@ -1868,7 +1875,7 @@ bool FSVolume::MapMRIToImage( bool do_not_create_image )
       MATRIX* t2r = MRIgetVoxelToVoxelXform( rasMRI, m_MRIRef );
       MatrixMultiply( vox2vox, t2r, t2r );
 
-      if (m_MRI->nframes == 3)
+      if (false) // m_MRI->nframes == 3)
       {
         MATRIX* rot = MatrixAlloc(3, 3, MATRIX_REAL);
         double scale[4];
@@ -1908,12 +1915,7 @@ bool FSVolume::MapMRIToImage( bool do_not_create_image )
   }
   else
   {
-    //    qDebug() << rasMRI->width << rasMRI->height << rasMRI->depth;
-
-    //    QElapsedTimer t; t.start();
-    //    qDebug() << "begin vol2vol";
     MRIvol2Vol( m_MRI, rasMRI, NULL, m_nInterpolationMethod, 0 );
-    //    qDebug() << "vol2vol time: " << t.elapsed()/1000;
     MATRIX* vox2vox = MRIgetVoxelToVoxelXform( m_MRI, rasMRI );
     for ( int i = 0; i < 16; i++ )
     {
@@ -2968,6 +2970,11 @@ void FSVolume::SetInterpolationMethod( int nMethod )
 void FSVolume::SetConform( bool bConform )
 {
   m_bConform = bConform;
+}
+
+void FSVolume::SetKeepOriginalResOnTransform(bool b)
+{
+  m_bKeepOriginalResOnTransform = b;
 }
 
 int FSVolume::GetDataType()

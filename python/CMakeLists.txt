@@ -6,6 +6,9 @@ if(NOT INTEGRATE_SAMSEG)
   add_subdirectories(gems/cxx)
 endif()
 
+## FSPYTHON_VERSION set in top level CMakeLists.txt
+# set(FSPYTHON_VERSION "3.8")
+
 set(UV_INSTEAD_OF_PIP_INSTALL OFF)
 # set(UV_INSTEAD_OF_PIP_INSTALL ON)
 
@@ -29,25 +32,40 @@ endif()
 
 if(HOST_OS MATCHES "Ubuntu24")
    if (NOT PYTHON_EXECUTABLE)
-      set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/3.8/bin/python")
+      set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION}/bin/python")
       message(STATUS "For HOST_OS=${HOST_OS} set PYTHON_EXEUTABLE to ${PYTHON_EXECUTABLE}")
    endif()
 endif()
 
- # should not be used anymore (use requirements-build.txt)
- set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
- # should not be used anymore (use requirements-build.txt)
- set(requirements_extra "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-extra.txt")
- # cannot be subsumed into requirements-build.txt until INTEGRATE_SAMSEG option is no longer used
- set(requirements_samseg "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt")
+ ## should not be used anymore (use requirements-build.txt)
+ # set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
+ ## should not be used anymore (use requirements-build.txt)
+ # set(requirements_extra "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-extra.txt")
+ ## cannot be subsumed into requirements-build.txt until INTEGRATE_SAMSEG option is no longer used
+ set(requirements_samseg_path "${CMAKE_CURRENT_SOURCE_DIR}")
+ set(requirements_samseg_file "requirements-samseg.txt")
+ set(requirements_samseg "-r ${requirements_samseg_path}/${requirements_samseg_file}")
  set(pybind11_DIR           "${CMAKE_SOURCE_DIR}/packages/pybind11")
+
+ ## default linux python currently 3.8
+ if(NOT FSPYTHON_VERSION)
+    set(FSPYTHON_VERSIOM "3.8")
+ endif()
+
+ if("${FSPYTHON_VERSION}" MATCHES "3.8")
+    ## previous behavior before differentiated by python version (requirements-build.txt and requirements-build-py38.txt started out as same file)
+    # set(FSPYTHON_REQFILE "requirements-build.txt")
+    set(FSPYTHON_REQFILE "requirements-build-py38.txt")
+ elseif("${FSPYTHON_VERSION}" MATCHES "3.9")
+    set(FSPYTHON_REQFILE "requirements-build-py39.txt")
+ endif()
 
  if(FSPYTHON_BUILD_REQ)
     # pip install current snapshot of (hardcoded) package revisions into fspython
     if(NOT APPLE)
-       ## all linux OS
+       ## python requirments file for all linux OS
        # set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-linux.txt")
-       set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-build.txt")
+       set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/${FSPYTHON_REQFILE}")
        set(requirements_extra "")
     else()
        if(NOT APPLE_ARM64)
@@ -63,10 +81,10 @@ endif()
  endif()
  if(NOT APPLE_ARM64)
     if(INFANT_MODULE)
-       # provide requirements file for infant module to allow for different package revisions compared to what
-       # freesurfer uses (add cmake option -DFSPYTHON_BUILD_REQ=ON to infant options -DINFANT_MODULE=ON -DMINIMAL=ON)
-       #set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-infant.txt")
-       #set(requirements_extra "")
+       ## provide requirements file for infant module to allow for different package revisions compared to what
+       ## freesurfer uses (add cmake option -DFSPYTHON_BUILD_REQ=ON to infant options -DINFANT_MODULE=ON -DMINIMAL=ON)
+       # set(requirements "-r ${CMAKE_CURRENT_SOURCE_DIR}/requirements-infant.txt")
+       # set(requirements_extra "")
     endif()
  endif()
  if(NOT APPLE_ARM64)
@@ -79,9 +97,9 @@ function(requirements_file_install)
   if(FSPYTHON_BUILD_REQ)
       if(NOT APPLE_ARM64)
          if(FSPYTHON_INSTALL_TREE)
-            install(PROGRAMS requirements-build.txt DESTINATION ${FSPYTHON_INSTALL_PREFIX}/python)
+            install(PROGRAMS ${FSPYTHON_REQFILE} DESTINATION ${FSPYTHON_INSTALL_PREFIX}/python)
          else()
-            install(PROGRAMS requirements-build.txt DESTINATION python)
+            install(PROGRAMS ${FSPYTHON_REQFILE} DESTINATION python)
          endif()
       endif()
    endif()
@@ -105,6 +123,22 @@ endfunction()
 
 # TO DO  - write a python_3_10_base_install
 
+function(python_3_9_base_install)
+  set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/3.9)
+  if(EXISTS ${FSPYTHON_DIR}/bin/python3)
+    # specify the python to use
+    set(PYTHON_EXECUTABLE ${FSPYTHON_DIR}/bin/python3)
+    set(PYTHON_LIBRARY ${FSPYTHON_DIR}/lib/libpython3.9m)
+    # install the barebones python distribution
+    INSTALL(DIRECTORY ${FSPYTHON_DIR}/bin ${FSPYTHON_DIR}/lib ${FSPYTHON_DIR}/include
+      DESTINATION ${FSPYTHON_INSTALL_PREFIX}/python USE_SOURCE_PERMISSIONS
+    )
+  else()
+    message(FATAL_ERROR "Cannot find fspython distribution in FS_PACKAGES_DIR")
+  endif()
+  message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_VERSION=${FSPYTHON_VERSION}")
+endfunction()
+
 function(python_3_8_base_install)
   set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/3.8)
   if(EXISTS ${FSPYTHON_DIR}/bin/python3)
@@ -118,6 +152,7 @@ function(python_3_8_base_install)
   else()
     message(FATAL_ERROR "Cannot find fspython distribution in FS_PACKAGES_DIR")
   endif()
+  message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_VERSION=${FSPYTHON_VERSION}")
 endfunction()
 
 function(packages_install)
@@ -153,8 +188,8 @@ endfunction()
 function(sitepackages_install_rev2)
   install(CODE "
     message(STATUS \"Installing python package dependencies into fspython with cmd:\")
-    message(STATUS \"ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
-    execute_process(COMMAND bash -c \"ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} SAMSEG_REQ=${CMAKE_CURRENT_SOURCE_DIR}/requirements-samseg.txt INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
+    message(STATUS \"FSPYTHON_VERSION=${FSPYTHON_VERSION} ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} SAMSEG_REQ=${requirements_samseg_path}/${requirements_samseg_file} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\")
+    execute_process(COMMAND bash -c \"FSPYTHON_VERSION=${FSPYTHON_VERSION} ITK_DIR=${ITK_DIR} pybind11_DIR=${pybind11_DIR} SAMSEG_REQ=${requirements_samseg_path}/${requirements_samseg_file} INTEGRATE_SAMSEG=${INTEGRATE_SAMSEG} FSPYTHON_INSTALL_CUDA=${FSPYTHON_INSTALL_CUDA} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --expand ${FSPYTHON_INSTALL_PREFIX}/python/bin/python3 -m ${PIP_SUBSTRING} --upgrade ${PIP_NOVER_ARG} ${EXTRA_PACKAGES} ${requirements} ${requirements_extra} ${PKG_TARGET} ${PIP_LAST_ARG}\" RESULT_VARIABLE retcode)
     if(NOT \${retcode} STREQUAL 0)
       message(FATAL_ERROR \"Could not install python dependencies\")
     endif()
@@ -184,7 +219,7 @@ function(fspython_patch)
    set(FSPYTHON_PREVIOUS_BUILD_BASE "/space/freesurfer/build/garnet/sandboxes/utility/freesurfer/dev.20221207")
    install(CODE "
      message(STATUS \"patching fspython distribution\")
-     execute_process(COMMAND bash -c \" ( cd ${FSPYTHON_PREVIOUS_BUILD_BASE}/python/lib/python3.8/site-packages && tar cpf - surfa* xxhash* ) | ( cd ${FSPYTHON_INSTALL_PREFIX}/python/lib/python3.8/site-packages && tar xpf - ) \" RESULT_VARIABLE patch)
+     execute_process(COMMAND bash -c \" ( cd ${FSPYTHON_PREVIOUS_BUILD_BASE}/python/lib/python${FSPYTHON_VERSION}/site-packages && tar cpf - surfa* xxhash* ) | ( cd ${FSPYTHON_INSTALL_PREFIX}/python/lib/python${FSPYTHON_VERSION}/site-packages && tar xpf - ) \" RESULT_VARIABLE patch)
      if(NOT \${patch} STREQUAL 0)
        message(FATAL_ERROR \"Could not patch fspython\")
      endif()"
@@ -196,13 +231,13 @@ endfunction()
 function(prune_cuda)
   if(NOT APPLE)
      install(CODE "
-       message(STATUS \"FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --torchcpu\")
-       execute_process(COMMAND bash -c \"FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX} bash ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --torchcpu\" RESULT_VARIABLE retcode)
+       message(STATUS \"FSPYTHON_VERSION=${FSPYTHON_VERSION} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --torchcpu\")
+       execute_process(COMMAND bash -c \"FSPYTHON_VERSION=${FSPYTHON_VERSION} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX} bash ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --torchcpu\" RESULT_VARIABLE retcode)
        if(NOT \${retcode} STREQUAL 0)
          message(FATAL_ERROR \"Could not replace torch module\")
        endif()
-       message(STATUS \"FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --uninstall\")
-       execute_process(COMMAND bash -c \"FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX} bash ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --uninstall\" RESULT_VARIABLE retcode)
+       message(STATUS \"FSPYTHON_VERSION=${FSPYTHON_VERSION} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --uninstall\")
+       execute_process(COMMAND bash -c \"FSPYTHON_VERSION=${FSPYTHON_VERSION} FS_INSTALL_DIR=${CMAKE_INSTALL_PREFIX} FSPYTHON_INSTALL_PREFIX=${FSPYTHON_INSTALL_PREFIX} bash ${CMAKE_CURRENT_SOURCE_DIR}/req.sh --uninstall\" RESULT_VARIABLE retcode)
        if(NOT \${retcode} STREQUAL 0)
          message(FATAL_ERROR \"Could not uninstall python modules\")
        endif()
@@ -222,7 +257,7 @@ function(integrate_samseg)
 
   # set samseg package install location
   if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
-    set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/lib/python3.8/site-packages")
+    set(SAMSEG_INSTALL_DIR "${FSPYTHON_INSTALL_PREFIX}/python/lib/python${FSPYTHON_VERSION}/site-packages")
     set(STANDALONE_SAMSEG_PATH "${USER_SAMSEG_PATH}")
     # for editable install to work, the .pth needs to be python/lib/pythonX.Y/site-packages
     # editable samseg install doesn't work in the following build environments:
@@ -279,7 +314,13 @@ if(DISTRIBUTE_FSPYTHON AND INSTALL_PYTHON_DEPENDENCIES)
    # install C bindings, etc. under python/packages
    # install packages under python/lib/python<rev>/site-packages, add fspython wrapper
    # install a copy of the requirements-build.txt file if the build was set to use it for the revs of pkgs to install
-   python_3_8_base_install()
+   if("${FSPYTHON_VERSION}" MATCHES "3.8")
+      python_3_8_base_install()
+   elseif("${FSPYTHON_VERSION}" MATCHES "3.9")
+      python_3_9_base_install()
+   else()
+      message(FATAL_ERROR "Don\'t know how to build with FSPYTHON_VERSION=${FSPYTHON_VERSION}.")
+   endif()
    packages_install()
    if(NOT APPLE)
       sitepackages_install_rev2()
@@ -307,7 +348,13 @@ if(DISTRIBUTE_FSPYTHON AND NOT INSTALL_PYTHON_DEPENDENCIES)
    # install base python distribution
    # install C bindings, etc. under python/packages
    # NO pre-installed site-packages, add fspython wrapper
-   python_3_8_base_install()
+   if("${FSPYTHON_VERSION}" STREQUAL "3.8")
+      python_3_8_base_install()
+   elseif("${FSPYTHON_VERSION}" STREQUAL "3.9")
+      python_3_9_base_install()
+   else()
+      message(FATAL_ERROR "Don't know how to build with FSPYTHON_VERSION=${FSPYTHON_VERSION}.")
+   endif()
    packages_install()
    if(INTEGRATE_SAMSEG)
       integrate_samseg()

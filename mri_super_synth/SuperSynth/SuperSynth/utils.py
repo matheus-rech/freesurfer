@@ -2,37 +2,8 @@ import nibabel as nib
 import torch
 import numpy as np
 import os
-from scipy.ndimage import gaussian_filter, label
+from scipy.ndimage import label
 
-#######
-
-def viewVolume(x, aff=None):
-
-    if aff is None:
-        aff = np.eye(4)
-    else:
-        if type(aff) == torch.Tensor:
-            aff = aff.cpu().detach().numpy()
-
-    if type(x) is not list:
-        x = [x]
-
-    cmd = 'source /usr/local/freesurfer/nmr-dev-env-bash && freeview '
-
-    c = 0
-    for n in range(len(x)):
-        if x[n] is not None:
-            vol = x[n]
-            if type(vol) == torch.Tensor:
-                vol = vol.cpu().detach().numpy()
-            vol = np.squeeze(np.array(vol))
-            name = '/tmp/' + str(c) + '.nii.gz'
-            c = c + 1
-            MRIwrite(vol, aff, name)
-            cmd = cmd + ' ' + name
-
-    print(cmd + ' &')
-    os.system(cmd + ' &')
 
 ###############################
 def get_largest_connected_component(binary_numpy):
@@ -75,75 +46,7 @@ def MRIread(filename, dtype=None, im_only=False):
     else:
         return volume, aff
 
-###############################
-
-def myzoom_torch(X, factor, device, aff=None):
-
-    if len(X.shape)==3:
-        X = X[..., None]
-
-    dtype = X.dtype
-
-    delta = (1.0 - factor) / (2.0 * factor)
-    newsize = np.round(X.shape[:-1] * factor).astype(int)
-
-    vx = torch.arange(delta[0], delta[0] + newsize[0] / factor[0], 1 / factor[0], dtype=dtype, device=device)[:newsize[0]]
-    vy = torch.arange(delta[1], delta[1] + newsize[1] / factor[1], 1 / factor[1], dtype=dtype, device=device)[:newsize[1]]
-    vz = torch.arange(delta[2], delta[2] + newsize[2] / factor[2], 1 / factor[2], dtype=dtype, device=device)[:newsize[2]]
-
-    vx[vx < 0] = 0
-    vy[vy < 0] = 0
-    vz[vz < 0] = 0
-    vx[vx > (X.shape[0]-1)] = (X.shape[0]-1)
-    vy[vy > (X.shape[1] - 1)] = (X.shape[1] - 1)
-    vz[vz > (X.shape[2] - 1)] = (X.shape[2] - 1)
-
-    fx = torch.floor(vx).int()
-    cx = fx + 1
-    cx[cx > (X.shape[0]-1)] = (X.shape[0]-1)
-    wcx = vx - fx
-    wfx = 1 - wcx
-
-    fy = torch.floor(vy).int()
-    cy = fy + 1
-    cy[cy > (X.shape[1]-1)] = (X.shape[1]-1)
-    wcy = vy - fy
-    wfy = 1 - wcy
-
-    fz = torch.floor(vz).int()
-    cz = fz + 1
-    cz[cz > (X.shape[2]-1)] = (X.shape[2]-1)
-    wcz = vz - fz
-    wfz = 1 - wcz
-
-    Y = torch.zeros([newsize[0], newsize[1], newsize[2], X.shape[3]], dtype=dtype, device=device)
-
-    for channel in range(X.shape[3]):
-        Xc = X[:,:,:,channel]
-
-        tmp1 = torch.zeros([newsize[0], Xc.shape[1], Xc.shape[2]], dtype=dtype, device=device)
-        for i in range(newsize[0]):
-            tmp1[i, :, :] = wfx[i] * Xc[fx[i], :, :] +  wcx[i] * Xc[cx[i], :, :]
-        tmp2 = torch.zeros([newsize[0], newsize[1], Xc.shape[2]], dtype=dtype, device=device)
-        for j in range(newsize[1]):
-            tmp2[:, j, :] = wfy[j] * tmp1[:, fy[j], :] +  wcy[j] * tmp1[:, cy[j], :]
-        for k in range(newsize[2]):
-            Y[:, :, k, channel] = wfz[k] * tmp2[:, :, fz[k]] +  wcz[k] * tmp2[:, :, cz[k]]
-
-    if Y.shape[3] == 1:
-        Y = Y[:,:,:, 0]
-
-    if aff is not None:
-        aff_new = aff.copy()
-        for c in range(3):
-            aff_new[:-1, c] = aff_new[:-1, c] / factor
-        aff_new[:-1, -1] = aff_new[:-1, -1] - aff[:-1, :-1] @ (0.5 - 0.5 / (factor * np.ones(3)))
-        return Y, aff_new
-    else:
-        return Y
-
 ############################
-
 
 def myzoom_torch_anisotropic(X, aff, newsize, device):
 
@@ -347,12 +250,102 @@ def align_volume_to_ref(volume, aff, aff_ref=None, return_aff=False, n_dims=3):
 ##############
 
 def get_ras_axes(aff, n_dims=3):
-    """This function finds the RAS axes corresponding to each dimension of a volume, based on its affine matrix.
-    :param aff: affine matrix Can be a 2d numpy array of size n_dims*n_dims, n_dims+1*n_dims+1, or n_dims*n_dims+1.
-    :param n_dims: number of dimensions (excluding channels) of the volume corresponding to the provided affine matrix.
-    :return: two numpy 1d arrays of lengtn n_dims, one with the axes corresponding to RAS orientations,
-    and one with their corresponding direction.
-    """
-    aff_inverted = np.linalg.inv(aff)
-    img_ras_axes = np.argmax(np.absolute(aff_inverted[0:n_dims, 0:n_dims]), axis=0)
-    return img_ras_axes
+    # Exhaustive search is fine, only 6 possible permutations...
+    candidates = [[0,1,2], [0,2,1], [1,0,2], [2,0,1], [1,2,0], [2,1,0]]
+    best_score = -100000
+    best_candidate = None
+    for c in candidates:
+        score = np.abs(aff[0, c[0]] / np.linalg.norm(aff[:, c[0]])) \
+              + np.abs(aff[1, c[1]] / np.linalg.norm(aff[:, c[1]])) \
+              + np.abs(aff[2, c[2]] / np.linalg.norm(aff[:, c[2]]))
+        if score>best_score:
+            best_score = score
+            best_candidate = c
+    return np.array(best_candidate)
+
+################
+
+def make_gaussian_kernel(sigma, device):
+    sl = int(np.ceil(3 * sigma))
+    ts = torch.linspace(-sl, sl, 2*sl+1, dtype=torch.float, device=device)
+    gauss = torch.exp((-(ts / sigma)**2 / 2))
+    kernel = gauss / gauss.sum()
+    return kernel
+
+################
+
+def gaussian_blur_3d(input, stds, device):
+    from torch.nn.functional import conv3d
+    blurred = input[None, None, :, :, :]
+    if stds[0]>0:
+        kx = make_gaussian_kernel(stds[0], device=device)
+        blurred = conv3d(blurred, kx[None, None, :, None, None], stride=1, padding=(len(kx) // 2, 0, 0))
+    if stds[1]>0:
+        ky = make_gaussian_kernel(stds[1], device=device)
+        blurred = conv3d(blurred, ky[None, None, None, :, None], stride=1, padding=(0, len(ky) // 2, 0))
+    if stds[2]>0:
+        kz = make_gaussian_kernel(stds[2], device=device)
+        blurred = conv3d(blurred, kz[None, None, None, None, :], stride=1, padding=(0, 0, len(kz) // 2))
+    return torch.squeeze(blurred)
+
+################
+
+def get_label_lists_etc():
+    # Just defines a bunch of constants
+    label_list_segmentation_whole_freesurfer = [0, 14, 15, 16, 24, 77, 85, 99, 901, 902, 906, 907, 908, 909, 911,
+                                                912, 914, 915, 916,
+                                                930, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 17, 18, 26, 819, 821, 843,
+                                                865, 869,
+                                                41, 42, 43, 44, 46, 47, 49, 50, 51, 52, 53, 54, 58, 820, 822, 844,
+                                                866, 870]
+    label_list_segmentation_exvivo_freesurfer = [0, 14, 15, 16, 77, 85, 99, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 17,
+                                                 18, 26,
+                                                 819, 821, 843, 865, 869, 41, 42, 43, 44, 46, 47, 49, 50, 51, 52,
+                                                 53, 54, 58,
+                                                 820, 822, 844, 866, 870]
+    label_list_segmentation_cerebrum_freesurfer = [0, 77, 85, 99, 2, 3, 4, 5, 10, 11, 12, 13, 17, 18, 26, 819, 821,
+                                                   843, 865, 869,
+                                                   41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 58, 820, 822, 844, 866,
+                                                   870]
+    label_list_segmentation_hemi_freesurfer_left = [0, 2, 3, 4, 5, 10, 11, 12, 13, 17, 18, 26, 77, 99, 819, 821,
+                                                    843, 865, 869]
+    label_list_segmentation_hemi_freesurfer_right = [0, 41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 58, 77, 99, 820,
+                                                     822, 844, 866, 870]
+    label_list_segmentation_whole = [0, 11, 12, 13, 16, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46,
+                                     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 17, 47, 49, 51, 53, 55,
+                                     18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 48, 50, 52, 54, 56]
+    label_list_segmentation_hemis = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    label_list_segmentation_exvivo = [0, 11, 12, 13, 31, 32, 33, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 17, 34, 36,
+                                      38,
+                                      40, 42, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 35, 37, 39, 41,
+                                      43]
+    n_neutral_labels_whole = 20
+    n_neutral_labels_hemis = len(label_list_segmentation_hemis)
+    n_neutral_labels_exvivo = 7
+    n_neutral_labels_cerebrum = 4
+    n_labels_whole = len(label_list_segmentation_whole)
+    n_labels_hemis = len(label_list_segmentation_hemis)
+    n_labels_exvivo = len(label_list_segmentation_exvivo)
+    n_labels_cerebrum = len(label_list_segmentation_cerebrum_freesurfer)
+    nlat = int((n_labels_whole - n_neutral_labels_whole) / 2.0)
+    vflip_invivo = np.concatenate([np.array(range(n_neutral_labels_whole)),
+                                   np.array(range(n_neutral_labels_whole + nlat, n_labels_whole)),
+                                   np.array(range(n_neutral_labels_whole, n_neutral_labels_whole + nlat))])
+
+    nlat = int((len(label_list_segmentation_exvivo) - n_neutral_labels_exvivo) / 2.0)
+    vflip_exvivo = np.concatenate([np.array(range(n_neutral_labels_exvivo)),
+                                   np.array(
+                                       range(n_neutral_labels_exvivo + nlat, len(label_list_segmentation_exvivo))),
+                                   np.array(range(n_neutral_labels_exvivo, n_neutral_labels_exvivo + nlat))])
+    nlat = int((len(label_list_segmentation_cerebrum_freesurfer) - n_neutral_labels_cerebrum) / 2.0)
+    vflip_cerebrum = np.concatenate([np.array(range(n_neutral_labels_cerebrum)),
+                                     np.array(range(n_neutral_labels_cerebrum + nlat,
+                                                    len(label_list_segmentation_cerebrum_freesurfer))),
+                                     np.array(range(n_neutral_labels_cerebrum, n_neutral_labels_cerebrum + nlat))])
+    list_to_kill_photo_whole = [5, 6, 11, 12, 13, 16, 22, 23, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46]
+
+    return label_list_segmentation_whole_freesurfer, label_list_segmentation_exvivo_freesurfer, label_list_segmentation_cerebrum_freesurfer, \
+           label_list_segmentation_hemi_freesurfer_left, label_list_segmentation_hemi_freesurfer_right, label_list_segmentation_whole, \
+           label_list_segmentation_hemis, label_list_segmentation_exvivo, n_neutral_labels_whole, n_neutral_labels_hemis, n_neutral_labels_exvivo, \
+           n_neutral_labels_cerebrum, n_labels_whole, n_labels_hemis, n_labels_exvivo, n_labels_cerebrum, vflip_invivo, vflip_exvivo, vflip_cerebrum, \
+           list_to_kill_photo_whole

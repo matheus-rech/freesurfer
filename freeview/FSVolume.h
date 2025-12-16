@@ -194,6 +194,8 @@ public:
 
   void SetConform( bool bConform );
 
+  void SetKeepOriginalResOnTransform(bool b);
+
   // for saving only
   void SetCropToOriginal(bool bCrop)
   {
@@ -230,6 +232,16 @@ public:
   bool GetCropped()
   {
     return m_bCrop;
+  }
+
+  void GetNativeToRasMatrix(double* m)
+  {
+    memcpy(m, m_RASToRASMatrix, sizeof(double)*16);
+  }
+
+  void GetVoxelToVoxelMatrix(double* m)
+  {
+    memcpy(m, m_VoxelToVoxelMatrix, sizeof(double)*16);
   }
 
 Q_SIGNALS:
@@ -290,6 +302,7 @@ protected:
 
   int       m_nInterpolationMethod;
   bool      m_bConform;
+  bool      m_bKeepOriginalResOnTransform;
   char      m_strOrientation[4];
 
   double    m_dBounds[6];

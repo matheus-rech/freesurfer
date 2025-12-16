@@ -1,12 +1,13 @@
-# project info
+## project info
+
 cmake_minimum_required(VERSION 3.9)
 
-# requiring at least c++11 standard
+## requiring at least c++11 standard
 if(CMAKE_CXX_STANDARD EQUAL "98" )
    message(FATAL_ERROR "CMAKE_CXX_STANDARD:STRING=98 is not supported in.")
 endif()
 
-# do not allow python libraries to mask system libraries
+## do not allow python libraries to mask system libraries
 set(CMAKE_IGNORE_PREFIX_PATH "/space/freesurfer/python/linux/lib") 
 
 if(APPLE)
@@ -20,7 +21,7 @@ if(APPLE)
    endif()
 endif()
 
-# set the default language dialect settings (This must be done BEFORE the project call)
+## set the default language dialect settings (This must be done BEFORE the project call)
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 11)
 endif()
@@ -36,7 +37,38 @@ project(freesurfer
   LANGUAGES C CXX Fortran
 )
 
-# a few build options
+# --------------------------------------------------
+#    external dependencies on 3rd party packages
+# --------------------------------------------------
+
+## Some packages required by freesurfer are located by custom find-modules stored in the
+## 'cmake' subdir. The find-modules expect each package to be installed under a common
+## path defined by FS_PACKAGES_DIR. On Martinos machines, this variable automatically defaults
+## to /usr/pubsw/packages, but external developers must provide this path manually. As freesurfer
+## has the option to build on newer OS's with instaled versions of 3rd party pkgs, it may not longer be
+## necessary (and/or it may not work) for external developers to use the packages/build_packages.py to
+## locally compile 3rd party software freesurfer links against. Instead of using find modeules, paths
+## to system 3rd party packages are listed below.  But with the find-modules scheme, if a package
+## is not found under FS_PACKAGES_DIR, cmake will continue to look through the default search paths.
+## Additionally, alternative paths to package installs can be specified with the <PACKAGE>_DIR variables
+## Note: FS_PACKAGES_DIR can be defined in an environment variable.
+
+if(NOT FS_PACKAGES_DIR)
+  if(NOT "$ENV{FS_PACKAGES_DIR}" STREQUAL "")
+    ## check if FS_PACKAGES_DIR has been set 
+    set(FS_PACKAGES_DIR "$ENV{FS_PACKAGES_DIR}" CACHE INTERNAL "Copied from FS_PACKAGES_DIR environment variable")
+  elseif(EXISTS /usr/pubsw/packages)
+    ## if the user is at Martinos, default to /usr/pubsw/packages
+    set(FS_PACKAGES_DIR /usr/pubsw/packages CACHE INTERNAL "Default Martinos packages dir")
+  else()
+    ## setting FS_PACKAGES_DIR is required if the user is outside Martinos
+    ## for more information visit https://surfer.nmr.mgh.harvard.edu/fswiki/BuildRequirements
+    message(WARNING "FS_PACKAGES_DIR is NOT defined - build will be limited")
+  endif()
+endif()
+
+## build options and cached string values that can be overriden from the command line
+
 option(MINIMAL "Only build core components" OFF)
 option(BUILD_GUIS "Build GUI tools" ON)
 option(BUILD_ATTIC "Build deprecated tools from the attic" OFF)
@@ -47,32 +79,70 @@ option(FREEVIEW_LINEPROF "The default is to build freeview w/o lineprof (which i
 option(PROFILING "Complile binaries for profiling with gprof" OFF)
 option(INSTALL_PYTHON_DEPENDENCIES "Install python package dependencies" ON)
 option(BUILD_FORTRAN "Build subdirs with source using gfortran" ON)
-option(PATCH_FSPYTHON "Build subdirs with source using gfortran" OFF)
-option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" ON)
 option(FSL_INSTALL "force install of FSL binaries for linux platforms only" OFF)
 option(INTEGRATE_SAMSEG "Integrate standalone SAMSEG" ON)
 option(FIPS_SUPPORT "allow FS license to be read on FIPS system" OFF)
+
+## freeview
+##
+option(FREEVIEW_LINEPROF "The default is to build freeview w/o lineprof (which in turn requires petsc)" OFF)
+## see BUILD_SCRIBBLE below under linking to 3rd party shared libs
+
+## fspython
+##
+## A straightforward way to ensure freesurfer commands which are python scripts run out-of-the-box
+## (and help with testing/reproducibility) is to distribute a minimal, custom python called "fspython"
+## The fspython installation under $FREESURFER_HOME/python contains only the python packages needed
+## to run the freesurfer python scripts. Hence, fspython is not a general pupose python and we only 
+## officially support running freesurfer with fspython. THERE IS NO GUARANTEE THE FSPYTHON ENVIRONMENT
+## CAN BE REPLICATED USING THE SYSTEM PYTHON OR A PYTHON VIRTUAL ENVIRONMENT.
+##
+## However, an external python can be pointed to via the cmake option -DDISTRIBUTE_FSPYTHON=OFF.  This
+## will create a freesurfer/bin/python symlink during install that can point to an exteral python binary.
+##
+## The python version used to run pybind c-libraries must be equivalent to the python version used to
+## build those libraries, i.e., a reason to provide fspython.
+##
+## The version of the installed system python can be embedded in the cmake requirements files installed on the system
+## (as part of building/install linux .deb, .rpm, etc. packages on the system).  Consequently, it may not work to
+## build freesurfer (using cmake) on an OS with a system python that does not match the version of fspython.
+
+## ovverride from cmd line with -DFFSPYTHON_VERSION="[0-9].[0-9]" as found under FS_PACKAGES_DIR as described above
+set(FSPYTHON_VERSION "3.8" CACHE STRING "default fspython version")
+set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION}/bin/python${FSPYTHON_VERSION}")
+option(DISTRIBUTE_FSPYTHON "Include the fspython distribution in the installation" OFF)
+option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" ON)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
-#
-# all cuda options can be enabled on Linux (only) with -DCUDA_ALL=ON as listed below
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
+option(PATCH_FSPYTHON "Build subdirs with source using gfortran" OFF)
+
+## cuda
+##
+## options can be enabled on Linux (only) with -DCUDA_ALL=ON as listed below
+## Also see FSPYTHON_INSTALL_CUDA above
+##
 option(TEST_WITH_CUDA "Allow tests to run that use cuda libs and require install of cuda drivers" OFF)
 # option(GEMS_BUILD_CUDA "add include subdirs etc. for cuda build. See gems/CMakeLists.txt" OFF)
 
+## linking to 3rd party shared libs (may be overriden by <osname_arch> settings below)
+##
 option(BUILD_SCRIBBLE "Build freeview to support scribble prompt...in-house builds only" OFF)
 option(QT_SYSLIBS "link with system Qt libs" OFF)
 option(VTK_SYSLIBS "link with system vtk libs" OFF)
 option(ITK_SYSLIBS "link with system itk libs" OFF)
 option(GLUT_SYSLIBS "link with system glut libs" OFF)
 option(UB24_SYSLIBS "link with system libs" OFF)
+
+## MacOS
+##
 option(APPLE_ARM64 "Mac arm64 build" OFF)
 
-# include our custom cmake functions (and others)
+## include our custom cmake functions (and others)
 include(cmake/functions.cmake)
 include(TestBigEndian)
 include(CheckFunctionExists)
 
-# Use host_os() to get HOST_OS to reference the correct 3rd party package build
+## Use host_os() to get HOST_OS to reference the correct 3rd party package build
 host_os()
 
 if(NOT APPLE AND CUDA_ALL)
@@ -88,7 +158,7 @@ if(APPLE)
    option(TIFF_SYSLIBS "link with system tiff libs" OFF)
    option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" OFF)
 elseif(HOST_OS MATCHES "Ubuntu22")
-   # may use some ubuntu22 libs on ubuntu24 where the system version of libtiff has changed
+   ## may use some ubuntu22 libs on ubuntu24 where the system version of libtiff has changed
    option(TIFF_SYSLIBS "link with system tiff libs" OFF)
    option(LINK_SHARED_AS_NEEDED "link shared libs with --as-needed which does not affect linking in static libs" ON)
 else()
@@ -97,14 +167,14 @@ else()
 endif()
 
 if(FSPYTHON_INSTALL_TREE)
-   # Default is parallel to cmake install prefix - use absolute path since some commands fail with path relative
+   ## Default is parallel to cmake install prefix - use absolute path since some commands fail with path relative
    get_filename_component(FSPYTHON_DEFAULT_RELATIVE_PATH "${CMAKE_INSTALL_PREFIX}/\.\./fspython" REALPATH)
    set(FSPYTHON_INSTALL_PREFIX "${FSPYTHON_DEFAULT_RELATIVE_PATH}" CACHE PATH "fspython install path" FORCE)
 else()
    set(FSPYTHON_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "fspython install path" FORCE)
 endif()
 
-# INFANT_MODULE install and associated binaries working on some platforms
+## INFANT_MODULE install and associated binaries working on some platforms
 if(APPLE OR HOST_OS MATCHES "CentOS7" OR HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22")
   set(INFANT_MODULE ON)
   message(STATUS "For HOST_OS=${HOST_OS} INFANT_MODULE=${INFANT_MODULE}")
@@ -132,27 +202,27 @@ if(NOT "${USER_SAMSEG_PATH}" STREQUAL "")
   endif()
 endif()
 
-#  Modern compilers on new platforms often provide many more warnings than older compilers
-#  for example the gcc 7.5.0 compiler warnings about falling through switch statements
-#  without explicit breaks on every case.  This desired fallthrough behavior causes false
-#  compiler errors with "-Werror" turned on.  The WARNING_AS_ERROR option allows temporarily
-#  disabling warnings as errors to allow a more gradual move to supporting new compilers.
+##  Modern compilers on new platforms often provide many more warnings than older compilers
+##  for example the gcc 7.5.0 compiler warnings about falling through switch statements
+##  without explicit breaks on every case.  This desired fallthrough behavior causes false
+##  compiler errors with "-Werror" turned on.  The WARNING_AS_ERROR option allows temporarily
+##  disabling warnings as errors to allow a more gradual move to supporting new compilers.
 option(WARNING_AS_ERROR "Convert build warnings to errors" ON)
 option(MARTINOS_BUILD "Does the build have access to the martinos network" ON)
 
 if(NOT APPLE)
-  # linux-only build options
+  ## linux-only build options
   option(TKTOOLS_MODULE "Install old Linux TK GUIs" OFF)
 endif()
 
-# enable ctest
+## enable ctest
 enable_testing()
 
-# prevent third-party packages from importing as a system
+## prevent third-party packages from importing as a system
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED TRUE)
 
-# if an install prefix is not provided, check the FS_INSTALL_DIR env var, and
-# if that is not defined, set the default path to /usr/local/freesurfer
+## if an install prefix is not provided, check the FS_INSTALL_DIR env var, and
+## if that is not defined, set the default path to /usr/local/freesurfer
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   if(NOT "$ENV{FS_INSTALL_DIR}" STREQUAL "")
     set(CMAKE_INSTALL_PREFIX "$ENV{FS_INSTALL_DIR}" CACHE PATH "Copied from FS_INSTALL_DIR env variable" FORCE)
@@ -161,62 +231,41 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   endif()
 endif()
 
-# version stamp
+## version stamp
 set(FS_VERSION "$ENV{USER}-local" CACHE STRING "Distribution version")
 
-# build stamp
+## build stamp
 string(TIMESTAMP TODAY "%Y%m%d")
 set(BUILD_STAMP "freesurfer-local-build-${TODAY}" CACHE STRING "Distribution build stamp")
 install(CODE "file(WRITE ${CMAKE_INSTALL_PREFIX}/build-stamp.txt ${BUILD_STAMP}\\n)")
 
-# set the default build type to 'Release' for optimization purposes
+## set the default build type to 'Release' for optimization purposes
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "No build type selected - defaulting to Release")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default build type" FORCE)
 endif()
 
-# create a custom target "make install-nmr" to only install nmr-component files 
+## create a custom target "make install-nmr" to only install nmr-component files 
 add_custom_target(install-nmr COMMAND ${CMAKE_COMMAND} -D COMPONENT=nmr -P cmake_install.cmake)
 
 # --------------------------------------------------
-#               external dependencies
+#               more external dependencies
 # --------------------------------------------------
 
-# xxd is used to generate the helptext headers
+## xxd is used to generate the helptext headers
 find_program(XXD xxd)
 if(NOT XXD)
   message(WARNING "MISSING xxd - required to build executable help texts")
 endif()
 
-# Most of the packages required by freesurfer are located by custom find-modules stored in the
-# 'cmake' subdir. The find-modules expect each package to be installed under a common
-# path defined by FS_PACKAGES_DIR. On Martinos machines, this variable automatically defaults
-# to /usr/pubsw/packages, but external developers must provide this path manually. External developers
-# can run the packages/build_packages.py script to compile the dependencies locally. If a package
-# is not found under FS_PACKAGES_DIR, cmake will continue to look through the default search paths.
-# Additionally, alternative paths to package installs can be specified with the <PACKAGE>_DIR variables
-# Note: FS_PACKAGES_DIR can be defined in an environment variable
+## see settings for FS_PACKAGES_DIR listed above
 
-if(NOT FS_PACKAGES_DIR)
-  if(NOT "$ENV{FS_PACKAGES_DIR}" STREQUAL "")
-    # check if FS_PACKAGES_DIR has been set 
-    set(FS_PACKAGES_DIR "$ENV{FS_PACKAGES_DIR}" CACHE INTERNAL "Copied from FS_PACKAGES_DIR environment variable")
-  elseif(EXISTS /usr/pubsw/packages)
-    # if the user is at Martinos, default to /usr/pubsw/packages
-    set(FS_PACKAGES_DIR /usr/pubsw/packages CACHE INTERNAL "Default Martinos packages dir")
-  else()
-    # setting FS_PACKAGES_DIR is required if the user is outside Martinos
-    # for more information visit https://surfer.nmr.mgh.harvard.edu/fswiki/BuildRequirements
-    message(WARNING "FS_PACKAGES_DIR is NOT defined - build will be limited")
-  endif()
-endif()
-
-# all custom find-modules are stored in the cmake subdir
+## all custom find-modules are stored in the cmake subdir
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-# Newer Linux OS's provide vendor supported versions of 3rd party packages installable
-# via the standard linux sysem tools and online repos.  Freesurfer can/has been updated
-# to work with these native packages (preferbale to supporting our own custom builds per OS).
+## Newer Linux OS's provide vendor supported versions of 3rd party packages installable
+## via the standard linux sysem tools and online repos.  Freesurfer can/has been updated
+## to work with these native packages (preferbale to supporting our own custom builds per OS).
 
 if(HOST_OS MATCHES "Ubuntu24")
    set(UB24_SYSLIBS ON)
@@ -256,10 +305,10 @@ if(NOT APPLE)
   if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
      if((HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24") AND (HOST_OS_GCC_VERSION MATCHES "11" OR HOST_OS_GCC_VERSION MATCHES "13"))
         set(CMAKE_CXX_STANDARD 17)
-        # while does not compile...
+        ## while does not compile...
         set(BUILD_FORTRAN OFF)
      endif()
-     # otherwise using gcc 8 or HOST_OS_GCC_VERSION=8
+     ## otherwise using gcc 8 or HOST_OS_GCC_VERSION=8
      find_library(GFORTRAN_LIBRARIES HINTS /usr/lib/gcc/x86_64-linux-gnu/${HOST_OS_GCC_VERSION} NAMES libgfortran.a gfortran)
      find_library(BLAS_LIBRARIES NAMES libopenblas.a libblas.a)
      find_library(LAPACK_LIBRARIES NAMES liblapack.a)
@@ -267,7 +316,7 @@ if(NOT APPLE)
   elseif(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9")
      if(HOST_OS_GCC_VERSION MATCHES "11")
         set(CMAKE_CXX_STANDARD 17)
-        # while does not compile...
+        ## while does not compile...
         set(BUILD_FORTRAN OFF)
      endif()
      find_library(GFORTRAN_LIBRARIES HINTS /usr/lib64 /usr/lib /usr/lib/gcc/*/*/ NAMES libgfortran.a gfortran)
@@ -298,7 +347,7 @@ elseif(APPLE_ARM64)
   find_library(QUADMATH_LIBRARIES HINTS /opt/homebrew/Cellar/gcc/12.2.0/lib/gcc/current NAMES libquadmath.a)
 endif()
 
-# test not part of regular builds/releases
+## test not part of regular builds/releases
 if(BUILD_DNG)
    # -------- armadillo --------
    if(HOST_OS MATCHES "CentOS8stream" OR HOST_OS MATCHES "CentOS8" OR HOST_OS MATCHES "Rocky8")
@@ -320,7 +369,7 @@ if(BUILD_DNG)
 endif()
 
 # -------- petsc --------
-# petsc may not be available and/or work on all platforms, e.g., with profiling for freeview
+## petsc may not be available and/or work on all platforms, e.g., with profiling for freeview
 if(APPLE_ARM64)
    set(CMAKE_DISABLE_FIND_PACKAGE_PETSC ON)
    ## for testing comment out the above line and uncomment the lines below
@@ -333,22 +382,22 @@ else()
 endif()
 
 # -------- ann --------
-# ANN is only used by mris_resample
+## ANN is only used by mris_resample
 if(NOT HOST_OS MATCHES "Ubuntu24")
    find_package(ANN)
 endif()
 
 # -------- openMP --------
 if(APPLE)
-  # this is an ugly hack to ensure that cmake looks for the
-  # static version of libomp on mac, since we don't want
-  # to distribute the shared library
+  ## this is an ugly hack to ensure that cmake looks for the
+  ## static version of libomp on mac, since we don't want
+  ## to distribute the shared library
   set(ORIG_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(OpenMP)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ${ORIG_LIBRARY_SUFFIXES})
 
-  # If no gfortran compiler, turn off using that in build.
+  ## If no gfortran compiler, turn off using that in build.
   if(HOST_OS MATCHES "MacOS-12" OR HOST_OS MATCHES "MacOS-13")
      # set(BUILD_FORTRAN OFF)
      set(BUILD_FORTRAN ON)
@@ -365,9 +414,9 @@ if(OPENMP_FOUND)
   set(OMP_CXX_LIBRARIES OpenMP::OpenMP_CXX)
 endif()
 
-# Avoid error from __powf_finite undefined.
-# The 2.31 version of the GNU C Library removed symbols from LLVM libc++ math.h including,
-# __powf_finite __asinf_finite U_atan2f_finite __exp2f_finite __exp2_finite __expf_finite __log2f_finite
+## Avoid error from __powf_finite undefined.
+## The 2.31 version of the GNU C Library removed symbols from LLVM libc++ math.h including,
+## __powf_finite __asinf_finite U_atan2f_finite __exp2f_finite __exp2_finite __expf_finite __log2f_finite
 if(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fno-builtin")
 endif()
@@ -385,7 +434,7 @@ find_package(X11)
 message(STATUS "For HOST_OS=${HOST_OS} X11_LIBRARIES=${X11_LIBRARIES}")
 message(STATUS "For HOST_OS=${HOST_OS} X11_INCLUDE_DIR=${X11_INCLUDE_DIR}")
 
-# search for GUI libraries
+## search for GUI libraries
 if(BUILD_GUIS)
 
   # -------- openGL --------
@@ -395,14 +444,14 @@ if(BUILD_GUIS)
     list(APPEND CMAKE_PREFIX_PATH "/usr/lib64/nvidia")
   endif()
 
-  # Output from ...
-  # $ cmake --help-policy CMP0072
-  # 
-  # CMake 3.11 and above prefer to choose GLVND libraries.  This policy provides
-  # compatibility with projects that expect the legacy GL library to be used.
-  # The ``OLD`` behavior for this policy is to set ``OpenGL_GL_PREFERENCE`` to
-  # ``LEGACY``.  The ``NEW`` behavior for this policy is to set
-  # ``OpenGL_GL_PREFERENCE`` to ``GLVND``.
+  ## Output from ...
+  ## $ cmake --help-policy CMP0072
+  ## 
+  ## CMake 3.11 and above prefer to choose GLVND libraries.  This policy provides
+  ## compatibility with projects that expect the legacy GL library to be used.
+  ## The ``OLD`` behavior for this policy is to set ``OpenGL_GL_PREFERENCE`` to
+  ## ``LEGACY``.  The ``NEW`` behavior for this policy is to set
+  ## ``OpenGL_GL_PREFERENCE`` to ``GLVND``.
 
   set(OpenGL_GL_PREFERENCE "LEGACY")
   # set(OpenGL_GL_PREFERENCE "GLVND")
@@ -463,15 +512,15 @@ if(NOT Qt6_DIR)
         set(Qt5_BASE ${FS_PACKAGES_DIR}/Qt5.15.8.1/clang_64 CACHE PATH "Qt5 root base")
         set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
      else()
-        # default
+        ## default
         set(Qt5_BASE ${FS_PACKAGES_DIR}/qt/5.12.11_LTS_cos7 CACHE PATH "Qt5 root base")
         set(Qt5_DIR ${Qt5_BASE}/lib/cmake/Qt5 CACHE PATH "Qt5 install directory")
      endif()
   else()
      if(QT_SYSLIBS AND Qt5_BASE MATCHES ${FS_PACKAGES_DIR})
        message(STATUS "For HOST_OS=${HOST_OS} modifying Qt5_DIR when QT_SYSLIBS enabled")
-       # Guess the path to the root or base subdirectory in the Qt5 distro, e.g., use when
-       # Qt5_DIR is a soft link and Qt5_BASE must be a real path.
+       ## Guess the path to the root or base subdirectory in the Qt5 distro, e.g., use when
+       ## Qt5_DIR is a soft link and Qt5_BASE must be a real path.
        string(REGEX REPLACE "\/lib\/cmake\/Qt5" "" NEW_PATH "${Qt5_DIR}")
        set(Qt5_BASE ${NEW_PATH} CACHE PATH "Qt5 root base")
      endif()
@@ -488,8 +537,8 @@ endif()
 
 endif()
 
-# Preceed itk with vtk as itk may look for vtk files and do not want
-# those found thru alternatives that may be in the default search paths.
+## Preceed itk with vtk as itk may look for vtk files and do not want
+## those found thru alternatives that may be in the default search paths.
 # -------- vtk --------
 
 if(NOT VTK_DIR)
@@ -537,7 +586,7 @@ endif()
 
 if (HOST_OS MATCHES "Ubuntu24")
    if(VTK_SYSLIBS)
-      # remove ImagingOpenGL2
+      ## remove ImagingOpenGL2
       find_package(VTK HINTS ${VTK_DIR} COMPONENTS CommonColor CommonComputationalGeometry CommonCore CommonDataModel CommonMath CommonSystem CommonTransforms FiltersCore FiltersExtraction FiltersGeneral FiltersGeometry FiltersHybrid FiltersModeling FiltersPoints FiltersSources GUISupportQt InteractionStyle ImagingCore ImagingGeneral ImagingMath ImagingMorphological ImagingStencil InteractionStyle IOExport IOGeometry IOImage IOLegacy IOXML RenderingAnnotation RenderingContext2D RenderingContextOpenGL2 RenderingCore RenderingFreeType RenderingUI RenderingImage RenderingGL2PSOpenGL2 RenderingOpenGL2 RenderingLOD RenderingTk RenderingQt RenderingUI RenderingVolume RenderingVolumeOpenGL2)
    endif()
 elseif(HOST_OS MATCHES "Rocky9")
@@ -552,24 +601,24 @@ message(STATUS "For HOST_OS=${HOST_OS} VTK_DIR=${VTK_DIR}")
 # message(STATUS "For HOST_OS=${HOST_OS} VTK_LIBRARIES=${VTK_LIBRARIES}")
 
 if(VTK_FOUND AND VTK_BUILD_SHARED_LIBS)
-  # locate all shared vtk libraries
+  ## locate all shared vtk libraries
   if(${VTK_VERSION} LESS 7)
     file(GLOB _vtk_library_list "${VTK_LIBRARY_DIRS}/lib*.so*")
   else()
-    # special libvtkproj
+    ## special libvtkproj
     file(GLOB _found_library "${VTK_LIBRARY_DIRS}/libvtkproj*.so*")
     list(APPEND _vtk_library_list ${_found_library})
-    # special libvtkNetCDF
+    ## special libvtkNetCDF
     file(GLOB _found_library "${VTK_LIBRARY_DIRS}/libvtkNetCDF*.so*")
     list(APPEND _vtk_library_list ${_found_library})
-    # for Ubuntu22, CentOS9, Rocky9, Ubuntu24
+    ## for Ubuntu22, CentOS9, Rocky9, Ubuntu24
     if(VTK_LIB64_DIR)
         file(GLOB _found_library "${VTK_LIB64_DIR}/libvtkproj*.so*")
         list(APPEND _vtk_library_list ${_found_library})
         file(GLOB _found_library "${VTK_LIB64_DIR}/libvtkNetCDF*.so*")
         list(APPEND _vtk_library_list ${_found_library})
     endif()
-    # the rest of the VTK libraries
+    ## the rest of the VTK libraries
     foreach(_vtk_module ${VTK_MODULES_ENABLED})
       foreach(_vtk_library ${${_vtk_module}_LIBRARIES})
         file(GLOB _found_library "${${_vtk_module}_RUNTIME_LIBRARY_DIRS}/lib${_vtk_library}*.so*")
@@ -581,7 +630,7 @@ if(VTK_FOUND AND VTK_BUILD_SHARED_LIBS)
       endforeach()
     endforeach()
   endif()
-  # install found libraries to the freesurfer lib/vtk dir and add this directory to rpath
+  ## install found libraries to the freesurfer lib/vtk dir and add this directory to rpath
   if(_vtk_library_list)
     list(REMOVE_DUPLICATES _vtk_library_list)
     install(PROGRAMS ${_vtk_library_list} DESTINATION lib/vtk)
@@ -620,7 +669,7 @@ if(NOT ITK_DIR)
    elseif(APPLE AND APPLE_ARM64)
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/4.13.0/lib/cmake CACHE PATH "ITK install directory")
    else()
-      # default
+      ## default
       set(ITK_DIR ${FS_PACKAGES_DIR}/itk/4.13.2 CACHE PATH "ITK install directory")
    endif()
 endif()
@@ -630,7 +679,7 @@ message(STATUS "For HOST_OS=${HOST_OS} ITK_DIR=${ITK_DIR}")
 
 # -------- glut --------
 
-# default to FS built version of glut
+## default to FS built version of glut
 set(GLUT_LIBRARIES "glut")
 set(GLUT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/packages/glut")
 if(GLUT_SYSLIBS)
@@ -649,7 +698,7 @@ message(STATUS "Compiling source under build tree ${CMAKE_BINARY_DIR}")
 
 add_definitions(-D${CMAKE_SYSTEM_NAME})
 
-# general check for big endian
+## general check for big endian
 test_big_endian(IS_BIG_ENDIAN)
 if(IS_BIG_ENDIAN)
   set(BYTEORDER 4321)
@@ -667,36 +716,28 @@ add_subdirectory(packages)
 #                    setup python
 # --------------------------------------------------
 
-# Unfortunately, the python version used to run pybind c-libraries must be equivalent to
-# the version used to build the libraries. The easiest and least intrusive way of making freesurfer
-# python scripts run out-of-the-box (and to help guarantee reproducibility) requires
-# distributing a minimal, custom python installation called fspython. This fspython package
-# will get installed to "freesurfer/python", but an external python can be used instead when the
-# DISTRIBUTE_FSPYTHON option is turned off. Turning this off will create a freesurfer/bin/fspythonlink
-# symlink during install that points to the external python executable located by pybind
-option(DISTRIBUTE_FSPYTHON "Include the fspython distribution in the installation" OFF)
+## See the settings for the FSPYTHON options listed above.
+## Code to install base python, e.g., 3.8, distribution moved to python/CMakeLists.txt 
 
-# code to install base python, e.g., 3.8, distribution moved to python/CMakeLists.txt 
-
-# initialize pybind for python wrapping
+## initialize pybind for python wrapping
 set(PYBIND11_PYTHON_VERSION 3)
 add_subdirectory(packages/pybind11)
 
 if(NOT DISTRIBUTE_FSPYTHON)
-  # link to an external python binary if fspython won't be distributed
+  ## link to an external python binary if fspython won't be distributed
   if(APPLE_ARM64)
-     # link to system /usr/bin/python3 until have arm64 version of fspython
+     ## link to system /usr/bin/python3 until have arm64 version of fspython
      symlink(/usr/bin/python3 ${CMAKE_INSTALL_PREFIX}/python/bin/python3)
      set(INSTALL_PYTHON_DEPENDENCIES OFF)
   else() 
-     # creates a link to python in NFS = /space/freesurfer/python/linux/bin/python3
+     ## creates a link to python in NFS = /space/freesurfer/python/linux/bin/python3
      symlink(${PYTHON_EXECUTABLE} ${CMAKE_INSTALL_PREFIX}/python/bin/python3)
    endif()
 endif()
 
 add_custom_target(install-fspy COMMAND ${CMAKE_COMMAND} -D COMPONENT=fspy -P cmake_install.cmake)
 
-# cmake apparently generates incorrect dependencies/paths
+## cmake apparently generates incorrect dependencies/paths
 if(APPLE)
    if(HOST_OS MATCHES "MacOS-12" OR HOST_OS MATCHES "MacOS-13")
       add_custom_target(check_macos_depends ALL COMMAND bash ${CMAKE_SOURCE_DIR}/cmake/macos_depends.sh ${CMAKE_SOURCE_DIR})
@@ -707,17 +748,17 @@ endif()
 #             freesurfer build settings
 # --------------------------------------------------
 
-# warnings
+## warnings
 if(NOT NO_CXX_WARN)
   if(WARNING_AS_ERROR)
     set(WARN_AS_ERROR_FLAG "-Werror")
     if(HOST_OS MATCHES "CentOS9stream" OR HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "CentOS8" OR HOST_OS MATCHES "Rocky8")
-       # -Wno-cpp needed with gcc8 for /usr/pubse/packages/vtk 7.1 compiled with older compilers
-       # -Wno-restrict needed with gcc8 for ./freesurfer/mris_compute_acorr/mris_compute_acorr.cpp
-       # -Wno-format-overflow needed with gcc8 for ./fresurfer/mris2rgb/mris2rgb.cpp
+       ## -Wno-cpp needed with gcc8 for /usr/pubse/packages/vtk 7.1 compiled with older compilers
+       ## -Wno-restrict needed with gcc8 for ./freesurfer/mris_compute_acorr/mris_compute_acorr.cpp
+       ## -Wno-format-overflow needed with gcc8 for ./fresurfer/mris2rgb/mris2rgb.cpp
        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra ${WARN_AS_ERROR_FLAG} -Wno-cpp -Wno-restrict -Wno-format-overflow -Wno-sign-compare -Wno-unused-result -Wno-unused-parameter -Wno-bool-compare")
     elseif(HOST_OS MATCHES "Ubuntu20" OR HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24" OR HOST_OS MATCHES "CentOS9" OR HOST_OS MATCHES "Rocky9" OR HOST_OS MATCHES "CentOS8stream")
-       # uses gcc8 as well
+       ## uses gcc8 as well
        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin -Wall -Wextra ${WARN_AS_ERROR_FLAG} -Wno-cpp -Wno-restrict -Wno-format-overflow -Wno-sign-compare -Wno-unused-result -Wno-unused-parameter -Wno-bool-compare")
     elseif(HOST_OS MATCHES "MacOS-12" OR HOST_OS MATCHES "MacOS-13")
        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-non-c-typedef-for-linkage")
@@ -729,7 +770,7 @@ else ()
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error -Wno-deprecated-declarations -fpermissive") 
 endif()
 
-# clang complains about -Wno-unused-but-set-variable and says to use -Wno-unused-const-variable
+## clang complains about -Wno-unused-but-set-variable and says to use -Wno-unused-const-variable
 if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-const-variable -Wno-inconsistent-missing-override -Wno-self-assign-field -Wno-tautological-overlap-compare -Wno-tautological-compare -Wno-unused-value -Wno-range-loop-analysis -Wno-return-stack-address -Wno-dangling-gsl")
 else()
@@ -740,7 +781,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
-# linker options
+## linker options
 if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
   if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -764,10 +805,10 @@ message(STATUS "For HOST_OS=${HOST_OS} CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 #                 build freesurfer
 # --------------------------------------------------
 
-# prepare the freesurfer distribution
+## prepare the freesurfer distribution
 add_subdirectory(distribution)
 
-# the top-level include dir contain the most commonly included freesurfer header files
+## the top-level include dir contain the most commonly included freesurfer header files
 set(FS_INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_BINARY_DIR}/include
@@ -776,37 +817,39 @@ set(FS_INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/packages/nifti
 )
 
-# build the freesurfer static libraries
+## build the freesurfer library (currently static)
 add_subdirectory(utils)
 
-# Although the default is to set LINEPROF off as listed above, lineprof.a is actually built
-# and linked against, e.g., with only function definitions changing in freeview.  For newer
-# contexts like darwin_arm64, we do not have compatible version of petsc (which lineprof depends
-# upon).  Therefore we actually defeat building with lineprof/petsc for darwin_arm64 (as one
-# might reasonably expect for the default of LINEPROF disabled).   This in turn adds some
-# ifdefs to freeview files for darwin_arm64 such that: (1) with LINEPROF disabled freeview
-# will not build with lineprof/petsc; (2) with LINEPROF enabled the freeview build will fail.
-# Backwards compatibility for building and linking against lineprof.a (with LINEPROF disabled
-# by default) is maintained for darwin_x86_64 and all linux contexts.
+## Although the default is to set LINEPROF off as listed above, lineprof.a is actually built
+## and linked against, e.g., with only function definitions changing in freeview.  For newer
+## contexts like darwin_arm64, we do not have compatible version of petsc (which lineprof depends
+## upon).  Therefore we actually defeat building with lineprof/petsc for darwin_arm64 (as one
+## might reasonably expect for the default of LINEPROF disabled).   This in turn adds some
+## ifdefs to freeview files for darwin_arm64 such that: (1) with LINEPROF disabled freeview
+## will not build with lineprof/petsc; (2) with LINEPROF enabled the freeview build will fail.
+## Backwards compatibility for building and linking against lineprof.a (with LINEPROF disabled
+## by default) is maintained for darwin_x86_64 and all linux contexts.
 
-# the following utility libraries are required for freeview
+## the following utility libraries are required for freeview
+
 # if(NOT APPLE_ARM64)
 if(NOT DISABLE_LINEPROF)
    add_subdirectory(lineprof)
 endif()
 add_subdirectory(vtkutils)
 
-# the fem elastic subdir also builds a library, so it should be added first
+## the fem elastic subdir also builds a library, so it should be added first
 add_subdirectory(fem_elastic)
 
-# build the gems library
-# If INTEGRATE_SAMSEG=ON,
-#   1. only integrate the python part of samseg for now
-#      python/packages/gems package is replaced with standalone samseg package
-#   2. samsegmesh2surf is not built, no need 'samseg' codes for building libkvlGEMSCommon.a
-#   3. 'samseg' codes are needed in build pass when we integrate C/C++ codes later
-#   4. 'samseg' can be added as a submodule for freesurfer to be pulled using
-#      'git clone --recurse-submodules https://github.com/yhuang43/freesurfer.git'.
+## build the gems library#
+## If INTEGRATE_SAMSEG=ON,#
+##   1. only integrate the python part of samseg for now#
+##      python/packages/gems package is replaced with standalone samseg package#
+##   2. samsegmesh2surf is not built, no need 'samseg' codes for building libkvlGEMSCommon.a#
+##   3. 'samseg' codes are needed in build pass when we integrate C/C++ codes later#
+##   4. 'samseg' can be added as a submodule for freesurfer to be pulled using#
+##      'git clone --recurse-submodules https://github.com/yhuang43/freesurfer.git'.#
+
 if(NOT INTEGRATE_SAMSEG)
   add_subdirectories(samsegmesh2surf gems)  
 endif()
@@ -815,9 +858,10 @@ endif()
 #                      programs
 # --------------------------------------------------
 
-# the following subdirectories contain programs required for recon-all
-# and should be included during a "minimal" install. Extra programs that aren't
-# used in the standard stream should be added further down
+## the following subdirectories contain programs required for recon-all
+## and should be included during a "minimal" install. Extra programs that aren't
+## used in the standard stream should be added further down
+
 add_subdirectories(
   AntsDenoiseImageFs
   AntsN4BiasFieldCorrectionFs
@@ -925,8 +969,9 @@ else()
   message(STATUS "For HOST_OS=${HOST_OS} NOT BUILDING talairach subdirs requiring gfortran.")
 endif()
 
-# the following program subdirectories aren't required in the standard recon-all stream.
-# they will be built by default, but not if a minimal build is configured
+## the following program subdirectories aren't required in the standard recon-all stream.
+## they will be built by default, but not if a minimal build is configured
+
 if(NOT MINIMAL)
   add_subdirectories(
     AANsegment
@@ -1147,8 +1192,9 @@ if(NOT MINIMAL)
   )
 endif()
 
-# # Only build some old subdirectories if they exist
-# # AND the build host is a certain version of Cent/Redhat OS
+## Only build some old subdirectories if they exist
+## AND the build host is a certain version of Cent/Redhat OS
+
 # if(EXISTS "/etc/redhat-release")
 #    execute_process(COMMAND cat \/etc\/redhat\-release OUTPUT_VARIABLE REDHAT_VERSION)
 #    string(STRIP ${REDHAT_VERSION} REDHAT_VERSION)
@@ -1162,8 +1208,9 @@ endif()
 #    endif()
 # endif()
 
-# Only build some old subdirectories if they exist
-# AND the build host is a certain version of Cent/Redhat OS
+## Only build some old subdirectories if they exist
+## AND the build host is a certain version of Cent/Redhat OS
+
 if(EXISTS "./mri_make_bem_surfaces")
    if(HOST_OS MATCHES "CentOS7")
       add_subdirectories(mri_make_bem_surfaces)
