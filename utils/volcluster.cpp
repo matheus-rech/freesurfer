@@ -2488,8 +2488,8 @@ int SpatTempCluster::SortClusters(MRI *statvol){
   std::sort(this->SortedClusterList.begin(), this->SortedClusterList.end(), this->CompareClusters);
   std::vector<int> cmap_old_to_new(this->ClusterList.size());
   for(int n=0; n < this->ClusterList.size(); n++){
-    cmap_old_to_new[SortedClusterList[n].cno] = n;
-    SortedClusterList[n].cno = n;
+    cmap_old_to_new[SortedClusterList[n].cno] = n; //0-based
+    SortedClusterList[n].cno = n+1;
   }
   for(int c=0; c < this->cnomap->width; c++){
     for(int r=0; r < this->cnomap->height; r++){
@@ -2503,6 +2503,40 @@ int SpatTempCluster::SortClusters(MRI *statvol){
     }
   }
   this->ClusterList = this->SortedClusterList;
+  return(0);
+}
+
+int SpatTempCluster::PruneClusters(double thresh){
+  std::vector<Cluster> PrunedClusterList;
+  int m = 0;
+  std::vector<int> cmap_old_to_new(this->ClusterList.size()); //0-based
+  for(int n=0; n < this->ClusterList.size(); n++){
+    Cluster cl = ClusterList[n];
+    if(cl.pvalue >= thresh) {
+      cmap_old_to_new[n] = -1;
+      continue;
+    }
+    PrunedClusterList.push_back(cl);
+    cmap_old_to_new[n] = m; //0-based
+    m++;
+    PrunedClusterList[m-1].cno = m;
+  }
+
+  printf("Pruning from %d to %d, thresh=%g\n",
+	 (int)this->ClusterList.size(),(int)PrunedClusterList.size(),thresh);
+  for(int c=0; c < this->cnomap->width; c++){
+    for(int r=0; r < this->cnomap->height; r++){
+      for(int s=0; s < this->cnomap->depth; s++){
+	for(int f=0; f < this->cnomap->nframes; f++){
+	  int oldcno = MRIgetVoxVal(this->cnomap,c,r,s,f);
+	  if(oldcno == 0) continue;
+	  if(cmap_old_to_new[oldcno-1] != -1) continue;
+	  MRIsetVoxVal(this->cnomap,c,r,s,f,0);
+	}
+      }
+    }
+  }
+  this->ClusterList = PrunedClusterList;
   return(0);
 }
 

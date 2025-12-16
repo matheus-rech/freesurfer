@@ -123,6 +123,7 @@ int arraymajor=1;
 char *ymatfile = NULL;
 int cpermno = 0;
 int nbrtype = 3;
+double clusterpvalthresh = 1;
 
 /*---------------------------------------------------------------*/
 int main(int argc, char *argv[]) 
@@ -513,6 +514,9 @@ int main(int argc, char *argv[])
 	stc.ClusterList[cno].pvalue = cpval;
       }
       fclose(fp);
+      if(clusterpvalthresh < 1) stc.PruneClusters(clusterpvalthresh);
+      sprintf(fname,"%s/ocn.thresh.nii.gz",condir);
+      MRIwrite(stc.cnomap,fname);
       sprintf(fname,"%s/cluster.pval.min.dat",condir);
       fp = fopen(fname,"w");
       fprintf(fp,"%20.18lf\n",pmin);
@@ -627,6 +631,13 @@ static int parse_commandline(int argc, char **argv) {
       sscanf(pargv[0],"%d",&cpermno);
       nargsused = 1;
     } 
+    else if(!strcasecmp(option, "--cpval-thresh")){
+      if(nargc < 1) CMDargNErr(option,1);
+      sscanf(pargv[0],"%lf",&clusterpvalthresh);
+      printf("clusterpvalthresh %lf\n",clusterpvalthresh);
+      nargsused = 1;
+    } 
+
     else if(!strcasecmp(option, "--face")) nbrtype = 1;
     else if(!strcasecmp(option, "--edge")) nbrtype = 2;
     else if(!strcasecmp(option, "--corner")) nbrtype = 3;
@@ -687,6 +698,7 @@ static void print_usage(void) {
   printf("   --cpermno contrastno : test using contrastno from fsgd file\n");
   printf("   --osgm, --tsgm\n");
   printf("   --nperm nperm\n");
+  printf("   --cpval-thresh thresh : remove clusters with p-value less than theshold (eg, 0.05)\n");
   printf("   --th threshold : cluster-forming threshold\n");
   printf("   --face : volume neighborhood defined by adjancent faces only\n");
   printf("   --edge : volume neighborhood defined by adjancent edge and faces only\n");
@@ -752,6 +764,7 @@ static void dump_options(FILE *fp) {
   fprintf(fp,"thsign %d\n",thsign);
   fprintf(fp,"nbrtype %d\n",nbrtype);
   fprintf(fp,"threads %d\n",threads);
+  fprintf(fp,"clusterpvalthresh %lf\n",clusterpvalthresh);
   if(maskfile) fprintf(fp,"mask  %s\n",maskfile);
   if(surffile) fprintf(fp,"mask  %s\n",surffile);
   return;

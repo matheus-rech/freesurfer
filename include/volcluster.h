@@ -224,6 +224,7 @@ public:
   std::vector<Cluster> ClusterList;
   std::vector<Cluster> SortedClusterList;
   int SortClusters(MRI *statvol);
+  int PruneClusters(double thresh);
   std::vector<std::vector<int>> GetNearestNeighbors(std::vector<int> vox);
   int GrowOne(std::vector<int> vox, int cno);
   int Clusterize(void);
