@@ -1078,6 +1078,7 @@ if(NOT MINIMAL)
     mri_topologycorrection
     mri_train
     mri_transform
+    mri_tumorsynth
     mri_twoclass
     mri_volcluster
     mri_volsynth
