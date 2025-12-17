@@ -123,8 +123,8 @@ endfunction()
 
 # TO DO  - write a python_3_10_base_install
 
+## FSPYTHON_DIR set in top level ../CMakeLists.txt
 function(python_3_9_base_install)
-  set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/3.9)
   if(EXISTS ${FSPYTHON_DIR}/bin/python3)
     # specify the python to use
     set(PYTHON_EXECUTABLE ${FSPYTHON_DIR}/bin/python3)
@@ -140,7 +140,6 @@ function(python_3_9_base_install)
 endfunction()
 
 function(python_3_8_base_install)
-  set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/3.8)
   if(EXISTS ${FSPYTHON_DIR}/bin/python3)
     # specify the python to use
     set(PYTHON_EXECUTABLE ${FSPYTHON_DIR}/bin/python3)
