@@ -985,6 +985,7 @@ static int parse_commandline(int argc, char **argv) {
     else if(!strcmp(option, "--no-first-peak-d1")) CBVfindFirstPeakD1 = 0;
     else if(!strcmp(option, "--first-peak-d2"))    CBVfindFirstPeakD2 = 1;
     else if(!strcmp(option, "--no-first-peak-d2")) CBVfindFirstPeakD2 = 0;
+    else if(!strcmp(option, "--neg-sign")) MRIsetSampleVolumeDerivativeSign(-1);
     else if(!strcmp(option, "--cbv-zero"))    CBVzero=1;
     else if(!strcmp(option, "--no-cbv-zero")) CBVzero=0;
     else if(!strcmp(option, "--lh"))  hemi = "lh";
