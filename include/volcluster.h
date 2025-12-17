@@ -212,10 +212,10 @@ public:
     int cno = 0;
     int nmembers = 0;
     std::vector<std::vector<int>> crst;
-    double csize; // can be vox, mm3, mm2, or nverts
-    double maxstat;
+    double csize=0; // can be vox, mm3, mm2, or nverts
+    double maxstat=0;
     std::vector<int> crstmax;
-    double pvalue;
+    double pvalue=0;
   };
   static bool CompareClusters(const Cluster c1,const Cluster c2){
     // sorts from largest to smallest
