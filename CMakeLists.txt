@@ -32,14 +32,6 @@ if(NOT CMAKE_CXX_EXTENSIONS)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
-## include our custom cmake functions (and others)
-include(cmake/functions.cmake)
-include(TestBigEndian)
-include(CheckFunctionExists)
-
-## Use host_os() to get HOST_OS to reference the correct 3rd party package build
-host_os()
-
 project(freesurfer 
   DESCRIPTION "An open source software suite for processing and analyzing (human) brain MRI images."
   LANGUAGES C CXX Fortran
@@ -114,42 +106,15 @@ option(FREEVIEW_LINEPROF "The default is to build freeview w/o lineprof (which i
 ## The version of the installed system python can be embedded in the cmake requirements files installed on the system
 ## (as part of building/install linux .deb, .rpm, etc. packages on the system).  Consequently, it may not work to
 ## build freesurfer (using cmake) on an OS with a system python that does not match the version of fspython.
-##
+
+## ovverride from cmd line with -DFFSPYTHON_VERSION="[0-9].[0-9]" as found under FS_PACKAGES_DIR as described above
+set(FSPYTHON_VERSION "3.8" CACHE STRING "default fspython version")
+set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION}/bin/python${FSPYTHON_VERSION}")
 option(DISTRIBUTE_FSPYTHON "Include the fspython distribution in the installation" OFF)
 option(FSPYTHON_BUILD_REQ "Pip will use python/requirements-build.txt when installing pkgs into fspython" ON)
 option(FSPYTHON_INSTALL_TREE "install fspython, model files and scripts to a separate install tree" OFF)
 option(FSPYTHON_INSTALL_CUDA "install torch and tensorflow packages that support cuda into fspython" OFF)
 option(PATCH_FSPYTHON "Build subdirs with source using gfortran" OFF)
-##
-## For backwards compatability, use pre-existing python 3.8 default unless overriden via cmake cmd line.
-## With cmake, set -DFFSPYTHON_VERSION="[0-9].[0-9]" as found under FS_PACKAGES_DIR.
-if(NOT FSPYTHON_VERSION)
-   set(FSPYTHON_VERSION "3.8")
-endif()
-
-if(DISTRIBUTE_FSPYTHON)
-   if(FSPYTHON_VERSION MATCHES "3.8")
-      ## same path for all linux OS for default python 3.8
-      set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION})
-   else()
-      ## paths may differ under FS_PACKAGES_DIR default /usr/pubsw/packages starting with python 3.9
-      if(HOST_OS MATCHES "Ubuntu22" OR HOST_OS MATCHES "Ubuntu24")
-         set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION}_ubuntu22)
-      else(HOST_OS MATCHES "Rocky8" OR HOST_OS MATCHES "Rocky9")
-         set(FSPYTHON_DIR ${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION}_rocky8)
-      endif()
-   endif()
-
-   if (EXISTS ${FSPYTHON_DIR})
-      message(STATUS "For HOST_OS=${HOST_OS} FSPYTHON_DIR=${FSPYTHON_DIR}")
-      set(PYTHON_EXECUTABLE "${FSPYTHON_DIR}/bin/python${FSPYTHON_VERSION}")
-   else()
-      message(FATAL_ERROR "For HOST_OS=${HOST_OS} cannot stat FSPYTHON_DIR=${FSPYTHON_DIR}")
-   endif()
-else()
-   ## allow cmake to use fspython python3 binary even if not distributing fspython, e.g., darwin_arm64 build
-   set(PYTHON_EXECUTABLE "${FS_PACKAGES_DIR}/fspython/${FSPYTHON_VERSION}/bin/python${FSPYTHON_VERSION}")
-endif()
 
 ## cuda
 ##
@@ -172,13 +137,13 @@ option(UB24_SYSLIBS "link with system libs" OFF)
 ##
 option(APPLE_ARM64 "Mac arm64 build" OFF)
 
-# ## include our custom cmake functions (and others)
-# include(cmake/functions.cmake)
-# include(TestBigEndian)
-# include(CheckFunctionExists)
-# 
-# ## Use host_os() to get HOST_OS to reference the correct 3rd party package build
-# host_os()
+## include our custom cmake functions (and others)
+include(cmake/functions.cmake)
+include(TestBigEndian)
+include(CheckFunctionExists)
+
+## Use host_os() to get HOST_OS to reference the correct 3rd party package build
+host_os()
 
 if(NOT APPLE AND CUDA_ALL)
    set(FSPYTHON_INSTALL_CUDA ON)
