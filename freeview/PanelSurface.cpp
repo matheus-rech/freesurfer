@@ -528,12 +528,18 @@ void PanelSurface::DoUpdateWidgets()
   ui->comboBoxAnnotation->clear();
   ui->comboBoxAnnotation->addItem( "Off" );
   ui->comboBoxAnnotation->setItemData(0, "Off", Qt::ToolTipRole);
+  ui->widgetAnnotationFrame->setVisible(layer && layer->GetActiveAnnotation() && layer->GetActiveAnnotation()->GetNumberOfFrames() > 1);
   if ( layer )
   {
     for ( int i = 0; i < layer->GetNumberOfAnnotations(); i++ )
     {
       ui->comboBoxAnnotation->addItem( layer->GetAnnotation( i )->GetName() );
       ui->comboBoxAnnotation->setItemData(i+1, layer->GetAnnotation(i)->GetFilename(), Qt::ToolTipRole);
+    }
+    if (layer->GetActiveAnnotation())
+    {
+      ui->spinBoxAnnotationFrame->setRange(0, layer->GetActiveAnnotation()->GetNumberOfFrames()-1);
+      ui->spinBoxAnnotationFrame->setValue(layer->GetActiveAnnotation()->GetActiveFrame());
     }
   }
   ui->comboBoxAnnotation->addItem( "Load from file..." );
@@ -1665,5 +1671,15 @@ void PanelSurface::OnOverlaySettingChanged(LayerSurface *surf)
         s->UpdateOverlay();
       }
     }
+  }
+}
+
+void PanelSurface::OnSpinBoxAnnotationFrame(int n)
+{
+  LayerSurface* surf = GetCurrentLayer<LayerSurface*>();
+  if (surf && surf->GetActiveAnnotation())
+  {
+    surf->GetActiveAnnotation()->SetActiveFrame(n);
+    surf->UpdateColorMap();
   }
 }
