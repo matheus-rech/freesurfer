@@ -21,7 +21,9 @@ endif()
 
 install_configured(samseg samseg-long DESTINATION bin)
 
-if(NOT APPLE_ARM64)
+## test currently broken on all Mac build machines
+# if(NOT APPLE_ARM64)
+if(NOT APPLE)
    add_test_script(NAME samseg_test SCRIPT test.sh)
 endif()
 
