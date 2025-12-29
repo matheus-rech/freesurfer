@@ -194,7 +194,9 @@ else
   set cmd0 = ($FREESURFER_HOME/python/scripts/run_samseg)
 endif
 set cmd0 = ($cmd0  -o $outdir --threads $threads)
-if($?SAMSEG_DATA_DIR) set cmd0 = ($cmd0 --atlas $SAMSEG_DATA_DIR)
+if($?SAMSEG_DATA_DIR) then
+  set cmd0 = ($cmd0 --atlas $SAMSEG_DATA_DIR)
+endif
 if($FatShift) set cmd0 = ($cmd0 --fat-shift)
 if($SaveMesh) set cmd0 = ($cmd0 --save-mesh)
 if($#regmat)  set cmd0 = ($cmd0 --reg $regmat)
