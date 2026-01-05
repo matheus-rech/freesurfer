@@ -29,12 +29,6 @@ set PWDCMD = `getpwdcmd`;
 set inputlist = ();
 set outlabel  = ();
 
-set n = `echo $argv | grep version | wc -l`
-if($n != 0) then
-  echo $VERSION
-  exit 0;
-endif
-
 if($#argv == 0) then
   goto usage_exit;
   exit 1;
@@ -120,6 +114,11 @@ while( $#argv != 0 )
       set echo = 1;
       breaksw
 
+    case "-version":
+      echo $VERSION
+      exit 0;
+      breaksw
+      
     default:
       echo "ERROR: $flag not recognized"
       exit 1;
