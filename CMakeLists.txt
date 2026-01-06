@@ -921,6 +921,7 @@ add_subdirectories(
   mri_coreg
   mri_deface
   mri_diff
+  mri_dualperm
   mri_edit_segmentation
   mri_edit_segmentation_with_surfaces
   mri_edit_wm_with_aseg
