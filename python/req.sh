@@ -137,7 +137,13 @@ if [ $expand -eq 1 ]; then
       package_list=`cat $req_files | grep -v "^#.*" | tr -s '\n' ' '`
    fi
 
-   expanded_cmd="$remaining_cmd $package_list"
+   if [ "${FSPYTHON_INSTALL_CUDA}" == "ON" ]; then
+      # does not seem to work to search this URL when listed in requirements-build-py38-cuda.txt
+      str1=`echo $remaining_cmd | sed 's;pip install;pip install --extra-index-url https://download.pytorch.org/whl/cu121;'`
+      expanded_cmd="$str1 $package_list"
+   else 
+      expanded_cmd="$remaining_cmd $package_list"
+   fi
    echo "============================"
    date
    # echo "REQ FILE=${req_files}"
