@@ -41,6 +41,7 @@ set DoPhase = 0;
 set DoSiemensAscii = 1;
 set KeepScouts = 0;
 set SeriesNoOffset = 0
+set ReplaceSpecial = 1
 set ForceUpdate = 0;
 
 set RunNos = ();
@@ -260,7 +261,7 @@ if($dcm2niix_dicom_dump) then
     ##### ???
 
     foreach series ($SeriesNos)
-      set descr = `cat $SeriesInfo | awk -v s=$series '{if($1 == s) print $2}' | head -n 1 | sed 's/*//g'`
+      set descr = `cat $SeriesInfo | awk -v s=$series '{if($1 == s) print $2}' | head -n 1 | sed 's/*//g'| sed "s/'//g"`
       if($DoAutoRunSeq) then
         if("$descr" == Localizer || "$descr" == Localizer_aligned || "$descr" == localizer || "$descr" == AAHScout || \
            "$descr" == AAHScout_sag || "$descr" == AAHScout_cor || \
@@ -430,7 +431,7 @@ else
     if($status) then 
       set descr = "unknown"
     else
-      set descr = `mri_probedicom --i $f --t 8 103e | sed 's/ //g' | sed 's/\///g' | sed 's/(//g' | sed 's/)//g'| sed 's/\]//g'|sed 's/\[//g'`
+      set descr = `mri_probedicom --i $f --t 8 103e | sed 's/ //g' | sed 's/\///g' | sed 's/(//g' | sed 's/)//g'| sed 's/\]//g'|sed 's/\[//g'| sed "s/'//g"`
     endif
     set fname = $r[11];
     if($DoBase) set fname = `basename $f`
@@ -519,6 +520,9 @@ if(-e $DoConvertSummary) mv $DoConvertSummary $TargetDir/log/DoConvert-Summary.$
 set DoCopySummary = $TargetDir/log/DoCopy-Summary.txt
 if(-e $DoCopySummary) mv $DoCopySummary $TargetDir/log/DoCopy-Summary.$$.dat
 
+echo "#@# =================================="
+echo $#RunNos $#FNames
+
 @ nth = 0;
 foreach run ($RunNos)
   @ nth = $nth + 1;
@@ -535,7 +539,15 @@ foreach run ($RunNos)
   if($DoFIPS == 0) then
     set SubDir = $SubDirs[$nth];
     set Format = $Formats[$nth];
-    set FName  = $FNames[$nth];
+    set FName  = "$FNames[$nth]";
+    if($ReplaceSpecial) then
+      # Remove and replace special characters:
+      # Remove: tick marks "'" 
+      # change spaces, parentheses, # to dashes
+      echo FName $FName ====================|& tee -a $LF
+      set FName = `echo "$FName" | sed "s/'//g"| sed "s/ /-/g"| sed "s/(/-/g"| sed "s/)/-/g"| sed "s/#/-/g"`
+      echo FName $FName ====================|& tee -a $LF
+    endif
   else
     set fipsPar = $RunPars[$nth];
     set fipsRun = $RunParNos[$nth];
@@ -587,13 +599,14 @@ foreach run ($RunNos)
     endif
 
     set tSequenceFileName = `cat $SeriesInfo | awk -v r=$run '{if($1 == r) print $11}'`
-    
-    set outfname = $outdir/$FName$PhaseStr.$Format
+
+    set outfname = "$outdir/$FName$PhaseStr.$Format"
+    echo $outfname
     echo "" |& tee -a $LF
     echo "#@# Run $run `date` ==================================" |& tee -a $LF
-    set ud = (`UpdateNeeded $outfname $f`)
+    set ud = (`UpdateNeeded $outfname "$f"`)
     if($ud || $ForceUpdate) then
-      set cmd = (mri_convert $f $outfname --nskip $NSkip --ndrop $NDrop $itdicom)
+      set cmd = (mri_convert "$f" $outfname --nskip $NSkip --ndrop $NDrop $itdicom)
       if($#iid) set cmd = ($cmd -iid $iid);
       if($#ijd) set cmd = ($cmd -ijd $ijd);
       if($#ikd) set cmd = ($cmd -ikd $ikd);
@@ -668,7 +681,7 @@ foreach run ($RunNos)
           echo "Either find out why, exclude this run, or run with -no-exit-on-error to continue with other runs" |& tee -a $LF
           exit 1;
         endif
-        echo "ERROR: a conversion error was detected in Run $run, but ExitOnError=1 so continuing to next run" |& tee -a $LF
+        echo "ERROR: a conversion error was detected in Run $run, but ExitOnError=0 so continuing to next run" |& tee -a $LF
         @ ErrorsFound = $ErrorsFound + 1;
       endif
     else
@@ -801,6 +814,7 @@ while( $#argv != 0 )
 
     case "-targ":
     case "-trg":
+    case "-o":
       if($#argv < 1) goto arg1err;
       set TargetDir = "$argv[1]"; shift;
       set DoUnpack = 1;
@@ -1151,6 +1165,14 @@ while( $#argv != 0 )
       setenv FS_LOAD_DWI 0 # turn off trying to read DWI parameters
       breaksw
 
+    case "-replace-special":
+      set ReplaceSpecial = 1
+      breaksw
+    case "-no-replace-special":
+    case "-keep-special":
+      set ReplaceSpecial = 0
+      breaksw
+      
     case "-debug":
       set verbose = 1;
       set echo = 1;
@@ -1300,7 +1322,7 @@ usage_exit:
   echo "   -src dcmdir <-src dcmdir>"
   echo ""
   echo "Other Arguments"
-  echo "   -targ targetdir"
+  echo "   -targ targetdir (can also use -trg and -o)"
   echo "   -run run subdir format stemname <<nskip> ndrop>"
   echo "   -auto-runseq format : save all scans in the targetdir as runo.seqname.format"
   echo "     -keep-scouts : unpack series with 'scout' or 'setter' in the name"
@@ -1335,6 +1357,7 @@ usage_exit:
   echo "   -extra-info : add session info to each line of the info file (pat, date, man, scan, field, serno)"
   echo "   -first-dicom : copy first dicom file into output folder. This was implemented to "
   echo "      be able to have the pixel data from a dicom file with little or no tissue in it"
+  echo "   -no-replace-special : do not replace tickmarks or parentheses or white spaces or hashtags in file name"
   if($UseDCM2NIIX) then
     echo "   -no-dcm2niix : Turn it off"
     echo "   These options only work when -dcm2niix is on:"
@@ -1398,7 +1421,7 @@ if applicable.
 -targ targetdir
 
 Output directory. Do not need to include when just getting information
-about what is in the directory.
+about what is in the directory. Can also spec -trg or -o.
 
 -run run subdir format stemname <<nskip> ndrop>
 
