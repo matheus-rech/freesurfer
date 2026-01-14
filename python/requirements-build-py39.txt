@@ -64,7 +64,7 @@ requests==2.32.5
 requests-oauthlib==2.0.0
 rich==14.2.0
 rsa==4.9.1
-samseg@git+https://github.com/freesurfer/samseg.git@b961604591ad3caab3120b531dc4ba306974abe7
+# samseg still in separate file
 scikit-image==0.24.0
 scikit-learn==1.6.1
 scipy==1.13.1
