@@ -132,13 +132,14 @@ def main():
             MNIqcseg_file = script_directory = os.path.dirname(os.path.abspath(__file__)) + '/../atlas/atlas.qc_seg.nii.gz'
             nets = frugal_models(model_file, MNIqcseg_file, device)
 
-            def async_write(outputdir, aff, im, seg_discrete, T1, T2, FLAIR, FIELD):
+            def async_write(outputdir, aff, im, seg_discrete, T1, T2, FLAIR, FIELD, ribbon):
                 MRIwrite(im, aff, outputdir + '/input_resampled.mgz', dtype=np.uint8)
                 MRIwrite(seg_discrete, aff, outputdir + '/segmentation.mgz', dtype=np.uint16)
                 MRIwrite(T1, aff, outputdir + '/SynthT1.mgz', dtype=np.uint8)
                 MRIwrite(T2, aff, outputdir + '/SynthT2.mgz', dtype=np.uint8)
                 MRIwrite(FLAIR, aff, outputdir + '/SynthFLAIR.mgz', dtype=np.uint8)
                 MRIwrite(FIELD, aff, outputdir + '/mni_deformation.mgz', dtype=np.float32)
+                MRIwrite(ribbon, aff, outputdir + '/ribbon.mgz', dtype=np.uint8)
 
             writer_thread = None
 
@@ -180,6 +181,10 @@ def main():
                     T1 = pred['T1'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                     T2 = pred['T2'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                     FLAIR = pred['FLAIR'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                    LP = pred['LP'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                    LW = pred['LW'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                    RP = pred['RP'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                    RW = pred['RW'][0, 0, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                     if mode == 'cerebrum':
                         seg = pred['seg'][0, mask_photo_or_cerebrum_whole, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                     elif mode == 'left-hemi':
@@ -205,6 +210,10 @@ def main():
                         T1 = 0.5 * T1 + 0.5 * torch.flip(pred['T1'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                         T2 = 0.5 * T2 + 0.5 * torch.flip(pred['T2'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                         FLAIR = 0.5 * FLAIR + 0.5 * torch.flip(pred['FLAIR'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1],idx[2]:idx[2] + im.shape[2]]
+                        LP = 0.5 * LP + 0.5 * torch.flip(pred['RP'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                        LW = 0.5 * LW + 0.5 * torch.flip(pred['RW'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                        RP = 0.5 * RP + 0.5 * torch.flip(pred['LP'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
+                        RW = 0.5 * RW + 0.5 * torch.flip(pred['LW'][0, 0, ...], [0])[idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                         activations = torch.flip(pred['seg'][0, ...], [1])[:, idx[0]:idx[0] + im.shape[0], idx[1]:idx[1] + im.shape[1], idx[2]:idx[2] + im.shape[2]]
                         if mode == 'cerebrum':
                             activations = activations[mask_photo_or_cerebrum_whole, ...]
@@ -235,6 +244,22 @@ def main():
                     else:
                         raise Exception('mode not supported: ' + mode)
 
+                    print('   Postprocessing cortical ribbon')
+                    a = 2
+                    max_surf_distance= 3.0
+                    LW = torch.clamp(LW, min=-max_surf_distance, max=max_surf_distance)
+                    RW = torch.clamp(RW, min=-max_surf_distance, max=max_surf_distance)
+                    LP = torch.clamp(LP, min=-max_surf_distance, max=max_surf_distance)
+                    RP = torch.clamp(RP, min=-max_surf_distance, max=max_surf_distance)
+                    ribbonL = 70 * (1 - (torch.tanh(a * (LW + 0.3)) + 1) / 2) + 40 * (1 - (torch.tanh(a * LP) + 1) / 2)
+                    ribbonR = 70 * (1 - (torch.tanh(a * (RW + 0.3)) + 1) / 2) + 40 * (1 - (torch.tanh(a * RP) + 1) / 2)
+                    if mode == 'left-hemi':
+                        ribbon = ribbonL
+                    elif mode == 'right-hemi':
+                        ribbon = ribbonR
+                    else:
+                        ribbon = torch.maximum(ribbonL, ribbonR)
+
                     # get masks for fiting deformations and postprocessing segmentations
                     M = (seg_discrete > 0) & (seg_discrete != 24) & (seg_discrete < 900)  # useful for later
                     M = get_largest_connected_component(M.detach().cpu().numpy())
@@ -246,6 +271,7 @@ def main():
                         T2[~Mdilated] = 0
                         FLAIR[~Mdilated] = 0
                         seg_discrete[~M] = 0
+                    ribbon[~Mdilated] = 0
 
                     # postprocess soft segmentations and compute volumes
                     seg[0][~Mdilated] = 1
@@ -348,8 +374,9 @@ def main():
                     T2_np = (100 * T2).clip(0, 255).detach().cpu().numpy()
                     FLAIR_np = (100 * FLAIR).clip(0, 255).detach().cpu().numpy()
                     FIELD_np = torch.stack([res_x, res_y, res_z], dim=-1).detach().cpu().numpy()
+                    ribbon_np = ribbon.clip(0, 255).detach().cpu().numpy()
 
-                    del im, seg_discrete, T1, T2, FLAIR, res_x, res_y, res_z, S, M, Mdilated, aux, mi, mj, mk, B
+                    del im, seg_discrete, T1, T2, FLAIR, res_x, res_y, res_z, S, M, Mdilated, aux, mi, mj, mk, B, LP, RP, LW, RW, ribbon
                     if flipping:
                         del activations
                     torch.cuda.empty_cache()
@@ -360,7 +387,7 @@ def main():
                     # 4. start writing asynchronously
                     writer_thread = threading.Thread(
                         target=async_write,
-                        args=(outputdir, aff, im_np, seg_discrete_np, T1_np, T2_np, FLAIR_np, FIELD_np)
+                        args=(outputdir, aff, im_np, seg_discrete_np, T1_np, T2_np, FLAIR_np, FIELD_np, ribbon_np)
                     )
                     writer_thread.start()
 
@@ -386,3 +413,4 @@ def main():
 # execute script
 if __name__ == '__main__':
     main()
+
