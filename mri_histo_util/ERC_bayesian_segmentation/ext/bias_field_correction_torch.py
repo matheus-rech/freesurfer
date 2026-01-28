@@ -65,8 +65,6 @@ CLUSTER_DICT_CEREBRUM = {
 }
 
 
-
-
 # make polynomial basis functions
 def get_basis_functions(shape, order=3, device='cpu', dtype=torch.float32):
 
@@ -120,20 +118,24 @@ def get_basis_functions_dct(shape, order=3, device='cpu', dtype=torch.float32):
 
 # Main function to correct bias field
 def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', cerebrum_only=False, dontmask=False, device='cpu', dtype=torch.float32):
+    if isinstance(mri, np.ndarray):
+        mri = torch.tensor(mri, dtype=dtype, device=device)
+    if isinstance(seg, np.ndarray):
+        seg = torch.tensor(mri, dtype=torch.int, device=device)
     cluster_dict = CLUSTER_DICT_CEREBRUM if cerebrum_only else CLUSTER_DICT
     mri[mri<0] = 0 # negative values break this
     with torch.no_grad():
         # get image and masks as tensors, all masked by segmentation
-        mask = (seg > 0) & (mri>0) & (seg!=77) # avoid lesions!
-        I = torch.tensor(np.squeeze(mri)[mask > 0], device=device, dtype=dtype)
+        mask = (seg > 0) & (mri>0) & (seg!=24) & (seg!=77) & (seg!=99) & (seg<900)
+        I = mri.squeeze()[mask > 0]
         nvox = I.shape[0]
         nclass = len(cluster_dict)
         prior = torch.zeros([nvox, nclass], device=device, dtype=dtype)
-        seg2 = seg.copy()
+        seg2 = seg.clone()
         seg2[seg2 >= 2000] = 42
         seg2[seg2 > 1000] = 3
 
-        print('Gaussian filtering for bias field correction')
+        print('  Gaussian filtering for bias field correction')
         sigma = .4
         sl = np.ceil(sigma * 2.5).astype(int)
         v = np.arange(-sl, sl + 1)
@@ -176,7 +178,7 @@ def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', cere
         y = torch.log(1 + I * factor)
 
         # Main loop
-        print('Bias field correction')
+        # print('Bias field correction')
         C = torch.zeros(nbf, device=device, dtype=dtype)
         wij = torch.zeros([nvox, nclass], device=device, dtype=dtype)
         R = torch.zeros(nvox, device=device, dtype=dtype)
@@ -219,16 +221,18 @@ def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', cere
             C = torch.inverse(A.T @ (wi[..., None] * A) + REG) @ (A.T @ (wi * R))
             diff = torch.sum((C - Cold) ** 2)
             del Cold
-            print('  Iteration ' + str(it) + ': cost is ' + str(cost.item()) + ', and difference is ' + str(diff.item()))
+            print('    Iteration ' + str(it) + ': cost is ' + str(cost.item()) + ', and difference is ' + str(diff.item()), end='\r')
             if diff < 1e-9:
-                print('  Converged')
+                print(' ')
+                print('    Converged')
                 ready = True
             if it == maxit:
-                print('  Tired convergence')
+                print(' ')
+                print('    Tired convergence')
                 ready = True
             ycorr = y - torch.sum(A * C, dim=1)
 
-        Icorr = torch.log(1+factor*torch.tensor(mri.squeeze(), device=device, dtype=dtype))
+        Icorr = torch.log(1+factor*mri)
         for b in range(len(BFs)):
             Icorr -= ( C[b] * BFs[b] )
         Icorr = (torch.exp(Icorr) -1 ) / factor
@@ -236,7 +240,6 @@ def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', cere
         if dontmask==False:
             Icorr[seg == 0] = 0
             Icorr[mri == 0] = 0
-        Icorr = Icorr.detach().cpu().numpy()
         cost = cost.detach().cpu().numpy()
 
     if device!='cpu':
@@ -246,4 +249,5 @@ def correct_bias(mri, seg, maxit=100, penalty=0.1, order=5, basis='hybrid', cere
         return Icorr, cost, mask
     else:
         return Icorr, cost
+
 

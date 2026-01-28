@@ -1,1 +1,0 @@
-MIN_IMG_SIZE = 32

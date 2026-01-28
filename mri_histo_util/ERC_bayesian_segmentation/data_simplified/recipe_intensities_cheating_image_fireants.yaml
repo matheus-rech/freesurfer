@@ -1,0 +1,36 @@
+Recipe consisting of 7 weights for WM, GM, WMC, GMC, CA, PU, PA:
+- Background:
+  - [0,  0,  0,   0,   0,  0,  0]
+- White Matter:
+  - [1,  0,  0,   0,   0,  0,  0]
+- Gray Matter:
+  - [0,  1,  0,   0,   0,  0,  0]
+- Cerebellum White Matter:
+  - [0,  0,  1,   0,   0,  0,  0]
+- Cerebellum Gray Matter:
+  - [0,  0,  0,   1,   0,  0,  0]
+- Caudate and Accumbens:
+  - [0,  0,  0,   0,   1,  0,  0]
+- Putamen:
+  - [0,  0,  0,   0,   0,  1,  0]
+- White Thalamus:
+  - [0.625, 0.375,  0,   0,   0,  0,  0]
+- Gray Thalamus:
+  - [0.375, 0.625,  0,   0,   0,  0,  0]
+- Pallidum:
+  - [0,  0,  0,   0,   0,  0,  1]
+- Substantia Nigra and STN and Red Nucleus:
+  - [1.5625, -0.5625,  0,   0,   0,  0,  0]
+- Gray Brainstem nuclei:
+  - [0.9375, 0.0625,  0,   0,   0,  0,  0]
+- White Brainstem nuclei:
+  - [1.375, -0.375,  0,   0,   0,  0,  0]
+- Gray hypothalamus:
+  - [0.3125, 0.6875,  0,   0,   0,  0,  0]
+- White hypothalamus:
+  - [1,  0,  0,   0,   0,  0,  0]
+- Cerebellar Other:
+  - [0.4375, 0.5625,  0,   0,   0,  0,  0]
+- Hippocampal White Matter:
+  - [0.5625, 0.4375,  0,   0,   0,  0,  0]
+

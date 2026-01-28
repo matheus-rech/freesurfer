@@ -5,7 +5,6 @@ import cv2
 import torch
 import scipy.ndimage
 import scipy.sparse as sp
-import ext.interpol as interpol
 from torch.nn import functional
 from torch.utils.data import Dataset, DataLoader
 from skimage.measure import label
@@ -1133,177 +1132,29 @@ def _conv3(x, kernel, bound='circular'):
     return y
 
 
-class LabelDataset(Dataset):
+# Jacobian determinant in Torch
+def jacobian_det_torch(phi, spacing=(1.0, 1.0, 1.0)):
+    sx, sy, sz = spacing
+    ux, uy, uz = phi.unbind(-1)
+    def diff(f, dim, h):
+        d = torch.zeros_like(f)
+        slc = [slice(None)] * 3
+        slc[dim] = slice(0, 1)
+        slc_f = slc.copy()
+        slc_f[dim] = slice(1, 2)
+        d[tuple(slc)] = (f[tuple(slc_f)] - f[tuple(slc)]) / h
+        slc[dim] = slice(-1, None)
+        slc_f[dim] = slice(-2, -1)
+        d[tuple(slc)] = (f[tuple(slc)] - f[tuple(slc_f)]) / h
+        slc[dim] = slice(1, -1)
+        slc_f[dim] = slice(2, None)
+        slc_b = slc.copy()
+        slc_b[dim] = slice(None, -2)
+        d[tuple(slc)] = 0.5 * (f[tuple(slc_f)] - f[tuple(slc_b)]) / h
+        return d
 
-    def __init__(self, fnames):
-        self.fnames = fnames
-
-    def __len__(self):
-        return len(self.fnames)
-
-    def __getitem__(self, item):
-        print(item, self.fnames[item])
-        prior = sp.load_npz(self.fnames[item])
-        prior_indices = torch.as_tensor(prior.row)
-        prior_values = torch.as_tensor(prior.data)
-        return prior_indices, prior_values
-
-
-def get_priors_or_posteriors(atlas_names, atlas_size, grids, atlas_resolution,
-                             resampled_resolution, tissue_index,
-                             n_tissues, n_labels, aff_A, aff_A_r,
-                             gaussian_lhoods=None, number_of_gaussians=None, normalizer=None,
-                             LUT_file=None, aff_r=None, prefetch=4, workers=2,
-                             dtype=torch.float32, numpy_dtype=np.float32, device='cpu'):
-
-    """Load the priors in efficiently by centering the bounding box on the structure.
-
-    The function can be used to load and lump the priors to "super classes" and to
-    compute the posteriors if the gaussian likelihoods are defined.
-
-    Parameters
-    ----------
-    atlas_names : list[str]
-        list of the paths to each individual atlas class (.npz files)
-    aff_A : (4,4) array
-        Voxel-to-world transformation of the atlas.
-    aff_A_r : (4,4) array
-        Voxel-to-world transformation of the resampled atlas.
-    aff_r : (4,4) array
-        Voxel-to-world transformation of the resampled image.
-    atlas_size : (3) array
-        Size of the atlas
-    grids : (nx, ny, nz, 3) array
-        Sampling grid of the atlas in voxel space
-    atlas_resolution : float
-        Resolution of the atlas (assumed isotropic)
-    resampled_resolution : float
-        Resolution of the resampled atlas (assumed isotropic)
-    tissue_index : list[int]
-        Mapping of the atlas structures to tissues
-    hemi: str
-        String denoting the hemisphere "l" or "r" (default "l")
-    gaussian_lhoods : (nx, ny, nz, num_gaussian) array
-        Gaussian likelihoods of all mixture components. num_gaussians
-        is sum(number_of_gaussians)
-    number_of_gaussians : list[int]
-        Number of mixture components for each tissue class
-    normalizer : (nx, ny, nz) array
-        Normalizer for the posterior
-    n_labels: int
-        Number of labels in the atlas
-    prefetch : int
-        How many priors to preload using the LabelDataset class
-    workers : int
-         How many workers to use to process the priors
-
-
-    """
-    # TODO: choose good number of workers/prefetch factor
-    if gaussian_lhoods is not None:
-        seg = torch.zeros(normalizer.shape, dtype=torch.int, device=device)
-        seg_rgb = torch.zeros([*normalizer.shape, 3], dtype=dtype, device=device)
-        max_p = torch.zeros(normalizer.shape, dtype=dtype, device=device)
-        vols = torch.zeros(n_labels, device=device, dtype=dtype)
-        names, colors = my.read_LUT(LUT_file)
-        voxel_vol = np.abs(np.linalg.det(aff_r))
-    else:
-        A = np.zeros([*atlas_size, n_tissues], dtype=numpy_dtype)
-
-    resolutions_match = resampled_resolution == atlas_resolution
-    prefetch_factor = max(prefetch//workers, 1)
-    label_loader = DataLoader(LabelDataset(atlas_names), num_workers=workers, prefetch_factor=prefetch_factor)
-    for n, (prior_indices, prior_values) in enumerate(label_loader):
-        # print('Reading in label ' + str(n + 1) + ' of ' + str(n_labels), end='\r', flush=True)  TODO: go back to this version when releasing the code
-        print('Reading in label ' + str(n + 1) + ' of ' + str(n_labels))
-
-        if prior_indices.numel() == 0:
-            continue
-        prior_indices = torch.as_tensor(prior_indices, device=device, dtype=torch.long).squeeze()
-        prior_values = torch.as_tensor(prior_values, device=device, dtype=dtype).squeeze()
-
-        aff_pr = np.copy(aff_A)
-        if n == 0:
-            # background
-            prior = torch.sparse_coo_tensor(prior_indices[None], prior_values,
-                                            [torch.Size(atlas_size).numel()]).to_dense()
-            del prior_indices, prior_values
-            prior = prior.reshape(torch.Size(atlas_size))
-            lr_crop = (slice(None),) * 3
-        else:
-            # find bounding box of label in atlas space
-            prior_indices = ind2sub(prior_indices, atlas_size)
-            min_x, max_x = prior_indices[0].min().item(), prior_indices[0].max().item() + 1
-            min_y, max_y = prior_indices[1].min().item(), prior_indices[1].max().item() + 1
-            min_z, max_z = prior_indices[2].min().item(), prior_indices[2].max().item() + 1
-            crop_atlas_size = [max_x - min_x, max_y - min_y, max_z - min_z]
-            prior_indices[0] -= min_x
-            prior_indices[1] -= min_y
-            prior_indices[2] -= min_z
-            prior = torch.sparse_coo_tensor(prior_indices, prior_values, crop_atlas_size).to_dense()
-            del prior_indices, prior_values
-            aff_pr[:3, -1] += aff_pr[:3, :3] @ np.asarray([min_x, min_y, min_z])
-            # find bounding box of label in MRI space
-            hr2lr = np.linalg.inv(aff_A_r) @ aff_A
-            min_x, min_y, min_z = (hr2lr[:3, :3] @ np.asarray([min_x-1, min_y-1, min_z-1] + hr2lr[:3, -1])).tolist()
-            max_x, max_y, max_z = (hr2lr[:3, :3] @ np.asarray([max_x, max_y, max_z] + hr2lr[:3, -1])).tolist()
-            mask =  (grids[0, ..., 0] >= min_x)
-            mask &= (grids[0, ..., 0] <= max_x)
-            mask &= (grids[0, ..., 1] >= min_y)
-            mask &= (grids[0, ..., 1] <= max_y)
-            mask &= (grids[0, ..., 2] >= min_z)
-            mask &= (grids[0, ..., 2] <= max_z)
-            if ~mask.any():
-                continue
-            nx, ny, nz = mask.shape
-            tmp = mask.reshape([nx, -1]).any(-1).nonzero()
-            lr_min_x, lr_max_x = tmp.min().item(), tmp.max().item() + 1
-            tmp = mask.movedim(0, -1).reshape([ny, -1]).any(-1).nonzero()
-            lr_min_y, lr_max_y = tmp.min().item(), tmp.max().item() + 1
-            tmp = mask.reshape([-1, nz]).any(0).nonzero()
-            lr_min_z, lr_max_z = tmp.min().item(), tmp.max().item() + 1
-            del tmp, mask
-            lr_crop = (slice(lr_min_x, lr_max_x), slice(lr_min_y, lr_max_y), slice(lr_min_z, lr_max_z))
-
-        if not resolutions_match:
-            prior, aff_pr = torch_resize(prior, aff_pr, resampled_resolution, device, dtype=dtype)
-
-        # shift/scale sampling grid appropriately
-        if not (resolutions_match and n==0):
-            aff_shift = torch.as_tensor(np.linalg.inv(aff_pr) @ aff_A_r, device=device, dtype=dtype)
-            grids_shifted = grids[(slice(None), *lr_crop, slice(None))]
-            grids_shifted = aff_shift[:3, :3].matmul(grids_shifted.unsqueeze(-1)).squeeze(-1)
-            grids_shifted = grids_shifted.add_(aff_shift[:3, -1])
-            breakpoint()
-            prior = interpol.grid_pull(prior[None, None, :, :, :], grids_shifted, interpolation=1)
-            del grids_shifted
-
-        if gaussian_lhoods is not None:
-            num_gaussians = number_of_gaussians[tissue_index[n]]
-
-            num_components = number_of_gmm_components[c+1]
-            gaussian_numbers = torch.tensor(np.sum(number_of_gmm_components[tissue_index[n]]) + \
-                                            np.array(range(num_components)), device=device, dtype=dtype).int()
-            lhood = torch.sum(gaussian_lhoods[:, :, :, gaussian_numbers], 3)
-            post = torch.squeeze(prior)
-
-            post *= lhood[lr_crop]
-            post /= normalizer[lr_crop]
-            del prior
-
-            vols[n] = torch.sum(post) * voxel_vol
-            mask = (post > max_p[lr_crop])
-            max_p[lr_crop][mask] = post[mask]
-            lab = int(label_list[n])
-            seg[lr_crop].masked_fill_(mask, lab)
-            del mask
-            for c in range(3):
-                seg_rgb[(*lr_crop, c)].add_(post, alpha=colors[lab][c])
-        else:
-            A[(*lr_crop, tissue_index[n])] = A[(*lr_crop, tissue_index[n])] + prior.cpu().numpy()
-
-    if gaussian_lhoods is not None:
-        return seg, seg_rgb, vols
-    else:
-        return A
+    ux_x = diff(ux, 0, sx); ux_y = diff(ux, 1, sy); ux_z = diff(ux, 2, sz)
+    uy_x = diff(uy, 0, sx); uy_y = diff(uy, 1, sy); uy_z = diff(uy, 2, sz)
+    uz_x = diff(uz, 0, sx); uz_y = diff(uz, 1, sy); uz_z = diff(uz, 2, sz)
+    return (ux_x * (uy_y * uz_z - uy_z * uz_y) - ux_y * (uy_x * uz_z - uy_z * uz_x) + ux_z * (uy_x * uz_y - uy_y * uz_x))
 
