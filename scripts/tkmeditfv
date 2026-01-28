@@ -52,6 +52,8 @@ set annotlist = ()
 set DoManCheck = 0
 set DoCDMRI = 0;
 set HideIn3D = 0
+set ScreenShot = ()
+set ScreenShotQuit = 0
 set overlaymethod = "mid_to_min"
 if($?FV_PATIENT_ORIENTATION == 0) setenv FV_PATIENT_ORIENTATION 1
 if($?FV_ROTATE_AROUND_CURSOR == 0) setenv FV_ROTATE_AROUND_CURSOR 0
@@ -184,6 +186,11 @@ if(! $UseTkMedit) then
   if($CenterCursor) set cmd = ($cmd -cc)
   if($#Zoom) set cmd = ($cmd -zoom $Zoom)
   set cmd = ($cmd $altargs --hide-3d-slices --view coronal)
+  if($#ScreenShot) then
+    set cmd = ($cmd -ss $ScreenShot 1 0)
+    if($ScreenShotQuit == 0) set cmd = ($cmd -noquit)
+    if($ScreenShotQuit == 1) set cmd = (fsxvfb $cmd)
+  endif
 else
   ### tkmedit ####----------------------------------------------
   set cmd = tkmedit
@@ -670,6 +677,13 @@ while( $#argv != 0 )
       set LF = /dev/null
       breaksw
 
+    case "-ss":
+    case "--ss":
+      if($#argv < 2) goto arg2err;
+      set ScreenShot = $argv[1]; shift;
+      set ScreenShotQuit = $argv[1]; shift;
+      breaksw
+
     case "--tmp":
     case "--tmpdir":
       if($#argv < 1) goto arg1err;
@@ -906,6 +920,8 @@ usage_exit:
   echo "-neuro : use neurological orientation instead of radiological"
   echo "-hide : hide surfaces in 3D"
   echo "-rotate-around-cursor (-rca) : in 3d view, rotate around cursor (use -no- to turn off)"
+  echo "-ss ScreenShot Quit01 : take a screen shot (saves as png)"
+  echo "  Note: if Quit=1 then uses virtual frame buffer (so you won't see anything) and exits after "
   #echo "-linear, -linearopaque, -piecewise, -min_to_max (default) : overlay heat scale"
   echo "--keep-sphere-vol-geom : do not ignore sphere volume geometry when loading sphere"
   echo "-vgl :   setenv VGL_DISPLAY :0 and runs freeview with /usr/pubsw/bin/vglrun"
