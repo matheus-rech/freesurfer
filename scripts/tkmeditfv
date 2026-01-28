@@ -131,7 +131,7 @@ if(! $UseTkMedit) then
     #set fmid = `echo "($fthresh+$fmax)/2"|bc -l`
     set fmid = $fthresh;
     #set fvopt = ($ov":"colormap=heat":"heatscale=$fthresh,$fmid,$fmax)
-    set fvopt = ($ov":"colormap=heat":"heatscale=$fthresh,$fmax); # ":"overlay_method=$overlaymethod -> does not work with volumes
+    set fvopt = ($ov":"colormap=heat":"heatscale=$fthresh,$fmax":"heatscale_options=$overlaymethod)
     if($#overlayreg) set fvopt = ($fvopt":"reg=${overlayreg}:resample=$interp)
     set cmd = ($cmd -v $fvopt)
   end
