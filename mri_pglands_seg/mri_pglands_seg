@@ -297,7 +297,7 @@ class PGlandsSegmenter:
         # Set up trained model
         default_model = os.path.join(module_dir,'pglands_seg.pth')
         model_path = default_model if model_path is None else model_path
-        model_checkpoint = torch.load(model_path)
+        model_checkpoint = torch.load(model_path, map_location=self.device)
 
         self.model = UNet3D(in_channels=1,
                             out_channels=len(self.lut)
@@ -306,7 +306,6 @@ class PGlandsSegmenter:
         
         # Initialize QA dataset (if necessary)
         self.qa_dataset = self.QAdataset() if write_qas else None            
-
         
     class QAdataset(Dataset):
         """
@@ -334,8 +333,6 @@ class PGlandsSegmenter:
         """
         Calculate volumes of each label
         """
-        print(f'Computing label stats (saving as {volstats}')
-        
         voxvol = np.prod(img.geom.voxsize)
         n_voxs = [(img.data == val).sum() for val in self.lut]
         vols = [voxvol * n for n in n_voxs]
@@ -477,8 +474,6 @@ class PGlandsSegmenter:
                 sfs_fatal('mri_synthmorph apply failure :(')
 
         # Calculate pairwise dice between output seg and all QA images
-        print(f'Computing QA stats (saving as {qastats})')
-        
         x = load_volume(mnisegpath, conform=False, is_int=True)[0]
         qa_dice = np.zeros((len(self.qa_dataset), len(self.lut)))
         qa_dice[:] = np.nan
@@ -593,6 +588,7 @@ class PGlandsSegmenter:
         if self.write_vol_stats:
             etiv = self._compute_etiv(talaff, invol) if self.include_etiv \
                 else None
+            print(f'Computing label stats (saving as {volstats}')
             vols, n_voxs = self._compute_label_volumes(seg, etiv)
             self._write_stats_file(data=[vols, n_voxs],
                                    fname=volstats,
@@ -602,6 +598,7 @@ class PGlandsSegmenter:
                                    etiv=etiv)
         # Output QA stats
         if self.write_qa_stats:
+            print(f'Computing QA stats (saving as {qastats})')
             qa_scores = self._qa_analysis(movpath=invol,
                                           segpath=outvol,
                                           trpath=qawarp)

@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
     "':colormap=name' Set colormap for display. Valid names are grayscale/lut/heat/jet/gecolor/nih/pet/binary. \n\n"
     "':grayscale=min,max' Set grayscale window values.\n\n"
     "':heatscale=min,mid,max' Set heat scale values. If only 2 values given, min and mid will be set to the same value.\n\n"
-    "':heatscale_options=option1[,option2]' Set heat scale options. Options can be 'truncate','invert' and 'clearhigher'. Can be combination of any of them.\n\n"
+    "':heatscale_options=option1[,option2]' Set heat scale options. Options can be 'truncate','invert','clearhigher' or 'mid_to_min'. Can be combination of any of them.\n\n"
     "':heatscale_offset=val' Set heat scale offset value. If val is 'mean', it will use the mean value of the volume.\n\n"
     "':colorscale=min,max' Set generic colorscale values for jet/gecolor/nih/pet.\n\n"
     "':lut=name' Set lookup table to the given name. Name can be the name of a stock color table or the filename of a color table file.\n\n"

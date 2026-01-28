@@ -8611,7 +8611,7 @@ static MRI *niiRead(const char *fname, int read_volume)
     VOL_GEOM ras_xform = __niiReadHeaderextension(fp, mri, fname, swapped_flag, &has_ras_xform);
     if (has_ras_xform)
     {
-      const char *ignore_tag_ras_xform = getenv("IGNORE_TAG_RAS_XFORM");
+      bool vox2rasdiff = false;
 	
       // skip the vol geom check for ico7 surface encoded volumes
       if (!IsIco7) {
@@ -8633,25 +8633,17 @@ static MRI *niiRead(const char *fname, int read_volume)
 	}
     
 	printf("%s niiRead(): volume vox2ras check, thresh=%g (ras_xform vs sform/qform) ...\n", (Gdiag & DIAG_INFO) ? "[DEBUG]" : "[INFO]", geothresh);
-	bool vox2rasdiff = VOL_GEOM::checkvox2ras(&ras_xform, mri, geothresh, Gdiag & DIAG_INFO);      
-	if (ignore_tag_ras_xform == NULL && vox2rasdiff)
-	{
-	  // donot ignore TAG_RAS_XFORM and vol_geom differs
-	  printf("[ERROR] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%g)\n", fname, vg_isEqual_Threshold);
-	  printf("*** - Set environment variable IGNORE_TAG_RAS_XFORM to use Nifti sform/qform instead.\n");
-	  printf("*** - Set environment variable VOL_GEOM_THRESH to change the threshold.\n");
-	  printf("*** - To update TAG_RAS_XFORM in FS header extension with Nifti sform/qform,\n");
-	  printf("***   1. set environment variable IGNORE_TAG_RAS_XFORM\n");
-	  printf("***   2. mri_convert %s <new.nii.gz>\n", fname);
-	  exit(1);
+	vox2rasdiff = VOL_GEOM::checkvox2ras(&ras_xform, mri, geothresh, Gdiag & DIAG_INFO);      
+	if (vox2rasdiff) {
+	  // We now treat the differences between TAG_RAS_XFORM and vol_geom as WARNING not ERROR
+	  printf("[WARNING] niiRead(%s): vol geom differs - Nifti sform/qform vs TAG_RAS_XFORM in FS header extension (thresh=%g)\n", fname, vg_isEqual_Threshold);
+	  printf("[WARNING] niiRead(%s): ignore TAG_RAS_XFORM in FS header extension, use Nifti sform/qform\n", fname);
 	}
       } // !IsIco7
 
-      if (ignore_tag_ras_xform != NULL)
-	printf("[INFO] niiRead(): ignore TAG_RAS_XFORM in FS header extension, use Nifti sform/qform\n");
-      else
+      if (!vox2rasdiff)
       {
-	// if we got here, difference between ras_xform and *mri is within threshold
+	// difference between ras_xform and *mri is within threshold
 	printf("[INFO] niiRead(): update vol geom with TAG_RAS_XFORM in FS header extension\n");
 	mri->update_ras_xform(ras_xform);
       }

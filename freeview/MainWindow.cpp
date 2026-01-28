@@ -2937,6 +2937,10 @@ void MainWindow::CommandSetHeatScaleOptions( const QStringList& sa )
       {
         p->SetHeatScaleClearHigh(true);
       }
+      else if (sa[i] == "mid_to_min")
+      {
+        p->SetHeatScaleSetMidToMin(true);
+      }
     }
   }
 }

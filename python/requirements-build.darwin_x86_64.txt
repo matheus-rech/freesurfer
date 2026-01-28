@@ -67,7 +67,8 @@ six==1.17.0
 # spheremorph==0.1
 spheremorph@git+https://github.com/silencer1127/spheremorph.git@master
 # surfa@git+https://github.com/freesurfer/surfa.git@83e4e293a43d7d1cb60b17c4908c176fbf9e4998
-surfa@git+https://github.com/freesurfer/surfa.git@ec5ddb193fd1caf22ec654c457b5678f6bd8e460
+# surfa@git+https://github.com/freesurfer/surfa.git@ec5ddb193fd1caf22ec654c457b5678f6bd8e460
+git+https://github.com/freesurfer/surfa.git@master
 sympy==1.13.3
 tensorboard==2.13.0
 tensorboard-data-server==0.7.2
