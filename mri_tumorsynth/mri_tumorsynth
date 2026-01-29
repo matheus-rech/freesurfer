@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+
+# Exit at any error
+set -e
+
+show_help() {
+  echo " "
+  echo "U-Net trained to segment the healthy brain tissue and tumor in MR scans with tumor with support for multi-sequence MR inputs (T1, T1CE, T2, FLAIR,...)."
+  echo " "
+  echo "The code relies on: "
+  echo "   TumorSynth: Integrated Brain Tumor and Tissue Segmentation in Brain MRI Scans of any Resolution and Contrast "
+  echo "      Jiaming Wu et al. (under revision)"
+  echo " "
+  echo " "
+  echo "Usage: "
+  echo " "
+  echo "mri_tumorsynth supports three primary usage scenarios, with flexibility for single or multi-sequence inputs: "
+  echo ""
+  echo "   * Whole-tumor + healthy tissue segmentation (primary use case) or inner tumor substructure segmentation (requires tumor ROI input). "
+  echo "   * Combine T1CE, T2, and FLAIR for better segmentation of heterogeneous tumors. "
+  echo " "
+  echo "The command line options are: "
+  echo " "
+  echo "--i [SINGLE_IMAGE_OR_IMAGE_LIST] "
+  echo "           Input image to segment or input images separate by commas, it is/they are skull-stripped, SRI-24-registered scan. (i.e.: --i t1ce.nii.gz,t1.nii.gz,t2.nii.gz )"
+  echo "--o [MASK] "
+  echo "           Path to save segmentation mask (same format as input) "
+  echo "--wholetumor "
+  echo "           [Default] Whole-tumor (1 single label) + healthy tissue mode (17 labels). Outputs combined mask of healthy brain tissue and whole tumor (includes edema, enhancing tumor, non-enhancing tumor). Input must be skull-stripped and registered to SRI-24 template. "
+  echo "--innertumor "
+  echo "           Inner tumor substructure mode. Outputs BraTS-compliant subclasses: Tumor Core (TC), Non-Enhancing Tumor (NET), and Edema. Input must be a tumor ROI image (prepare by multiplying raw MRI scan with --wholetumor output mask. i.e. fslmaths wholetumorsegmentation.nii.gz -thr 17.5 -uthr 18.5 -bin -mul t1ce.nii.gz t1ce_tumor_roi.nii.gz)."
+  echo "--threads [THREADS] "    
+  echo "           Number of cores to be used. You can use -1 to use all available cores. Default is -1 (optional)"
+  echo "--cpu "     
+  echo "           Bypasses GPU detection and runs on CPU (optional) "
+  echo "--nnUNet"
+  echo "           Root directory of the nnUnet, i.e. /home/user_example/nnUNet "
+  echo " "
+  echo "  For more detailed info, please read: https://surfer.nmr.mgh.harvard.edu/fswiki/TumorSynth"
+  echo ""
+  exit ${1}
+}
+
+# If requesting help
+if  [ $# == 1 ] && [  $1 == "--help" ] ;
+then
+  show_help 0 
+fi
+
+# For each execution we work in a different temporaly directory where we have right access and writting permissions 
+working_dir=`mktemp -d -t TumorSynth_`
+dir_list=""
+DEVICE="GPU"
+NUM_THREADS=8
+INNER_TUMOR=0
+TASK="002"
+TASK_NAME="Tumor"
+list_files=""
+
+# For sanity check we output on the screen all the variables
+echo " "
+echo "mri_tumorsynth - U-Net trained to segment the healthy brain tissue and tumor in MR scans with tumor with support for multi-sequence MR inputs (T1, T1CE, T2, FLAIR,...)."
+echo " "
+echo "Temporal working directory: ${working_dir}"
+echo " "
+echo "***** INPUT PARAMETERS *****"
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --i)
+      list_files=$2
+      echo "INPUT FILES: $2"
+      shift # past argument
+      shift # past value
+      ;;
+    --o)
+      OUTPUT_FILE="$2"
+      echo "OUTPUT FILE: $2"
+      shift # past argument
+      shift # past value
+      ;;
+    --wholetumor)
+      MODEL_NAME="nnUNetPlansv2.1"
+      TASK="002"
+      TASK_NAME="Tumor"
+      shift # past argument
+      ;;
+    --innertumor)
+      MODEL_NAME="nnUNetPlansv2.1"
+      TASK="003"
+      TASK_NAME="InnerTumor"
+      INNER_TUMOR=1
+      shift # past argument
+      ;;
+    --threads)
+      NUM_THREADS="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --cpu)
+      DEVICE="cpu"
+      shift # past argument
+      ;;
+    --nnUnet)
+      NNUNET_ENV_DIR="$2"
+      shift # past argument
+      shift # past value
+      ;;
+  esac
+done
+echo "MODEL NAME: ${MODEL_NAME}"
+echo "NUMBER OF THREADS: ${NUM_THREADS}"
+echo "DEVICE: ${DEVICE}"
+echo "NNUNET DIRECTORY: ${NNUNET_ENV_DIR}"
+
+# Copying all the input data in the corresponding working directory
+n=1
+for data_input in $(echo "$list_files" | tr ',' '\n'); do
+  # For each input file we generate a subject in the nnUNet
+  # Test that the path to store the nnUNet file tree is set
+  if [ ! -f ${data_input} ]; 
+  then
+    echo "ERROR: Unable to locate the input file ${data_input}. Exiting... "
+    echo " "
+    show_help -1
+  fi
+  mkdir -p ${working_dir}/nnUNet_raw_data_base/nnUNet_raw_data/Task${TASK}_${TASK_NAME}/ImagesTs${n}
+  extension="${data_input#*.}"
+  cp ${data_input} ${working_dir}/nnUNet_raw_data_base/nnUNet_raw_data/Task${TASK}_${TASK_NAME}/ImagesTs${n}/input_0000.${extension}
+  dir_list="${dir_list}${working_dir}/nnUNet_raw_data_base/nnUNet_raw_data/Task${TASK}_${TASK_NAME}/ImagesTs${n},"
+  echo "INPUT FILE ${n}: ${data_input} copied at ${working_dir}/nnUNet_raw_data_base/nnUNet_raw_data/Task${TASK}_${TASK_NAME}/ImagesTs${n}/input_0000.${extension}"
+  ((n++))
+done
+echo "****************************"
+
+# Setting up the number of threads
+export OMP_THREAD_LIMIT=${NUM_THREADS}
+export OMP_NUM_THREADS=${OMP_THREAD_LIMIT}
+
+# Test that the path to store the nnUNet file tree is set
+if [ -z ${NNUNET_ENV_DIR} ]; 
+then
+    echo "ERROR: The directory to save the nnUNet model files is not set. Variable NNUNET_ENV_DIR. Exiting... "
+    echo " "
+    show_help -1
+fi
+
+echo " "
+echo "Checking that we can find the model..."
+# Try to find TumorSynth model files for whole tumor segmentation 
+MODEL_FILE="${NNUNET_ENV_DIR}/nnUNet_v1.7/nnUNet_trained_models/nnUNet/3d_fullres/Task002_Tumor/nnUNetTrainerV2__${MODEL_NAME}/plans.pkl"
+if [ "${INNER_TUMOR}" = "1" ] ;
+then
+  # The inner tumor has a different model
+  MODEL_FILE="${NNUNET_ENV_DIR}/nnUNet_v1.7/nnUNet_trained_models/nnUNet/3d_fullres/Task003_InnerTumor/nnUNetTrainerV2__${MODEL_NAME}/plans.pkl"
+fi
+
+# If model file not found, print instructions for download and exit
+if [ ! -f "$MODEL_FILE" ] ;
+then
+    echo "Unable to locate some dependencies, please follow the steps below to install them, then rerun the script."
+    echo " "
+    echo "File missing: $MODEL_FILE"
+    echo " "
+    if [ ! -f "$MODEL_FILE" ]; then 
+        echo " "
+        echo "   Machine learning model file not found. Please download for the whole tumor segmentation from: "
+        echo "     https://liveuclac-my.sharepoint.com/:u:/g/personal/rmapfpr_ucl_ac_uk/EWsIGJOFbD9MiPyQnGhjGHwBquaWhxJfEAzbfs6v5BvFzA?e=JQHlSQ "
+        echo " "
+        echo "   and the model for the inner tumor segmentation from: "
+        echo "     https://liveuclac-my.sharepoint.com/:u:/g/personal/rmapfpr_ucl_ac_uk/IQCJJdWxSqPsQpKaxW3yFWikARbdkwcgnY8nkd-5HUezl3Q?e=E7i74D"
+        echo " "
+        echo "   and follow installation instructions from:  "
+        echo "     https://surfer.nmr.mgh.harvard.edu/fswiki/TumorSynth#Installation"
+        echo " "
+    fi
+    exit -1    
+fi
+echo "Model found: ${MODEL_NAME} at ${MODEL_FILE}"
+
+# Setting up local environment variables
+nnUNet_preprocessed=${working_dir}/nnUNet_preprocessed
+RESULTS_FOLDER=${MODEL_FILE/nnUNet\/*/}
+nnUNet_raw_data_base=${working_dir}/nnUNet_raw_data_base
+
+# The case of the whole tumor segmentation (18 values, 17 tissues and 1 label for the tumor)
+endlabel=18
+if [ "${INNER_TUMOR}" = "1" ] ;
+then
+  # The inner tumor has 3 labels and background
+  endlabel=3
+fi
+
+# We prepare the empty files for saving each label of the output
+for num in `seq 0 ${endlabel}`; do
+  fslmaths ${dir_list/,*/}/input_0000.* -mul 0 ${working_dir}/label${num}.nii.gz
+done
+
+echo "Ready to run the inference..."
+# Create command and run for each input dataset! We run the inference as many times as input files
+i=0
+for data_dir in $(echo "$dir_list" | tr ',' '\n'); do 
+  # One output directory for each inference
+  mkdir -p ${working_dir}/output${i}
+
+  # nnUNet command 
+  cmd="nnUNet_predict -i ${data_dir} -o ${working_dir}/output${i} -tr nnUNetTrainerV2 -ctr nnUNetTrainerV2CascadeFullRes -m 3d_fullres -p ${MODEL_NAME} -t ${TASK} -f 0 1 2 3 4 "
+  echo "Running command:"
+  echo $cmd
+  echo "  "
+  $cmd
+
+  # Sum all the outputs after each inference
+  for num in `seq 1 ${endlabel}`; do
+    lower=`echo "${num} - 0.5" | bc -l`
+    upper=`echo "${num} + 0.5" | bc -l`
+    fslmaths `ls ${working_dir}/output${i}/*.* | grep nii` -thr ${lower} -uthr ${upper} -bin -add ${working_dir}/label${num}.nii.gz ${working_dir}/label${num}.nii.gz
+  done
+  ((i++))
+done
+
+filelist="${working_dir}/label0.nii.gz "
+echo "Fusing the results for computing the final mask"
+
+# Divide the final label maps by the number of outputs, it is a simple Majority Voting.
+for num in `seq 1 ${endlabel}`; do
+  # Compute the probability of each label. Label contains the number of appearances per execution, and ${i} is the number of executions
+  fslmaths ${working_dir}/label${num}.nii.gz -div ${i} ${working_dir}/label${num}.nii.gz
+  filelist="${filelist} ${working_dir}/label${num}.nii.gz"
+done
+
+# Merge all the volume in a single 4D file and then we output the results
+fslmerge -t ${working_dir}/all.nii.gz ${filelist}
+
+# We reduce the 4D file to 3D taking as label value the number of volume with the highest value
+fslmaths ${working_dir}/all.nii.gz -Tmaxn ${OUTPUT_FILE}
+
+# Cleaning up a little bit the unneeded data
+echo "Removing temporal directories"
+rm -rf ${working_dir}
+echo "The tumor mask is in: ${OUTPUT_FILE}"
+echo "Have a nice day!!!"
