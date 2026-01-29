@@ -199,6 +199,7 @@ void WindowConfigureOverlay::UpdateUI()
     //   ui->radioButtonGreenRed ->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_GreenRed );
     //   ui->radioButtonBlueRed    ->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_BlueRed );
     ui->radioButtonHeat->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_Heat );
+    ui->radioButtonJet->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_Jet );
     ui->radioButtonColorWheel->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_ColorWheel );
     ui->radioButtonCustom->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_Custom );
     ui->radioButtonEmbedded->setChecked( p->GetColorScale() == SurfaceOverlayProperty::CS_Embedded );
@@ -442,6 +443,10 @@ bool WindowConfigureOverlay::UpdateOverlayProperty( SurfaceOverlayProperty* p )
   else if ( ui->radioButtonColorWheel->isChecked() )
   {
     p->SetColorScale( SurfaceOverlayProperty::CS_ColorWheel );
+  }
+  else if ( ui->radioButtonJet->isChecked() )
+  {
+    p->SetColorScale( SurfaceOverlayProperty::CS_Jet );
   }
   else if ( ui->radioButtonCustom->isChecked() )
   {

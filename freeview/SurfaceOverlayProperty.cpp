@@ -268,6 +268,25 @@ void SurfaceOverlayProperty::SetColorScale( int nScale )
       m_lut->AddRGBAPoint( m_dMaxPoint + m_dOffset, 1, 0, 0, 1);
     }
   }
+  else if ( nScale == CS_Jet)
+  {
+    if ( !m_bColorInverse )
+    {
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset, 0, 0, 1, 1);
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset + (m_dMaxPoint-m_dMinPoint)*.25, 0, 1, 1, 1);
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset + (m_dMaxPoint-m_dMinPoint)*.5, 0, 1, 0, 1);
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset + (m_dMaxPoint-m_dMinPoint)*.75, 1, 1, 0, 1);
+      m_lut->AddRGBAPoint( m_dMaxPoint + m_dOffset, 1, 0, 0, 1);
+    }
+    else
+    {
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset, 1, 0, 0, 1);
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset + (m_dMaxPoint-m_dMinPoint)*.25, 1, 1, 0, 1);
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset + (m_dMaxPoint-m_dMinPoint)*.5, 0, 1, 0, 1);
+      m_lut->AddRGBAPoint( m_dMinPoint + m_dOffset + (m_dMaxPoint-m_dMinPoint)*.75, 0, 1, 1, 1);
+      m_lut->AddRGBAPoint( m_dMaxPoint + m_dOffset, 0, 0, 1, 1);
+    }
+  }
   else if ( nScale == CS_Custom)
   {
     for (int i = 0; i < m_customScale.size(); i++)

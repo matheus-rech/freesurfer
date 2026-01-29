@@ -4488,6 +4488,8 @@ void MainWindow::CommandSetSurfaceOverlayColormap(const QStringList &cmd)
       {
         if (cmd[i] == "colorwheel")
           overlay->GetProperty()->SetColorScale(SurfaceOverlayProperty::CS_ColorWheel);
+        else if (cmd[i] == "jet")
+          overlay->GetProperty()->SetColorScale(SurfaceOverlayProperty::CS_Jet);
         else if (cmd[i] == "inverse")
           overlay->GetProperty()->SetColorInverse(true);
         else if (cmd[i] == "truncate")

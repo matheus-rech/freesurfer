@@ -47,7 +47,7 @@ public:
   SurfaceOverlayProperty ( SurfaceOverlay* overlay );
   ~SurfaceOverlayProperty ();
 
-  enum COLOR_SCALE  { CS_Heat = 0, CS_GreenRed, CS_BlueRed, CS_ColorWheel, CS_Custom, CS_Embedded };
+  enum COLOR_SCALE  { CS_Heat = 0, CS_GreenRed, CS_BlueRed, CS_ColorWheel, CS_Jet, CS_Custom, CS_Embedded };
   enum COLOR_METHOD { CM_Linear = 0, CM_LinearOpaque, CM_Piecewise };
 
   void Copy(SurfaceOverlayProperty* p);
