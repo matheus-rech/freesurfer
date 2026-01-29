@@ -4,7 +4,7 @@ Casamitjana et al.
 -- preprint available at https://www.biorxiv.org/content/10.1101/2024.02.05.579016v1 
 
 And the method presented in the article:
-"Fast segmentation with the NextBrain histological atlas", by
+"Fast segmentation with the NextBrain histological atlas", by 
 Puonti et al. (under revision).
 
 The code also relies on a foundation model based on our article:

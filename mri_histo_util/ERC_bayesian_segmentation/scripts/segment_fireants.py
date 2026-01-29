@@ -22,18 +22,19 @@ import SimpleITK as sitk
 from time import time
 from ext.fireants_trimmed import HybridDiceLabelDiffloss
 from scipy.ndimage import binary_erosion, binary_fill_holes
-from ERC_bayesian_segmentation import SuperSynth_inference
+
 
 ########################################################
 
-parser = argparse.ArgumentParser(description='Bayesian segmentation.')
-parser.add_argument("--i", help="Image to segment.")
-parser.add_argument("--model_file", help="Multi-task deep learning model for preprocessing")
-parser.add_argument("--atlas_dir", help="Atlas directory")
-parser.add_argument("--mode", help="Type of input (invivo, exvivo, cerebrum, hemi).")
-parser.add_argument("--side", help="Hemisphere to segment (left or right).")
+parser = argparse.ArgumentParser(description='NextBrain segmentation with SuperSynth and FireANTs.')
+parser.add_argument("--i", help="Image to segment.", required=True)
+parser.add_argument("--model_file", help="Multi-task deep learning model for preprocessing", required=True)
+parser.add_argument("--atlas_dir", help="Atlas directory", required=True)
+parser.add_argument("--o", help="Output directory.", required=True)
+parser.add_argument("--mode", help="Type of input (invivo, exvivo, cerebrum, hemi).", required=True)
+parser.add_argument("--side", help="Hemisphere to segment (left or right).", required=True)
 parser.add_argument("--bf_mode", help="bias field basis function: dct, polynomial, or hybrid", default="dct")
-parser.add_argument("--o", help="Output directory.")
+parser.add_argument("--yaml_path", help="path of custom YAML files to define groups of ROIs", default=None)
 parser.add_argument("--write_rgb", action="store_true", help="Write soft segmentation to dis as RGB file.")
 parser.add_argument("--write_bias_corrected", action="store_true", help="Write bias field corrected image to disk")
 parser.add_argument("--device", help="Device (cpu, cuda)")
@@ -41,14 +42,16 @@ parser.add_argument("--device_registration", help="Use this option if you want t
 parser.add_argument("--threads", type=int, default=-1, help="(optional) Number of CPU cores to be used. Default is -1 (use all available cores")
 parser.add_argument("--skip", type=int, default=1, help="(optional) Skipping factor to easy memory requirements of priors when estimating Gaussian parameters. Default is 1.")
 parser.add_argument("--resolution", type=float, default=0.4, help="(optional) Resolution of output segmentation")
-parser.add_argument("--force_tiling", action="store_true", help="Forces tiling on CPU so it gives the same result as GPU")
-parser.add_argument("--skip_bf", action="store_true", help="Skip bias field correction")
+parser.add_argument("--smoothing_steps_HRmask", type=int, default=3, help="(optional) Number of smoothing iterations when upsampling mask from 1mm segmentation")
+parser.add_argument("--skip_bf", action="store_true", help="Skip bias field correction altogether")
 parser.add_argument("--smooth_grad_sigma", type=float, default=1.00, help="(optional) Parameter of Greedy FireANTs registration")
 parser.add_argument("--smooth_warp_sigma", type=float, default=0.25, help="(optional) Parameter of Greedy FireANTs registration")
 parser.add_argument("--optimizer_lr", type=float, default=0.5, help="(optional) Parameter of Greedy FireANTs registration")
 parser.add_argument("--cc_kernel_size", type=int, default=7, help="(optional) Parameter of Greedy FireANTs registration")
 parser.add_argument("--rel_weight_labeldiff", type=float, default=2.5, help="(optional) Relative weight of labels in Greedy FireANTs registration")
-parser.add_argument("--save_atlas_nonlinear_reg", action="store_true", help="Save nonlinear atlas registration")
+parser.add_argument("--save_atlas_nonlinear_reg", action="store_true", help="Save nonlinearly registered atlas")
+parser.add_argument("--save_field", action="store_true", help="Save nonlinear deformation field")
+parser.add_argument("--save_jacobian", action="store_true", help="Save Jacobian determinant (log10)")
 args = parser.parse_args()
 
 ########################################################
@@ -102,9 +105,9 @@ else:
 # limit the number of CPU threads to be used
 if args.threads<0:
     args.threads = os.cpu_count()
-    print('using all available CPU threads ( %s )' % args.threads)
+    print('Using all available CPU threads ( %s )' % args.threads)
 else:
-    print('using %s CPU thread(s)' % args.threads)
+    print('Using %s CPU thread(s)' % args.threads)
 torch.set_num_threads(args.threads)
 
 ########################################################
@@ -133,7 +136,6 @@ side = args.side
 mode = args.mode
 resolution = args.resolution
 skip = args.skip
-force_tiling =  args.force_tiling
 
 ########################################################
 # Detect problems with output directory right off the bat
@@ -155,17 +157,6 @@ SET_BG_TO_CSF = True # True = median of ventricles -> it seems much better than 
 RESOLUTION_ATLAS = 0.2
 TOL = 1e-9
 
-############
-
-if dtype == torch.float64:
-    numpy_dtype = np.float64
-elif dtype == torch.float32:
-    numpy_dtype = np.float32
-elif dtype == torch.float16:
-    numpy_dtype = np.float16
-else:
-    raise Exception('type not supported')
-
 ########################################################
 
 now = datetime.now()
@@ -173,59 +164,86 @@ current_time = now.strftime("%H:%M:%S")
 print("Current Time =", current_time)
 
 ########################################################
-print('Reading input image')
+
+supersynth_segmentation = output_dir + '/SuperSynth/segmentation.mgz'
+if os.path.exists(supersynth_segmentation):
+    print('No need to run SuperSynth; segmentation found:')
+    print('   ' + supersynth_segmentation)
+else:
+    print('Analyzing image with SuperSynth...')
+    mode_supersynth = (side + '-hemi') if mode=='hemi' else mode
+    cmd = 'mri_super_synth --i ' + input_volume + ' --o ' + output_dir + '/SuperSynth/ --mode ' + \
+           mode_supersynth + ' --threads ' + str(args.threads) + ' --device ' + args.device
+    if os.system(cmd):
+        raise Exception('Problem with SuperSynth; exitting...')
+
+########################################################
+
+print('Reading input image and SuperSynth outputs')
 Iim, aff = my.MRIread(input_volume)
 Iim = np.squeeze(Iim)
 while len(Iim.shape) > 3:
     Iim = np.mean(Iim, axis=-1)
+Iim = torch.tensor(Iim, dtype=dtype, device=device)
+im, imaff = my.MRIread(output_dir + '/SuperSynth/input_resampled.mgz')
+seg, _ = my.MRIread(output_dir + '/SuperSynth/segmentation.mgz')
+reg, _ = my.MRIread(output_dir + '/SuperSynth/mni_deformation.mgz')
+im = torch.tensor(im, dtype=dtype, device=device)
+seg = torch.tensor(seg, dtype=torch.int, device=device)
+reg = torch.tensor(reg, dtype=dtype, device=device)
+im[torch.isnan(im)] = 0
+seg[torch.isnan(seg)] = 0
+reg[torch.isnan(reg)] = 0
 
 ########################################################
-print('Analyzing image with neural network...')
-print('  Resampling, reorienting, and padding')
-im = torch.tensor(Iim, dtype=dtype, device=device).squeeze()
-im, imaff = my.torch_resize(im, aff, 1.0, device)
-im, imaff = my.align_volume_to_ref(im, imaff, aff_ref=np.eye(4), return_aff=True, n_dims=3)
-im /= im.max()
-mode_supersynth = (side + '-hemi') if mode=='hemi' else mode
-seg, reg = SuperSynth_inference.run_inference(im, True, model_file, mode_supersynth, output_dir + '/supersynth.vols.csv', device, force_tiling=force_tiling)
-my.MRIwrite(seg.detach().cpu().numpy(), imaff, output_dir + '/supersynth.nii.gz')
-
-########################################################
-
-# Kill contralateral labels if needed
-if mode=='hemi':
-    print('Mode is single hemi, no need to kill contralateral labels')
-else:
-    print('Killing labels in contralateral hemisphere')
-    if side=='left':
-        labels_to_kill =  [0, 14, 15, 41, 42, 43, 44, 46, 47, 49, 50, 51, 52, 53, 54, 58, 820, 822, 844, 866, 870]
-    else:
-        labels_to_kill =  [0, 14, 15,  2,  3,  4,  5,  7,  8, 10, 11, 12, 13, 17, 18, 26, 819, 821, 843, 865, 869]
-    for l in labels_to_kill:
-        seg[seg == l] = 0
-
-
-########################################################
-
-print('   Reslice segmentation and left-right map to the space of the input image')
-II, JJ, KK = np.meshgrid(np.arange(Iim.shape[0]), np.arange(Iim.shape[1]), np.arange(Iim.shape[2]), indexing='ij')
-II = torch.tensor(II, device=device, dtype=dtype)
-JJ = torch.tensor(JJ, device=device, dtype=dtype)
-KK = torch.tensor(KK, device=device, dtype=dtype)
+print('Reslice segmentation and coordinate map to the space of the input image')
+II, JJ, KK = torch.meshgrid(torch.arange(Iim.shape[0], device=device),
+                          torch.arange(Iim.shape[1], device=device),
+                          torch.arange(Iim.shape[2], device=device), indexing='ij')
 affine = np.linalg.inv(imaff) @ aff
 II2 = affine[0, 0] * II + affine[0, 1] * JJ + affine[0, 2] * KK + affine[0, 3]
 JJ2 = affine[1, 0] * II + affine[1, 1] * JJ + affine[1, 2] * KK + affine[1, 3]
 KK2 = affine[2, 0] * II + affine[2, 1] * JJ + affine[2, 2] * KK + affine[2, 3]
-Sim = my.fast_3D_interp_torch(seg, II2, JJ2, KK2, 'nearest').detach().cpu().numpy()
-LRmap = my.fast_3D_interp_torch(reg[...,0], II2, JJ2, KK2, 'linear').detach().cpu().numpy()
-APmap = my.fast_3D_interp_torch(reg[...,1], II2, JJ2, KK2, 'linear').detach().cpu().numpy()
-ISmap = my.fast_3D_interp_torch(reg[...,2], II2, JJ2, KK2, 'linear').detach().cpu().numpy()
+Sim = my.fast_3D_interp_torch(seg, II2, JJ2, KK2, 'nearest')
+LRmap = my.fast_3D_interp_torch(reg[...,0], II2, JJ2, KK2, 'linear')
+APmap = my.fast_3D_interp_torch(reg[...,1], II2, JJ2, KK2, 'linear')
+ISmap = my.fast_3D_interp_torch(reg[...,2], II2, JJ2, KK2, 'linear')
+del II, JJ, KK, II2, JJ2, KK2, reg, seg
+
+########################################################
+print('Adding affine component to coordinate map')
+with open(output_dir + '/SuperSynth/mni_affine.txt') as f:
+    matrix = [list(map(float, line.split(','))) for line in f]
+M_input_vox_to_mni_ras = matrix @ aff
+M = M_input_vox_to_mni_ras.copy()
+II, JJ, KK = torch.meshgrid(torch.arange(Iim.shape[0], device=device),
+                          torch.arange(Iim.shape[1], device=device),
+                          torch.arange(Iim.shape[2], device=device), indexing='ij')
+LRmap += (M[0, 0] * II + M[0, 1] * JJ + M[0, 2] * KK + M[0, 3])
+APmap += (M[1, 0] * II + M[1, 1] * JJ + M[1, 2] * KK + M[1, 3])
+ISmap += (M[2, 0] * II + M[2, 1] * JJ + M[2, 2] * KK + M[2, 3])
+del II, JJ, KK, M
+
+########################################################
+print('Killing labels as needed')
+if mode=='hemi':
+    labels_to_kill = [24, 99]
+else:
+    if side=='left':
+        labels_to_kill =  [14, 15, 24, 99, 41, 42, 43, 44, 46, 47, 49, 50, 51, 52, 53, 54, 58, 820, 822, 844, 866, 870, 901, 902, 906, 907, 908, 909, 911, 912, 914, 915, 916, 930]
+        Sim[LRmap >= 0] = 0
+    else:
+        labels_to_kill =  [14, 15, 24, 99,  2,  3,  4,  5,  7,  8, 10, 11, 12, 13, 17, 18, 26, 819, 821, 843, 865, 869, 901, 902, 906, 907, 908, 909, 911, 912, 914, 915, 916, 930]
+        Sim[LRmap < 0] = 0
+lut = np.arange(3000)
+lut[labels_to_kill] = 0
+lut = torch.tensor(lut, dtype=torch.int, device=device)
+Sim = lut[Sim]
 
 ########################################################
 
 if skip_bf==False:
     print('Correcting bias field')
-    print('   Trying model with polynomial basis functions')
     try:
         Iim, _, bfmask = bf.correct_bias(Iim, Sim, maxit=100, penalty=0.1, order=6, device=device, dtype=dtype, basis=bf_mode, dontmask=True, cerebrum_only=((mode=='hemi') or (mode=='cerebrum')))
     except:
@@ -235,50 +253,17 @@ if skip_bf==False:
             print('Bias correction on GPU failed; trying with CPU')
             Iim, _, bfmask = bf.correct_bias(Iim, Sim, maxit=100, penalty=0.1, order=4, device='cpu', dtype=dtype, basis=bf_mode, dontmask=True, cerebrum_only=((mode=='hemi') or (mode=='cerebrum')))
     if args.write_bias_corrected:
-        bfmask = binary_fill_holes(bfmask)
-        aux = Iim.copy()
+        bfmask = binary_fill_holes(bfmask.detach().cpu().numpy())
+        aux = Iim.detach().cpu().numpy()
         aux[~bfmask] = 0
-        aux = (aux / np.max(Iim[bfmask]) * 255).astype(np.uint8)
-        my.MRIwrite(aux, aff, output_dir + '/bias.corrected.nii.gz')
-        del aux, bfmask
+        aux = (aux / np.max(aux) * 255).astype(np.uint8)
+        my.MRIwrite(aux, aff, output_dir + '/bias.corrected.' + side + '.mgz', dtype=np.uint8)
+        del aux
+    del bfmask
 
 print('Normalizing intensities')
-Iim = Iim * 110 / np.median(Iim[(Sim==2) | (Sim==41)])
+Iim = Iim * 110 / torch.median(Iim[(Sim==2) | (Sim==41)])
 
-# We should do tensors at this point...
-Sim = torch.tensor(Sim, dtype=torch.int, device=device)
-Iim = torch.tensor(Iim, dtype=dtype, device=device)
-LRmap = torch.tensor(LRmap, dtype=dtype, device=device)
-APmap = torch.tensor(APmap, dtype=dtype, device=device)
-ISmap = torch.tensor(ISmap, dtype=dtype, device=device)
-
-########################################################
-# Fit affine registration to atlas
-print('Linear fit of predicted MNI coordinates')
-Mfit = ((Sim>0) & ((Sim<900) | (Sim>1000))  & (Sim!=4)  & (Sim!=5)  & (Sim!=43)  & (Sim!=44)  & (Sim!=14)  & (Sim!=15)  & (Sim!=24))
-Mfit = torch.tensor(binary_erosion(Mfit.detach().cpu().numpy(), iterations=2), device=device, dtype=torch.bool)
-# avoid numerical issues, we don't need a trillion voxels to fit this
-prop = 100000 / Mfit.sum()
-if (prop<1):
-    aux = (torch.rand(Mfit.shape, device=device) < prop)
-    Mfit = (Mfit & aux)
-    del aux
-ri = np.arange(Sim.shape[0]).astype('float'); mu_ri = np.mean(ri); ri -= mu_ri ; ri /= 100
-rj = np.arange(Sim.shape[1]).astype('float'); mu_rj = np.mean(rj); rj -= mu_rj; rj /= 100
-rk = np.arange(Sim.shape[2]).astype('float'); mu_rk = np.mean(rk); rk -= mu_rk; rk /= 100
-mi, mj, mk = np.meshgrid(ri, rj, rk, sparse=False, indexing='ij')
-mi = torch.tensor(mi, device=device, dtype=dtype)[Mfit]
-mj = torch.tensor(mj, device=device, dtype=dtype)[Mfit]
-mk = torch.tensor(mk, device=device, dtype=dtype)[Mfit]
-B = torch.stack([mi, mj, mk, torch.ones_like(mk)], dim=1)
-P = torch.linalg.pinv(B)
-fit_lr = P @ (100*LRmap[Mfit]); fit_ap = P @ (100*APmap[Mfit]); fit_is = P @ (100*ISmap[Mfit])
-aux = torch.stack([fit_lr, fit_ap, fit_is, torch.tensor([0,0,0,1], device=device, dtype=dtype)])
-mat1 = np.matrix('1 0 0 ' + str(-mu_ri) + '; 0 1 0 ' + str(-mu_rj) + '; 0 0 1 ' + str(-mu_rk) + '; 0 0 0 1')
-mat2 = np.diag([0.01, 0.01, 0.01, 1])
-mat3 = torch.stack([fit_lr, fit_ap, fit_is, torch.tensor([0,0,0,1], device=device, dtype=dtype)]).detach().cpu().numpy()
-M_input_vox_to_mni_ras = mat3 @ mat2 @ mat1
-# MNI, affmni2 = my.MRIread('/homes/2/iglesias/gca.mgz'); my.MRIwrite(MNI, aff @ np.linalg.inv(M_input_vox_to_mni_ras)  @ affmni2, '/tmp/test.mgz')
 
 ########################################################
 # Kill bottom of medulla and subdivide brainstem if needed
@@ -286,7 +271,7 @@ if (mode=='invivo') or (mode=='exvivo'):
     print('Dealing with bilateral labels: subdividing brainstem, optic chiasm, lesions');
     print('  (we also crop the bottom of the brainstem a bit)')
     LEFT = (LRmap < 0)
-    Sim[(Sim == 16) & (ISmap < (-0.60))] = 0
+    Sim[(Sim == 16) & (ISmap < (-60))] = 0
     if (side == 'left'):
         Sim[(Sim == 16) & LEFT] = 161
         Sim[(Sim == 16)] = 0
@@ -301,12 +286,12 @@ else:
     print('No need to deal with bilateral labels')
 
 # Release memory
-del LRmap, APmap, ISmap, reg, seg, II, JJ, KK, II2, JJ2, KK2, ri, rj, rk, mi, mj, mk, B, P
+del LRmap, APmap, ISmap
 
 #######################################
 
 # Prepare data for hemisphere at hand
-print('  Creating mask for tissue to segment (leave out ventricles)')
+print('Creating mask for tissue to segment (leave out ventricles)')
 M = (Sim>0)
 M[Sim==4] = 0
 M[Sim==5] = 0
@@ -328,6 +313,7 @@ aff[:3, -1] = aff[:3, -1] + aff[:-1, :-1] @ np.array([cropping[0].detach().cpu()
 
 ########################################################
 
+
 # Read atlas
 print('Reading in atlas')
 
@@ -340,11 +326,16 @@ else:
         [41, 42, 46, 47, 49, 50, 51, 52, 53, 54, 58, 60, 77, 85, 162, 820, 822, 844, 866, 870]).astype(int)
 
 # Get the label groupings and atlas labels from the config files
-tissue_index, grouping_labels, label_list, number_of_gmm_components = relab.get_tissue_settings(
-            os.path.join(BASE_PATH, 'data_simplified', 'atlas_names_and_labels.yaml'),
-            os.path.join(BASE_PATH, 'data_simplified', 'combined_atlas_labels_fireants.yaml'),
-            os.path.join(BASE_PATH, 'data_simplified', 'combined_aseg_labels_new_targets.yaml'),
-            os.path.join(BASE_PATH, 'data_simplified', 'gmm_components_fireants.yaml'),
+if args.yaml_path is None:
+    yaml_path = os.path.join(BASE_PATH, 'data_simplified')
+else:
+    yaml_path = args.yaml_path
+tissue_index, grouping_labels, label_list, number_of_gmm_components, cheating_recipe = relab.get_tissue_settings(
+            os.path.join(yaml_path, 'atlas_names_and_labels.yaml'),
+            os.path.join(yaml_path, 'combined_atlas_labels_fireants.yaml'),
+            os.path.join(yaml_path, 'combined_aseg_labels_new_targets.yaml'),
+            os.path.join(yaml_path, 'gmm_components_fireants.yaml'),
+            os.path.join(yaml_path, 'recipe_intensities_cheating_image_fireants.yaml'),
             aseg_label_list
 )
 
@@ -355,6 +346,7 @@ n_tissues = np.max(tissue_index) + 1
 n_labels = len(label_list)
 atlas_names = sorted(glob.glob(atlas_dir + '/label_*.npz'))
 atlas_size = np.load(atlas_dir + '/size.npy')
+atlas_bounds_all_labels = np.load(atlas_dir + '/bounds.npy')
 
 class LabelDataset(Dataset):
 
@@ -365,7 +357,7 @@ class LabelDataset(Dataset):
         return len(self.fnames)
 
     def __getitem__(self, item):
-        print(item, self.fnames[item])
+        # print(item, self.fnames[item])
         prior = sp.load_npz(self.fnames[item])
         prior_indices = torch.as_tensor(prior.row)
         prior_values = torch.as_tensor(prior.data)
@@ -375,31 +367,64 @@ class LabelDataset(Dataset):
 prefetch = 4
 workers = 2
 prefetch_factor = max(prefetch//workers, 1)
-label_loader = DataLoader(LabelDataset(atlas_names), num_workers=workers, prefetch_factor=prefetch_factor)
-A = np.zeros([*atlas_size, n_tissues], dtype=numpy_dtype)
-# We keep track of these probability masses we use to correct differences in labeling between A and SynthSeg
-MLhippo = np.zeros(atlas_size, dtype=numpy_dtype)
-CLAUSTRUM = np.zeros(atlas_size, dtype=numpy_dtype)
-RETICULAR = np.zeros(atlas_size, dtype=numpy_dtype)
-LGN =  np.zeros(atlas_size, dtype=numpy_dtype)
-AMYGDALA =  np.zeros(atlas_size, dtype=numpy_dtype)
-FORNIX =  np.zeros(atlas_size, dtype=numpy_dtype)
-CHIASM =  np.zeros(atlas_size, dtype=numpy_dtype)
-MAMBODY =  np.zeros(atlas_size, dtype=numpy_dtype)
-SEPTAL =  np.zeros(atlas_size, dtype=numpy_dtype)
+if sys.platform == "darwin":
+    label_loader = DataLoader(LabelDataset(atlas_names), num_workers=0)
+else:
+    label_loader = DataLoader(LabelDataset(atlas_names), num_workers=workers, prefetch_factor=prefetch_factor)
+
+# A and A_reg are now lists, where we only keep in memory bounding boxes with mass
+A = []
+atlas_bounds_tissues = np.zeros([n_tissues, 6], dtype=np.int32)
+for t in range(n_tissues):
+    bounds = atlas_bounds_all_labels[np.array(tissue_index) == t, :]
+    atlas_bounds_tissues[t, 0] = np.min(bounds[:, 0])
+    atlas_bounds_tissues[t, 1] = np.max(bounds[:, 1])
+    atlas_bounds_tissues[t, 2] = np.min(bounds[:, 2])
+    atlas_bounds_tissues[t, 3] = np.max(bounds[:, 3])
+    atlas_bounds_tissues[t, 4] = np.min(bounds[:, 4])
+    atlas_bounds_tissues[t, 5] = np.max(bounds[:, 5])
+    siz = [atlas_bounds_tissues[t, 1] - atlas_bounds_tissues[t, 0],
+           atlas_bounds_tissues[t, 3] - atlas_bounds_tissues[t, 2],
+           atlas_bounds_tissues[t, 5] - atlas_bounds_tissues[t, 4]]
+    A.append(np.zeros(siz, dtype=np.float32))
+
+label_sets_reg = relab.get_label_sets_for_label_registration(mode) # this is the atlas with tissue types
+A_reg = []
+atlas_bounds_segs = np.zeros([len(label_sets_reg), 6], dtype=np.int32)
+for t in range(len(label_sets_reg)):
+    bounds = atlas_bounds_all_labels[np.where(np.in1d(label_list, label_sets_reg[t]))[0], :]
+    atlas_bounds_segs[t, 0] = np.min(bounds[:, 0])
+    atlas_bounds_segs[t, 1] = np.max(bounds[:, 1])
+    atlas_bounds_segs[t, 2] = np.min(bounds[:, 2])
+    atlas_bounds_segs[t, 3] = np.max(bounds[:, 3])
+    atlas_bounds_segs[t, 4] = np.min(bounds[:, 4])
+    atlas_bounds_segs[t, 5] = np.max(bounds[:, 5])
+    siz = [atlas_bounds_segs[t, 1] - atlas_bounds_segs[t, 0],
+           atlas_bounds_segs[t, 3] - atlas_bounds_segs[t, 2],
+           atlas_bounds_segs[t, 5] - atlas_bounds_segs[t, 4]]
+    A_reg.append(np.zeros(siz, dtype=np.float32))
+
 for n, (prior_indices, prior_values) in enumerate(label_loader):
-    print('Reading in label ' + str(n+1) + ' of ' + str(n_labels))
+    print('  Reading in label ' + str(n+1) + ' of ' + str(n_labels), end='\r')
     if prior_indices.numel() == 0:
         continue
     prior_indices = torch.as_tensor(prior_indices, device=device, dtype=torch.long).squeeze()
     prior_values = torch.as_tensor(prior_values, device=device, dtype=dtype).squeeze()
     idx = tissue_index[n]
+
+    idx_reg = -1
+    for j in range(len(label_sets_reg)):
+        if np.any(label_sets_reg[j] == label_list[n]):
+            idx_reg = j
+
     if n == 0:
         prior = torch.sparse_coo_tensor(prior_indices[None], prior_values,
                                         [torch.Size(atlas_size).numel()]).to_dense()
         del prior_indices, prior_values
         prior = prior.reshape(torch.Size(atlas_size)).cpu().numpy()
-        A[:, :, :, idx] = A[:, :, :, idx] + prior
+        A[idx] = A[idx] + prior
+        if idx_reg>-1:
+            A_reg[idx_reg] = A_reg[idx_reg] + prior
     else:
         prior_indices = my.ind2sub(prior_indices, atlas_size)
         min_x, max_x = prior_indices[0].min().item(), prior_indices[0].max().item() + 1
@@ -410,29 +435,19 @@ for n, (prior_indices, prior_values) in enumerate(label_loader):
         prior_indices[1] -= min_y
         prior_indices[2] -= min_z
         prior = torch.sparse_coo_tensor(prior_indices, prior_values, crop_atlas_size).to_dense()
-        crop = (slice(min_x, max_x), slice(min_y, max_y), slice(min_z, max_z))
-        A[(*crop, idx)] = A[(*crop, idx)] + prior.cpu().numpy()
-        # Hack to create maps for claustrum/reticular, LGN, and molecular layer
-        if np.any(np.array([343, 368, 372, 408, 418, 562, 566, 571, 339, 354])==label_list[n]):
-            MLhippo[crop] += prior.cpu().numpy()
-        if np.any(np.array([102, 174])==label_list[n]):
-            CLAUSTRUM[crop] += prior.cpu().numpy()
-        if np.any(np.array([161, 114, 843])==label_list[n]):
-            CHIASM[crop] += prior.cpu().numpy()
-        if np.any(np.array([298, 305, 306, 307])==label_list[n]):
-            MAMBODY[crop] += prior.cpu().numpy()
-        if np.any(np.array([103, 117])==label_list[n]):
-            SEPTAL[crop] += prior.cpu().numpy()
-        if label_list[n]==254:
-            RETICULAR[crop] += prior.cpu().numpy()
-        if label_list[n]==199:
-            FORNIX[crop] += prior.cpu().numpy()
-        if label_list[n]==484:
-            LGN[crop] += prior.cpu().numpy()
-        if np.any(np.array([215,216,377,217,214,242,301,238,240,277,278,279])==label_list[n]):
-            AMYGDALA[crop] += prior.cpu().numpy()
+        crop = (slice(min_x - atlas_bounds_tissues[idx,0], max_x - atlas_bounds_tissues[idx,0]),
+                slice(min_y - atlas_bounds_tissues[idx,2], max_y - atlas_bounds_tissues[idx,2]),
+                slice(min_z - atlas_bounds_tissues[idx,4], max_z - atlas_bounds_tissues[idx,4]))
+        A[idx][crop] = A[idx][crop] + prior.cpu().numpy()
+        if idx_reg>-1:
+            crop = (slice(min_x - atlas_bounds_segs[idx_reg, 0], max_x - atlas_bounds_segs[idx_reg, 0]),
+                    slice(min_y - atlas_bounds_segs[idx_reg, 2], max_y - atlas_bounds_segs[idx_reg, 2]),
+                    slice(min_z - atlas_bounds_segs[idx_reg, 4], max_z - atlas_bounds_segs[idx_reg, 4]))
+            A_reg[idx_reg][crop] = A_reg[idx_reg][crop] + prior.cpu().numpy()
+print(' ')
 
-A = torch.tensor(A, dtype=dtype, device=device)
+# We keep A in the CPU for now, to same our GPU memory for registration
+# A = torch.tensor(A, dtype=dtype, device=device)
 if (side=='left') or (side=='left-c') or (side=='left-ccb'):
     aff_A = np.diag([.2, .2, .2, 1])
 else:
@@ -457,55 +472,29 @@ else:
     MU_CAUDATE = torch.median(Iim[Sim==50])
     MU_PUTAMEN = torch.median(Iim[Sim==51])
     MU_PALLIDUM = torch.median(Iim[Sim == 52])
-mid = 0.5 * MU_WM + 0.5 * MU_GM
-delta = (MU_WM - MU_GM) / 16.0
-MU_TH_LATERAL = mid + 2 * delta
-MU_TH_MEDIAL = mid - 2 * delta
-MU_RN = MU_WM + 9 * delta
-MU_GM_BS = MU_WM - 1 * delta
-MU_WM_BS = MU_WM + 6 * delta
-MU_HYPO = mid - 3 * delta
-MU_MAM_BODY = MU_WM
-MU_DG_CEREBELLUM = mid - 1 * delta
-MU_WM_HIPPO = mid + 1 * delta
 # Kill cerebellum and brainstem if needed
 if (mode=='cerebrum') or (mode=='hemi'): # We don't kill the brainstem (hard to know where to crop) and let the registration handle it
     MU_WM_CEREBELLUM = MU_GM_CEREBELLUM = MU_DG_CEREBELLUM = 0
-
-cheating_means = torch.zeros([17], device=device, dtype=dtype)
-cheating_means[0] = MU_CSF
-cheating_means[1] = MU_WM
-cheating_means[2] = MU_GM
-cheating_means[3] = MU_WM_CEREBELLUM
-cheating_means[4] = MU_GM_CEREBELLUM
-cheating_means[5] = MU_CAUDATE
-cheating_means[6] = MU_PUTAMEN
-cheating_means[7] = MU_TH_LATERAL
-cheating_means[8] = MU_TH_MEDIAL
-cheating_means[9] = MU_PALLIDUM
-cheating_means[10] = MU_RN
-cheating_means[11] = MU_GM_BS
-cheating_means[12] = MU_WM_BS
-cheating_means[13] = MU_HYPO
-cheating_means[14] = MU_MAM_BODY
-cheating_means[15] = MU_DG_CEREBELLUM
-cheating_means[16] = MU_WM_HIPPO
-
-sigma =  torch.tensor(10.0, device=device, dtype=dtype)
-if False:
-    AL = torch.argmax(A, axis=-1)
-    muI = cheating_means[AL]
-    # sigmaI = np.sqrt(vars_ini)[AL]
-    sigmaI = sigma * torch.ones(AL.shape, device=device, dtype=dtype)
-else:
-    muI = torch.zeros(A.shape[:-1], device=device, dtype=dtype)
-    for l in range(A.shape[-1]):
-        muI += (A[:,:,:,l] * cheating_means[l])
-    sigmaI = sigma * torch.ones(muI.shape, device=device, dtype=dtype)
-
+# Make cheating means
+cheating_recipe = torch.tensor(cheating_recipe, device=device, dtype=dtype)
+cheating_recipe[:,0] *= MU_WM
+cheating_recipe[:,1] *= MU_GM
+cheating_recipe[:,2] *= MU_WM_CEREBELLUM
+cheating_recipe[:,3] *= MU_GM_CEREBELLUM
+cheating_recipe[:,4] *= MU_CAUDATE
+cheating_recipe[:,5] *= MU_PUTAMEN
+cheating_recipe[:,6] *= MU_PALLIDUM
+cheating_means = cheating_recipe.sum(dim=1)
+# And make the actual image
+sigma =  10.0
+muI = torch.zeros(*atlas_size, device=device, dtype=dtype)
+for l in range(n_tissues):
+    muI[atlas_bounds_tissues[l,0]:atlas_bounds_tissues[l,1],
+        atlas_bounds_tissues[l,2]:atlas_bounds_tissues[l,3],
+        atlas_bounds_tissues[l,4]:atlas_bounds_tissues[l,5]] += (torch.tensor(A[l], device=device, dtype=dtype) * cheating_means[l])
+sigmaI = sigma * torch.ones(muI.shape, device=device, dtype=dtype)
 Ifake = torch.normal(muI, sigmaI)
-del muI
-del sigmaI
+del muI, sigmaI
 Ifake[Ifake<0] = 0
 native_resolution = np.sqrt(np.sum(aff[:-1,:-1]**2, axis=0))
 # we blur a bit less since the atlas is blurry already (default power factor at W/2 is 5.0)
@@ -571,60 +560,32 @@ del SimP, M
 
 # Same for the fake image (requires resampling atlas)
 image2 = Image.load_file(fake_filename, device=device_registration)
-# GM, WM, [CGM unless cerebrum mode], CA/PU/AC, TH, PA, [BG unless cerebrum mode], AM (special case, see below);
-# Note that I had to insert hypothalamus before the amygdala (the special cases go at the end)
-# In Feb'25, hypothal [13, 14], <amygdala goes here> fornix, optic chiasm, mammillary body, septal nucleus
-if (mode=='hemi') or (mode=='cerebrum'):
-    frame_sets = [[2], #[1],
-                  [5, 6], [7, 8], [9], [13,14]]
-else:
-    frame_sets = [[2], #[1],
-                  [4],  [5,6], [7,8], [9], [0], [13,14]]
+
+# Now let's apply the linear transform to the frames / labels of the atlas for the label loss
 II, JJ, KK = np.meshgrid(np.arange(Iim.shape[0]), np.arange(Iim.shape[1]), np.arange(Iim.shape[2]), indexing='ij')
 II = torch.tensor(II, device=device, dtype=dtype)
 JJ = torch.tensor(JJ, device=device, dtype=dtype)
 KK = torch.tensor(KK, device=device, dtype=dtype)
 # fakeVox <- fakeRAS <- imageVox
-# affine = np.linalg.inv(aff_A) @ my.getM(imageCOGvox[:-1,:], fakeCOGras[:-1,:]).detach().cpu().numpy()
 affine = np.linalg.inv(aff_A) @ Mmni @ M_input_vox_to_mni_ras @ shift_mat
 II2 = affine[0, 0] * II + affine[0, 1] * JJ + affine[0, 2] * KK + affine[0, 3]
 JJ2 = affine[1, 0] * II + affine[1, 1] * JJ + affine[1, 2] * KK + affine[1, 3]
 KK2 = affine[2, 0] * II + affine[2, 1] * JJ + affine[2, 2] * KK + affine[2, 3]
 del II, JJ, KK
-
-
-for framelist in frame_sets:
-    M = torch.zeros(II2.shape, device=device, dtype=dtype)
-    for frame in framelist:
-        pad = 1.0 if frame==0 else 0.0
-        if frame == 2:
-            M += my.fast_3D_interp_torch(A[..., frame] + torch.tensor(MLhippo - AMYGDALA - SEPTAL, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=pad)
-        elif frame == 1: # should not happen anymore, but it keep it there as it does not bother me
-            M += my.fast_3D_interp_torch(A[..., frame] + torch.tensor(CLAUSTRUM + RETICULAR - FORNIX - CHIASM, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=pad)
-        elif frame==6:
-            M += my.fast_3D_interp_torch(A[..., frame] - torch.tensor(CLAUSTRUM, device=device, dtype=dtype), II2, JJ2, KK2, 'linear', pad_value=pad)
-        elif frame==8:
-            M += my.fast_3D_interp_torch(A[..., frame] - torch.tensor(LGN + RETICULAR, device=device, dtype=dtype), II2, JJ2, KK2, 'linear', pad_value=pad)
-        elif frame==14:
-            M += my.fast_3D_interp_torch(A[..., frame] - torch.tensor(MAMBODY, device=device, dtype=dtype), II2, JJ2, KK2, 'linear', pad_value=pad)
-        else:
-            M += my.fast_3D_interp_torch(A[..., frame], II2, JJ2, KK2, 'linear', pad_value=pad)
+for f in range(len(A_reg)):
+    pad = 1.0 if (np.any(label_sets_reg[f]==0)) else 0.0
+    M = my.fast_3D_interp_torch(torch.tensor(A_reg[f], device=device, dtype=dtype),
+                                II2 - atlas_bounds_segs[f,0],
+                                JJ2 - atlas_bounds_segs[f,2],
+                                KK2 - atlas_bounds_segs[f,4], 'linear', pad_value=pad)
     image2.array = torch.cat([image2.array, M.permute([2, 1, 0])[None, None, ...].to(device_registration)], dim=1)
-# Amygdala, fornix, chiasm, mam body, are a bit special because they are on their own
-M = my.fast_3D_interp_torch(torch.tensor(AMYGDALA, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=0)
-image2.array = torch.cat([image2.array, M.permute([2, 1, 0])[None, None, ...].to(device_registration)], dim=1)
-M = my.fast_3D_interp_torch(torch.tensor(FORNIX, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=0)
-image2.array = torch.cat([image2.array, M.permute([2, 1, 0])[None, None, ...].to(device_registration)], dim=1)
-M = my.fast_3D_interp_torch(torch.tensor(CHIASM, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=0)
-image2.array = torch.cat([image2.array, M.permute([2, 1, 0])[None, None, ...].to(device_registration)], dim=1)
-M = my.fast_3D_interp_torch(torch.tensor(MAMBODY, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=0)
-image2.array = torch.cat([image2.array, M.permute([2, 1, 0])[None, None, ...].to(device_registration)], dim=1)
-M = my.fast_3D_interp_torch(torch.tensor(SEPTAL, device=device, dtype=dtype) , II2, JJ2, KK2, 'linear', pad_value=0)
-image2.array = torch.cat([image2.array, M.permute([2, 1, 0])[None, None, ...].to(device_registration)], dim=1)
-
-del II2, JJ2, KK2, M, MLhippo, CLAUSTRUM, RETICULAR, LGN, AMYGDALA, FORNIX, CHIASM, MAMBODY, SEPTAL
+del II2, JJ2, KK2, M, A_reg
 
 #FireANTs options
+# maxi = max(image1.array[0,0].max(), image2.array[0,0].max())
+maxi = 110 # we use the median of the white matter
+image1.array[0,0] /= maxi
+image2.array[0,0] /= maxi
 torch.set_grad_enabled(True)
 batch1 = BatchedImages([image1])
 batch2 = BatchedImages([image2])
@@ -653,7 +614,7 @@ end = time()
 print("Runtime nonlinear registration: ", end - start, "seconds")
 moved = reg.evaluate(batch1, batch2)
 reference_img = image1.itk_image
-moved_image_np = moved[0, 0].detach().cpu().numpy()
+moved_image_np = (maxi * moved[0, 0]).detach().cpu().numpy()
 moved_sitk_image = sitk.GetImageFromArray(moved_image_np)
 moved_sitk_image.SetOrigin(reference_img.GetOrigin())
 moved_sitk_image.SetSpacing(reference_img.GetSpacing())
@@ -662,7 +623,34 @@ if args.save_atlas_nonlinear_reg:
     fake_filename_deformed = output_dir + '/atlas_nonlinear_reg.' + side + '.nii.gz'
     sitk.WriteImage(moved_sitk_image, fake_filename_deformed)
 warped_coords = reg.get_warped_coordinates(batch1, batch2).to(device).detach()
-del image1, image2, batch1, batch2, reg, moved, moved_sitk_image
+
+# Save deformation field and Jacobian if needed!
+coords = None
+field_sitk_image = None
+jacdet_sitk_image = None
+if args.save_field:
+    coords = (1 + warped_coords[0]) * (0.5 * (torch.tensor(Iim.shape, device=device) - 1))[None, None, None, ...]
+    field_sitk_image = sitk.GetImageFromArray(coords.cpu().numpy())
+    field_sitk_image.SetOrigin(reference_img.GetOrigin())
+    field_sitk_image.SetSpacing(reference_img.GetSpacing())
+    field_sitk_image.SetDirection(reference_img.GetDirection())
+    field_filename = output_dir + '/nonlinear_field.' + side + '.nii.gz'
+    sitk.WriteImage(field_sitk_image, field_filename)
+    del field_sitk_image
+if args.save_jacobian:
+    if coords is None: # compute coords only if needed
+        coords = (1 + warped_coords[0]) * (0.5 * (torch.tensor(Iim.shape, device=device) - 1))[None, None, None, ...]
+    coords = coords.permute([2, 1, 0, 3])
+    jacdet = my.jacobian_det_torch(coords)
+    jacdet_sitk_image = sitk.GetImageFromArray(torch.log10(jacdet.permute([2,1,0]).abs().clip(min=1e-6)).cpu().numpy())
+    jacdet_sitk_image.SetOrigin(reference_img.GetOrigin())
+    jacdet_sitk_image.SetSpacing(reference_img.GetSpacing())
+    jacdet_sitk_image.SetDirection(reference_img.GetDirection())
+    jacdet_filename = output_dir + '/nonlinear_jac_logdet.' + side + '.nii.gz'
+    sitk.WriteImage(jacdet_sitk_image, jacdet_filename)
+    del jacdet, jacdet_sitk_image
+
+del image1, image2, batch1, batch2, reg, moved, moved_sitk_image, coords
 torch.set_grad_enabled(False)
 
 ########################################################
@@ -759,7 +747,7 @@ M_r, _ = my.torch_resize(Mim, aff, resolution, device, dtype=dtype)
 # smoothen M_r a bit
 kernel = torch.zeros([3,3,3], device=device, dtype=dtype)
 kernel[1,1,:] = 0.1; kernel[1,:,1] = 0.1; kernel[:,1,1] = 0.1; kernel[1,1,1] = 0.4
-for _ in range(3):
+for _ in range(args.smoothing_steps_HRmask):
     M_r = torch.conv3d(M_r[None, None, ...], kernel[None, None, ...], bias=None, stride=1, padding=[1, 1, 1]).squeeze()
 I_r[M_r<0.5] = mu_bg
 Iim_shape = Iim.shape
@@ -777,7 +765,6 @@ for k in range(3):
     T1[k, k] = 0.5 * (Iim_shape[k] - 1)
     T1[k, -1] = T1[k, k]
 # second bit: vox2vox transform to fake  space  fake_vox <- image_vox
-# T2 = my.getM(imageCOGvox[:-1,:], fakeCOGvox[:-1,:])
 T2 = torch.tensor(np.linalg.inv(aff_fake) @ Mmni @ M_input_vox_to_mni_ras @ shift_mat, device=device, dtype=dtype) # TODO: is this correct?
 # third bit: from vox to [-1, 1] coordinates that can be used with atlas at any resolution
 T3 = torch.eye(4, device=device, dtype=dtype)
@@ -789,13 +776,30 @@ I = T[0, 0] * wc_r[..., 0] + T[0, 1] * wc_r[..., 1] + T[0, 2] * wc_r[..., 2] + T
 J = T[1, 0] * wc_r[..., 0] + T[1, 1] * wc_r[..., 1] + T[1, 2] * wc_r[..., 2] + T[1, 3]
 K = T[2, 0] * wc_r[..., 0] + T[2, 1] * wc_r[..., 1] + T[2, 2] * wc_r[..., 2] + T[2, 3]
 del wc_r
-# we can now resample
-priors = grid_sample(A.permute([3,0,1,2])[None, ...],
-                     torch.stack([K[::skip,::skip,::skip],
-                                  J[::skip,::skip,::skip],
-                                  I[::skip,::skip,::skip]], axis=-1)[None,...], align_corners=True)
+
+# We can now resample
+
+if False: # a bit faster, but much more GPU memory hungry. Moves A to the GPU
+    A = torch.tensor(A, device=device, dtype=dtype)
+    priors = grid_sample(A.permute([3,0,1,2])[None, ...],
+                         torch.stack([K[::skip,::skip,::skip],
+                                      J[::skip,::skip,::skip],
+                                      I[::skip,::skip,::skip]], axis=-1)[None,...], align_corners=True)
+else: # slower, but more memory frugal. A remains on the CPU!
+    priors = []
+    locs = torch.stack([K[::skip, ::skip, ::skip], J[::skip, ::skip, ::skip], I[::skip, ::skip, ::skip]], axis=-1)[None, ...]
+    aux = torch.zeros(*atlas_size, device=device, dtype=dtype)
+    for f in range(n_tissues):
+        aux[:] = 0
+        aux[atlas_bounds_tissues[f,0]:atlas_bounds_tissues[f,1],
+            atlas_bounds_tissues[f,2]:atlas_bounds_tissues[f,3],
+            atlas_bounds_tissues[f,4]:atlas_bounds_tissues[f,5]] = torch.tensor(A[f], device=device, dtype=dtype)
+        priors.append(grid_sample(aux[None, None, ...], locs, align_corners=True))
+    priors = torch.concat(priors, dim=1)
+    del locs, aux
+
+# Reshape and deal with voxels outside the FOV
 priors = torch.permute(priors[0], [1, 2, 3, 0])
-# Deal with voxels outside the FOV
 missing_mass = 1 - torch.sum(priors, axis=-1)
 priors[..., 0] += missing_mass
 
@@ -860,12 +864,14 @@ for em_it in range(100):
 
         pdb.set_trace()
 
-    print('         Step %d of EM, -loglhood = %.6f' % (em_it + 1, -loglhood ), flush=True)
+    print('         Step %d of EM, -loglhood = %.6f' % (em_it + 1, -loglhood), flush=True, end='\r')
     if (loglhood - loglhood_old) < TOL:
+        print(' ')
         print('         Decrease in loss below tolerance limit')
         break
     else:
         loglhood_old = loglhood
+print(' ')
 
 
 ###########
@@ -882,8 +888,15 @@ print('Computing normalizers (faster to do now with clustered priors)')
 normalizers = torch.zeros(GAUSSIAN_LHOODS.shape[:-1], dtype=dtype, device=device)
 # normalizers[h] = eps
 gaussian_number = 0
-for c in range(A.shape[-1]):
-    prior = grid_sample(A[None, None, ..., c], torch.stack([K, J, I], axis=-1)[None, ...], align_corners=True)[0,0,...]
+locs = torch.stack([K, J, I], axis=-1)[None, ...]
+aux = torch.zeros(*atlas_size, device=device, dtype=dtype)
+for c in range(len(A)):
+    aux[:] = 0
+    aux[atlas_bounds_tissues[c, 0]:atlas_bounds_tissues[c, 1],
+        atlas_bounds_tissues[c, 2]:atlas_bounds_tissues[c, 3],
+        atlas_bounds_tissues[c, 4]:atlas_bounds_tissues[c, 5]] = torch.tensor(A[c], device=device, dtype=dtype)
+    prior = grid_sample(aux[None, None, ...], locs, align_corners=True)[0,0,...]
+
     if c==0: # background
         prior[(I < (-1)) | (I > 1) | (J < (-1)) | (J > 1) | (K < (-1)) | (K > 1)] = 1.0
     lhood = torch.zeros_like(prior)
@@ -891,10 +904,11 @@ for c in range(A.shape[-1]):
         lhood += (weights[gaussian_number] * GAUSSIAN_LHOODS[..., gaussian_number])
         gaussian_number += 1
     normalizers += (prior * lhood)
-Ashape = A.shape
-del A
+del A, locs, aux
 
-print('Deforming one label at the time')
+########
+
+print('Deforming one label at a time')
 names, colors = my.read_LUT(LUT_file)
 seg = torch.zeros(normalizers.shape, dtype=torch.int, device=device)
 seg_rgb = torch.zeros([*normalizers.shape, 3], dtype=dtype, device=device)
@@ -903,7 +917,7 @@ vols = torch.zeros(n_labels, device=device, dtype=dtype)
 
 # TODO: choose good number of workers/prefetch factor
 for n, (prior_indices, prior_values) in enumerate(label_loader):
-    print('Deforming label ' + str(n + 1) + ' of ' + str(n_labels))
+    print('  Deforming label ' + str(n + 1) + ' of ' + str(n_labels), end='\r')
 
     if prior_indices.numel() == 0:
         continue
@@ -939,9 +953,9 @@ for n, (prior_indices, prior_values) in enumerate(label_loader):
         lr_crop = (slice(None),) * 3
     else:
         # find bounding box of label in MRI space
-        Irescaled = I * ((Ashape[0] - 1) / (max_x - min_x)) + ( (Ashape[0] - 1 - min_x - max_x) / (max_x - min_x) )
-        Jrescaled = J * ((Ashape[1] - 1) / (max_y - min_y)) + ( (Ashape[1] - 1 - min_y - max_y) / (max_y - min_y) )
-        Krescaled = K * ((Ashape[2] - 1) / (max_z - min_z)) + ( (Ashape[2] - 1 - min_z - max_z) / (max_z - min_z) )
+        Irescaled = I * ((atlas_size[0] - 1) / (max_x - min_x)) + ( (atlas_size[0] - 1 - min_x - max_x) / (max_x - min_x) )
+        Jrescaled = J * ((atlas_size[1] - 1) / (max_y - min_y)) + ( (atlas_size[1] - 1 - min_y - max_y) / (max_y - min_y) )
+        Krescaled = K * ((atlas_size[2] - 1) / (max_z - min_z)) + ( (atlas_size[2] - 1 - min_z - max_z) / (max_z - min_z) )
         mask = (Irescaled >= (-1))
         mask &= (Irescaled <= 1)
         mask &= (Jrescaled >= (-1))
@@ -962,7 +976,6 @@ for n, (prior_indices, prior_values) in enumerate(label_loader):
             lr_crop = (slice(lr_min_x, lr_max_x), slice(lr_min_y, lr_max_y), slice(lr_min_z, lr_max_z))
 
     if skip_this_label==False:
-
         prior_resampled = grid_sample(prior[None, None, ...], torch.stack([Krescaled[lr_crop], Jrescaled[lr_crop], Irescaled[lr_crop]], axis=-1)[None, ...], align_corners=True)[0, 0, ...]
         if n==0: # background
             prior_resampled[(Krescaled[lr_crop]<(-1)) | (Krescaled[lr_crop]>1) | (Jrescaled[lr_crop]<(-1)) | (Jrescaled[lr_crop]>1)  | (Irescaled[lr_crop]<(-1)) | (Irescaled[lr_crop]>1)  ] = 1.0
@@ -971,7 +984,7 @@ for n, (prior_indices, prior_values) in enumerate(label_loader):
         gaussian_numbers = torch.tensor(np.sum(number_of_gmm_components[:tissue_index[n]]) + \
                                 np.array(range(num_components)), device=device, dtype=dtype).long()
         lhood = torch.sum(GAUSSIAN_LHOODS[:, :, :, gaussian_numbers] * weights[None, None, None, gaussian_numbers], 3)
-        post = torch.squeeze(prior_resampled)
+        post = torch.clone(prior_resampled)
         post *= lhood[lr_crop]
         post /= normalizers[lr_crop]
         if n==0:
@@ -992,7 +1005,8 @@ for n, (prior_indices, prior_values) in enumerate(label_loader):
         del mask
         for c in range(3):
             seg_rgb[(*lr_crop, c)].add_(post, alpha=colors[lab][c])
-print('\n')
+        del post
+print('\n\n')
 
 ########################################################
 
@@ -1022,18 +1036,21 @@ os.system('rm -rf '  + output_dir +  '/temp*.nii.gz >/dev/null')
 
 # Print commands to visualize output
 print('You can try these commands to visualize outputs:')
-cmd = '  freeview -v ' + input_volume + ' -v ' + output_dir + '/supersynth.nii.gz:colormap=lut '
+cmd = '  freeview -v ' + input_volume + ' -v ' + output_dir + '/SuperSynth/segmentation.mgz:colormap=lut '
 if args.write_bias_corrected and (skip_bf==False):
-    cmd = cmd + ' -v ' + output_dir + '/bias.corrected.nii.gz '
+    cmd = cmd + ' -v ' + output_dir + '/bias.corrected.' + side + '.mgz'
 cmd = cmd + ' -v ' + output_dir + '/seg.' + side + '.nii.gz:colormap=lut:lut=' + LUT_file
 if args.write_rgb:
     cmd = cmd + ' -v ' + output_dir + '/seg.' + side + '.rgb.nii.gz:rgb=true'
 if args.save_atlas_nonlinear_reg:
     cmd = cmd + ' ' + fake_filename_deformed
+if args.save_jacobian:
+    cmd = cmd + ' ' + jacdet_filename
 print(cmd)
 print('  oocalc ' + output_dir + '/vols.' + side + '.csv')
 print(' ')
 print('All done!')
+
 
 ##################
 
@@ -1045,3 +1062,4 @@ print("Current Time =", current_time)
 runtime = now2 - now
 
 print("Running Time =", runtime)
+
