@@ -19,7 +19,7 @@ class frugal_models():
         self.ssynth_bbone = cp['backbone_state_dict']
         for key in self.ssynth_bbone.keys():
             self.ssynth_bbone[key] = self.ssynth_bbone[key].to(device)
-        self.ssynth_final_conv_names = ['reg', 'seg', 'T1', 'T2', 'FLAIR']
+        self.ssynth_final_conv_names = ['reg', 'seg', 'T1', 'T2', 'FLAIR', 'LP', 'LW', 'RP', 'RW']
         self.ssynth_final_conv_weight = {}
         self.ssynth_final_conv_bias = {}
         for name in self.ssynth_final_conv_names:
@@ -215,5 +215,6 @@ class frugal_models():
             qc_scores[3] = qc_scores[4] = 0
 
         return qc_scores
+
 
 
