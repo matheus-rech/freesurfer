@@ -123,6 +123,7 @@ protected slots:
   void OnCycleAnnotation();
   void OnSpinBoxOverlayFrame(int n);
   void OnOverlaySettingChanged(LayerSurface* surf);
+  void OnSpinBoxAnnotationFrame(int n);
 
 private:
   QList<SurfaceLabel*> GetSelectedLabels();

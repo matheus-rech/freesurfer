@@ -273,7 +273,7 @@ void SurfaceOverlayProperty::SetColorScale( int nScale )
     for (int i = 0; i < m_customScale.size(); i++)
     {
       QColor c = m_customScale.at(i).second;
-      m_lut->AddRGBAPoint(m_customScale.at(i).first + m_dOffset, c.redF(), c.greenF(), c.blueF(), 1);
+      m_lut->AddRGBAPoint(m_customScale.at(i).first + m_dOffset, c.redF(), c.greenF(), c.blueF(), c.alphaF());
     }
   }
   else if (nScale == CS_Embedded)
@@ -837,7 +837,10 @@ bool SurfaceOverlayProperty::LoadCustomColorScale(const QString &filename)
     foreach (QVariant v, list)
     {
       QVariantMap map = v.toMap();
-      stops << QGradientStop(map["val"].toDouble(), QColor(map["r"].toInt(), map["g"].toInt(), map["b"].toInt()));
+      QColor c = QColor(map["r"].toInt(), map["g"].toInt(), map["b"].toInt());
+      if (map.contains("a"))
+        c.setAlpha(map["a"].toInt());
+      stops << QGradientStop(map["val"].toDouble(), c);
     }
     SetColorScale(CS_Custom);
     SetCustomColorScale(stops);
@@ -858,6 +861,7 @@ bool SurfaceOverlayProperty::SaveCustomColorScale(const QString &filename)
       map["r"] = stop.second.red();
       map["g"] = stop.second.green();
       map["b"] = stop.second.blue();
+      map["a"] = stop.second.alpha();
       list << map;
     }
     file.write(QJsonDocument::fromVariant(list).toJson());

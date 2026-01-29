@@ -130,7 +130,7 @@ UseSynthMorph:
     value: False
     flags: -synthmorph
     action: enable
-    descr: Run fs-synthmorphe-reg instead of mri_ca_register
+    descr: Run fs-synthmorph-reg instead of mri_ca_register
     
 TopoFitLevel:
     value: 0

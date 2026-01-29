@@ -71,10 +71,11 @@ if($DoTal) then
   mkdir -p $tmpdir
   set mni305 = $FREESURFER_HOME/average/mni305.cor.mgz
   set mdir = $SUBJECTS_DIR/$subject/mri
+  set sdir = $SUBJECTS_DIR/$subject/surf
   set xfm = $mdir/transforms/talairach.xfm
   set lta = $tmpdir/talairach.lta
-  # Convert xfm to lta
-  set cmd = (lta_convert --src $mdir/orig.mgz --trg $mni305 \
+  # Convert xfm to tmplta
+  set cmd = (lta_convert --src $mdir/$fstarg --trg $mni305 \
      --inxfm $xfm --outlta $lta --subject fsaverage)
   echo $cmd 
   $cmd
@@ -83,7 +84,12 @@ if($DoTal) then
   set ltacopy = $tmpdir/talairach.copy.lta
   cp -p $lta $ltacopy
   # Run freeview (vglrun not needed here)
-  set cmd = (tkregisterfv --mov $mdir/orig.mgz --reg $lta)
+  set cmd = (tkregisterfv --mov $mdir/$fstarg --reg $lta)
+  @ nth = 0
+  foreach surf ($surflist)
+    @ nth = $nth + 1;
+    #set cmd = ($cmd --surface $surf":"edgecolor=$surfcolor[$nth])
+  end
   echo $cmd
   $cmd
   # Check whether the user changed the reg
@@ -549,7 +555,7 @@ if($DoTal) then
     echo "ERROR: cannot have --reg with --fstal"
     exit 0
   endif
-  set movvol = $SUBJECTS_DIR/$subject/mri/orig.mgz
+  set movvol = $SUBJECTS_DIR/$subject/mri/$fstarg
 endif
 
 if($#targ == 0) then

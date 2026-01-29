@@ -30,9 +30,7 @@ then
   echo "   - Column 3: mode (must be invivo, exvivo, cerebrum, left-hemi, or right-hemi) "
   echo "(Please note that there is no leading/header row in the CSV file) "
   echo " "
-  echo "IMPORTANT: for 32 vs 64-bit reasons, inference is tiled on the GPU but not on the CPU, "
-  echo " so results are expected to be slightly different on the 2 platforms. You can use the option"
-  echo " --force_tiling option on the CPU to force tiling and get the same results as on the GPU "
+  echo "IMPORTANT: as opposed to the earlier versions of SuperSynth, inference is not tiled anymore "
   echo " "
   echo "The command line options are: "
   echo " "
@@ -51,21 +49,16 @@ then
   echo "--device [DEV] "     
   echo "           Device used for computations (cpu or cuda). The default is to use cuda if a GPU is available (optional) "
                         
-  echo "--force_tiling "    
-  echo "           Use this flag to force tiling on CPU and get the same results as on GPU, as explained above (optional)"
+  echo "--sharpen_synths "    
+  echo "           Use this flag to sharpen the Synth-T1/-T2/-FLAIR predictions (optional)"
 
   exit 0
 fi
 
 # Try to find SuperSynth model and atlas files
 MODEL_FILE="$FREESURFER_HOME/models/SuperSynth_August_2025.pth"
-ATLAS_FILE="$FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/atlas_simplified/size.npy"
 
 # if model file or atlas files not found, print instructions for download and exit
-if [ ! -f "$MODEL_FILE" ] || [ ! -f "$ATLAS_FILE" ];
-then
-echo "Unable to located some dependencies, please follow the steps below to install them, then rerun the script."
-echo ""
 if [ ! -f "$MODEL_FILE" ]; then 
     echo " "
     echo "   Machine learning model file not found. Please download from from: "
@@ -81,26 +74,7 @@ if [ ! -f "$MODEL_FILE" ]; then
     echo "      $FREESURFER_HOME/models/ "
     echo "   should now contain an additional file:SuperSynth_August_2025.pth"
     echo " "
-fi
-if [ ! -f "$ATLAS_FILE" ]; then
-  echo " "
-  echo "   Atlas files not found. Please download atlas from: "
-  echo "      https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
-  echo "   and uncompress it into:  "
-  echo "      $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/ "
-  echo "   You only need to do this once. You can use the following three commands (may require root access): "
-  echo "      1: cd $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation"
-  echo "      2a (in Linux): wget https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
-  echo "      2b (in MAC): curl -o atlas_simplified.zip https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/Histo_Atlas_Iglesias_2023/atlas_simplified.zip "
-  echo "      3. unzip atlas_simplified.zip"
-  echo " "
-  echo "   After correct extraction, the directory: "
-  echo "      $FREESURFER_HOME/python/packages/ERC_bayesian_segmentation/atlas_simplified "
-  echo "   should contain files: size.npy, label_001.npz, label_002.npz, ..."
-  echo " "
-
-fi
-exit 1    
+    exit 1    
 fi
 
 # Create command and run!
@@ -110,6 +84,4 @@ echo "Running command:"
 echo $cmd
 echo "  "
 $cmd
-
-
 

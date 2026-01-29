@@ -154,7 +154,7 @@ bool SurfaceAnnotation::LoadFromSegmentation(const QString &fn)
        MRIfree(&mri);
        return false;
    }
-   m_nNumberOfFrames = mri->depth;
+   m_nNumberOfFrames = mri->nframes;
    if (m_data)
      delete[] m_data;
    m_data = new int[m_nIndexSize*m_nNumberOfFrames];
@@ -254,10 +254,13 @@ void SurfaceAnnotation::UpdateData()
 
   // find valid annotations
   QList<int> annotIndices;
+  int* data = m_data;
+  if (m_nNumberOfFrames > 1)
+    data = m_data + m_nActiveFrame*m_nIndexSize;
   for ( int i = 0; i < m_nIndexSize; i++ )
   {
     int n = -1;
-    if ( m_data[i] >= 0 && CTABfindAnnotation( m_lut, m_data[i], &n ) == 0 &&
+    if ( data[i] >= 0 && CTABfindAnnotation( m_lut, data[i], &n ) == 0 &&
          n >= 0)
     {
       m_nIndices[i] = n;
@@ -271,7 +274,7 @@ void SurfaceAnnotation::UpdateData()
       foreach (int id, new_ids)
       {
         NewAnnotationLabel nl = m_mapNewLabels[id];
-        if (ColorToAnnotation(nl.color) == m_data[i])
+        if (ColorToAnnotation(nl.color) == data[i])
         {
           m_nIndices[i] = nl.id;
           if (!annotIndices.contains(nl.id))

@@ -648,6 +648,7 @@ def get_tissue_settings(
     atlas_combined_label_file,
     aseg_combined_label_file,
     gmm_component_file,
+    cheating_recipe_file,
     aseg_label_list,
 ):
 
@@ -691,4 +692,58 @@ def get_tissue_settings(
     gmm_components = gmm_components["Number of components in a class"]
     gmm_components =[list(x.values())[0] for x in gmm_components]
 
-    return atlas_indices, aseg_indices, np.array(all_labels_list), np.array(gmm_components)
+    # Finally, the recipe for the cheating image, as a set of weights
+    cheating_recipe = np.zeros([len(atlas_groups) ,7]) # there's always 7 weights
+    with open(cheating_recipe_file) as f:
+        data = yaml.full_load(f)
+    data = data["Recipe consisting of 7 weights for WM, GM, WMC, GMC, CA, PU, PA"]
+    for _, T in enumerate(data):
+        name = next(iter(T))
+        idx = -1
+        for j in range(len(atlas_groups)):
+            if next(iter(atlas_groups[j]))==name:
+                idx = j
+        if idx>=0:
+            cheating_recipe[idx, :] =T[name][0]
+        else:
+            raise Exception('Group from recipe not found; check the format of your yamls!')
+
+    return atlas_indices, aseg_indices, np.array(all_labels_list), np.array(gmm_components), cheating_recipe
+
+
+def get_label_sets_for_label_registration(mode):
+    set_gm_cerebrum = [108, 111, 128, 99, 113, 125, 157, 344, 369, 409, 567, 340, 563, 419, 373, 572, 345, 370, 374,
+                       410, 420, 564, 573, 341, 568, 371, 375, 411, 421, 565, 569, 574, 342, 346, 326, 347, 576, 558,
+                       404, 364, 405, 559, 365, 561, 407, 367, 575, 422, 432, 320, 295, 2001, 2002, 2003, 2005, 2006,
+                       2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022,
+                       2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035, 343, 368, 372, 408,
+                       418, 562, 566, 571, 339, 354]
+    set_gm_cerebellum = [595, 597]
+    set_acc_cau_put = [48, 118, 393, 101, 184, 79, 349]
+    set_thalamus = [276, 444, 430, 201, 314, 381, 382, 394, 458, 283, 493, 519, 191, 312, 285, 425, 284, 396, 479,
+                        350, 222, 397, 218, 492, 322, 442, 190, 246, 517, 478, 226, 303, 398, 426, 424, 400, 274, 395,
+                        423, 811, 441, 504, 512, 510, 378, 221, 379, 313, 282, 225, 224, 399, 286, 223, 454, 380, 813,
+                        219, 220, 252, 253, 443, 508, 578]
+    set_pallidum = [119, 206]
+    set_bg = [0, 50]
+    set_hypo = [256, 275, 304, 147, 150, 192, 193, 194, 207, 227, 228, 229, 243, 244, 245, 255, 268, 297, 308,
+                        149, 160, 181, 196, 230, 232, 234, 309, 433]
+    set_amyg = [215, 216, 377, 217, 214, 242, 301, 238, 240, 277, 278, 279]
+    set_fornix = [199]
+    set_chiasm = [161, 114, 843]
+    set_mambody = [298, 305, 306, 307]
+    set_septal = [103, 117]
+
+
+    if (mode == 'hemi') or (mode == 'cerebrum'):
+        sets = [set_gm_cerebrum, set_acc_cau_put, set_thalamus, set_pallidum, set_hypo,
+                set_amyg, set_fornix, set_chiasm, set_mambody, set_septal]
+
+    else:
+        sets = [set_gm_cerebrum, set_gm_cerebellum, set_acc_cau_put, set_thalamus, set_pallidum, set_bg,
+                set_hypo, set_amyg, set_fornix, set_chiasm, set_mambody, set_septal]
+
+    return sets
+
+
+

@@ -7,25 +7,21 @@ set -e
 [ ! -e "$FREESURFER_HOME" ] && echo "error: freesurfer has not been properly sourced" && exit 1
 
 # If requesting help
-if  [ $# == 1 ] && [  $1 == "--help" ]
+if  [ $# == 0 ]
 then
   echo " "
   echo "Bayesian segmentation with histological whole brain atlas (fast version with FireANTs registration)."
   echo " "
   echo "- A probabilistic histological atlas of the human brain for MRI segmentation"
-  echo "    Casamitjana et al. (in press)"
+  echo "    Casamitjana et al., Nature, 2025 (https://www.nature.com/articles/s41586-025-09708-2)"
   echo "- Fast segmentation with the NextBrain histological atlas"
   echo "    Puonti et al. (under revision)"
   echo " "
-  echo "Usage:"
-  echo "   mri_histo_atlas_segment_fireants INPUT_SCAN OUTPUT_DIRECTORY GPU THREADS MODE SIDE"
+  echo "Basic usage:"
+  echo "   mri_histo_atlas_segment_fireants --i INPUT_SCAN --o OUTPUT_DIRECTORY --device [cpu/cuda] \\ "
+  echo "                                    --side [left/right] --mode [invivo/cerebrum/hemi/exvivo]"
   echo " "
-  echo "INPUT SCAN: scan to process, in mgz or nii(.gz) format"
-  echo "OUTPUT_DIRECTORY: directory with segmentations, volume files, etc"
-  echo "GPU: set to 1 to use the GPU; requires a fat (~48GB) GPU!"
-  echo "THREADS: number of CPU threads to use (use -1 for all available threads)"
-  echo "MODE: invivo , exvivo, cerebrum, or hemi"
-  echo "SIDE: left or right"
+  echo "   (see many more options with --help) "
   echo " "
   exit 0
 fi

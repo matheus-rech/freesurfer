@@ -21,7 +21,8 @@ endif()
 
 install_configured(samseg samseg-long DESTINATION bin)
 
-if(NOT APPLE_ARM64)
-   add_test_script(NAME samseg_test SCRIPT test.sh)
-endif()
+## should work on intel and silicon Mac (12/29/2025)
+# if(NOT APPLE_ARM64)
+add_test_script(NAME samseg_test SCRIPT test.sh)
+# endif()
 

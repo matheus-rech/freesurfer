@@ -32,6 +32,7 @@ set nErodeWM = 0
 set MergeSeg = ()
 set MergeSegIds = ()
 set MergeSegCtab = ()
+set ForceUpdate = 0
 
 set tmpdir = ();
 set cleanup = 1;
@@ -110,6 +111,7 @@ if($DoXCerSeg) then
   if($AddVermis == 0) set cmd = ($cmd --no-vermis)
   if(! $UseSamseg) set cmd = ($cmd --no-samseg)
   if($#xcthresh) set cmd = ($cmd --thresh $xcthresh)
+  if($ForceUpdate) set cmd = ($cmd --force)
   echo $cmd | tee -a $LF
   $cmd | tee -a $LF
   if($status) goto error_exit;
@@ -140,34 +142,40 @@ if($SubSegWM && $#wmannot == 0) then
   end
 endif
 
-set cmd = (mri_gtmseg --s $subject --usf $USF --o $outvol --threads $threads)
-set cmd = ($cmd --apas $headseg --wm-erode $nErodeWM)
-if($#ctxannot)  set cmd = ($cmd --ctx-annot $ctxannot $ctxlhbase $ctxrhbase)
-if($#wmannot)   set cmd = ($cmd --wm-annot  $wmannot  $wmlhbase  $wmrhbase)
-if($SubSegWM)   set cmd = ($cmd --subseg-wm --dmax $dmax)
-if(! $SubSegWM) set cmd = ($cmd --no-subseg-wm) # why needed?
-if($KeepCC)     set cmd = ($cmd --keep-cc)
-if(! $KeepCC)   set cmd = ($cmd --no-keep-cc)
-if($KeepHypo)     set cmd = ($cmd --keep-hypo)
-if(! $KeepHypo)   set cmd = ($cmd --no-keep-hypo)
-if($#OutputUSF)   set cmd = ($cmd --output-usf $OutputUSF)
-if($#ctab)        set cmd = ($cmd --ctab $ctab)
-if($#MergeSeg)    set cmd = ($cmd --merge $MergeSeg $MergeSegIds)
-if($#MergeSegCtab) set cmd = ($cmd --ctab $MergeSegCtab)
-
-echo $cmd | tee -a $LF
-$cmd | tee -a $LF
-if($status) goto error_exit;
+set ud = `UpdateNeeded $SUBJECTS_DIR/$subject/mri/$outvol $ctxannotlist $wmannotlist $SUBJECTS_DIR/$subject/mri/$headseg $MergeSeg`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_gtmseg --s $subject --usf $USF --o $outvol --threads $threads)
+  set cmd = ($cmd --apas $headseg --wm-erode $nErodeWM)
+  if($#ctxannot)  set cmd = ($cmd --ctx-annot $ctxannot $ctxlhbase $ctxrhbase)
+  if($#wmannot)   set cmd = ($cmd --wm-annot  $wmannot  $wmlhbase  $wmrhbase)
+  if($SubSegWM)   set cmd = ($cmd --subseg-wm --dmax $dmax)
+  if(! $SubSegWM) set cmd = ($cmd --no-subseg-wm) # why needed?
+  if($KeepCC)     set cmd = ($cmd --keep-cc)
+  if(! $KeepCC)   set cmd = ($cmd --no-keep-cc)
+  if($KeepHypo)     set cmd = ($cmd --keep-hypo)
+  if(! $KeepHypo)   set cmd = ($cmd --no-keep-hypo)
+  if($#OutputUSF)   set cmd = ($cmd --output-usf $OutputUSF)
+  if($#ctab)        set cmd = ($cmd --ctab $ctab)
+  if($#MergeSeg)    set cmd = ($cmd --merge $MergeSeg $MergeSegIds)
+  if($#MergeSegCtab) set cmd = ($cmd --ctab $MergeSegCtab)
+  echo $cmd | tee -a $LF
+  $cmd | tee -a $LF
+  if($status) goto error_exit;
+endif
 
 if($DoSegStats) then
   set gtmsegstem = `fname2stem $outvol`
   set gtmctab = $SUBJECTS_DIR/$subject/mri/$gtmsegstem.ctab
   set stat = $SUBJECTS_DIR/$subject/stats/$gtmsegstem.stats
   set gtmseg = $SUBJECTS_DIR/$subject/mri/$outvol
-  set cmd = (mri_segstats --seg $gtmseg --ctab $gtmctab --sum $stat \
-    --excludeid 0 --etiv --subject $subject)
-  $cmd | tee -a $LF
-  if($status) goto error_exit;
+  set ud = `UpdateNeeded $stat $gtmseg`
+  if($ud || $ForceUpdate) then
+    set cmd = (mri_segstats --seg $gtmseg --ctab $gtmctab --sum $stat \
+      --excludeid 0 --etiv --subject $subject)
+    echo $cmd | tee -a $LF
+    $cmd | tee -a $LF
+    if($status) goto error_exit;
+  endif
 endif
 
 
@@ -374,6 +382,13 @@ while( $#argv != 0 )
       set threads = $argv[1]; shift;
       breaksw
 
+    case "--force":
+     set ForceUpdate = 1
+     breaksw
+    case "--no-force":
+     set ForceUpdate = 0
+     breaksw
+
     case "--log":
       if($#argv < 1) goto arg1err;
       set LF = $argv[1]; shift;
@@ -427,6 +442,7 @@ if(! -e $SUBJECTS_DIR/$subject) then
   echo "ERROR: cannot find $subject"
   exit 1;
 endif
+set ctxannotlist = ()
 if($#ctxannot) then
   foreach hemi (lh rh)
     set f = $SUBJECTS_DIR/$subject/label/$hemi.$ctxannot
@@ -434,12 +450,14 @@ if($#ctxannot) then
     set f = $SUBJECTS_DIR/$subject/label/$hemi.$ctxannot.annot
     if(-e $f) then
       set ctxannot = $ctxannot.annot
+      set ctxannotlist = ($ctxannotlist $ctxannot)
       continue
     endif
     echo "ERROR: cannot find $SUBJECTS_DIR/$subject/label/$hemi.$ctxannot"
     exit 1;
   end
 endif
+set wmannotlist = ()
 if($#wmannot) then
   foreach hemi (lh rh)
     set f = $SUBJECTS_DIR/$subject/label/$hemi.$wmannot
@@ -447,6 +465,7 @@ if($#wmannot) then
     set f = $SUBJECTS_DIR/$subject/label/$hemi.$wmannot.annot
     if(-e $f) then
       set wmannot = $wmannot.annot
+      set wmannotlist = ($wmannotlist $wmannot)
       continue
     endif
     echo "ERROR: cannot find $SUBJECTS_DIR/$subject/label/$hemi.$wmannot"
@@ -467,6 +486,7 @@ if(! -e $SUBJECTS_DIR/$subject/mri/$headseg) then
   endif
 else
   # Headseg is there
+  if($ForceUpdate) set DoXCerSeg = 1;
   if($#DoXCerSeg == 0) then
     # No instruction as to whether to overwrite it or not
     echo "ERROR: $SUBJECTS_DIR/$subject/mri/$headseg exists. This is ok"
@@ -543,6 +563,7 @@ usage_exit:
   echo " --ctab colortable "
   echo " --seg-stats : compute segmentation stats"
   echo " --xcthresh xcthresh : mri_seghead thresh"
+  echo " --force : force rerunning and overwriting results"
   echo ""
   echo " --debug "
   echo " --help "

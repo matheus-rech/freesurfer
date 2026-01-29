@@ -377,9 +377,9 @@ else:
         moved_segs.append(moved_seg)
 
         # Configure registration commands
-        commands.append(f'reg_aladin -ref {masked} -flo {moving} -aff {affine} -res {affine_img} -voff')
-        commands.append(f'reg_f3d -ref {masked} -flo {moving} -aff {affine} -cpp {deform} -res {moved}')
-        commands.append(f'reg_resample -ref {masked} -flo {seg} -trans {deform} -res {moved_seg} -inter 0')
+        commands.append(f'reg_aladin -ref {masked} -flo {moving} -aff {affine} -res {affine_img} -voff -pad 0')
+        commands.append(f'reg_f3d -ref {masked} -flo {moving} -aff {affine} -cpp {deform} -res {moved} -pad 0')
+        commands.append(f'reg_resample -ref {masked} -flo {seg} -trans {deform} -res {moved_seg} -inter 0 -pad 0')
 
     # ---- Fuse segmentations ----
 
@@ -435,7 +435,7 @@ res = 'work/talairach.nii.gz'
 xfm = 'mri/transforms/talairach.xfm'
 commands = [
     f'mri_convert $FREESURFER_HOME/average/mni305.cor.mgz {target}',
-    f'reg_aladin -ref {target} -flo {masked} -res {res} -aff {affine} -voff',
+    f'reg_aladin -ref {target} -flo {masked} -res {res} -aff {affine} -voff -pad 0',
     f'lta_convert --inniftyreg {affine} --outmni {xfm} --src {masked} --trg {target}',
 ]
 if not args.no_cleanup:
@@ -545,7 +545,7 @@ try:
             detfile = 'mri/transforms/det.txt'
             mult = '400321.078176'  # see wiki for explanation
             commands = [
-                f'reg_aladin -ref {template} -flo {masked} -aff {base}.txt -res {base}.nii.gz -voff',
+                f'reg_aladin -ref {template} -flo {masked} -aff {base}.txt -res {base}.nii.gz -voff -pad 0',
                 f'lta_convert --inniftyreg {base}.txt --outlta {base}.lta --outmni {base}.xfm --src {masked} --trg {template}',
                 f'lta_diff {base}.lta --dist 5 >> {detfile}',
                 f'echo `tail -n 1 {detfile}` \* {mult} | bc -l >> {etiv}',

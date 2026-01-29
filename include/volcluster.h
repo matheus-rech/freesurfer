@@ -204,6 +204,7 @@ public:
   MRI *binmask=NULL;
   MRI *cnomap =NULL;
   MRIS *surf=NULL;
+  MRI *surfarea=NULL;
   int debug = 0;
   std::vector<std::vector<int>> voxlist; //c,r,s,f
   class Cluster {
@@ -211,14 +212,28 @@ public:
     int cno = 0;
     int nmembers = 0;
     std::vector<std::vector<int>> crst;
+    double csize=0; // can be vox, mm3, mm2, or nverts
+    double maxstat=0;
+    std::vector<int> crstmax;
+    double pvalue=0;
   };
+  static bool CompareClusters(const Cluster c1,const Cluster c2){
+    // sorts from largest to smallest
+    return c1.csize > c2.csize;
+  }
   std::vector<Cluster> ClusterList;
+  std::vector<Cluster> SortedClusterList;
+  int SortClusters(MRI *statvol);
+  int PruneClusters(double thresh);
   std::vector<std::vector<int>> GetNearestNeighbors(std::vector<int> vox);
   int GrowOne(std::vector<int> vox, int cno);
   int Clusterize(void);
   int MaxClusterSize(void);
   std::vector<double> GetClusterSizes(void);
-  int PrintClusterSum(FILE *fp);
+  int ClusterSummarize(MRI *statvol=NULL);
+  int PrintClusterSum(FILE *fp,MRI *statvol=NULL);
+  int WriteClusterSum(char *fname,MRI *statvol);
+  int WritePointSet(char *fname,MRI *statvol);
   int GetBinMask(MRI *ov, double thmin, double thmax, int sign, MRI *mask);
   int GetCtab=1;
 };

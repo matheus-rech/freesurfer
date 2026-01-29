@@ -14,12 +14,13 @@
 # $Id$
 
 import sys
+import os
 import csv
 
 #---------------------------------------------------------
 def print_help():
   print("USAGE: csvprint")
-  print("  --csv csvfile")
+  print("  --csv csvfile (can be a tsv file)")
   print("  --f field1 <field2...>")
   print("  --rid rid1 <rid2...> : match RID for ADNI")
   print("  --s subjid1 <subjid2...> : create RID from FS subject name (leading 0s)")
@@ -36,7 +37,7 @@ def argnerr(narg,flag):
 
 #---------------------------------------------------------
 def parse_args(argv):
-  global csvfile,fields,ridlist,vlist,labellist
+  global csvfile,fields,ridlist,vlist,labellist,delimiter
   global debug
 
   del argv[0] # get past program name (like shift)
@@ -75,6 +76,8 @@ def parse_args(argv):
       while(len(argv) > 0 and not isflag(argv[0])):
         labellist.append(argv[0])
         del argv[0]
+    elif(flag == "--tsv"): 
+      delimiter="\t";
     elif(flag == "--debug"):
       debug = 1
     else:
@@ -117,6 +120,7 @@ fields  = []
 ridlist = []
 vlist = []
 labellist = []
+delimiter=",";
 
 nargs = len(sys.argv) - 1
 if(nargs == 0):
@@ -126,9 +130,14 @@ if(nargs == 0):
 parse_args(sys.argv)
 check_args()
 
+filename, file_extension = os.path.splitext(csvfile);
+if(file_extension == ".csv"): delimiter=",";
+if(file_extension == ".tsv"): delimiter="\t";
+
+#print("delimiter ##%s##" % delimiter)
 #print "csv file is %s" % csvfile;
 #print "fields is %s" % fields;
-csv = csv.reader(open(csvfile, 'r'), delimiter=',', quotechar='"')
+csv = csv.reader(open(csvfile, 'r'), delimiter=delimiter, quotechar='"')
 
 m = 0
 for row in csv:

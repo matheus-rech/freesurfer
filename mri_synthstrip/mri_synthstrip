@@ -27,10 +27,17 @@ p.add_argument('-t', '--threads', type=int, help='PyTorch CPU threads, PyTorch d
 p.add_argument('-f', '--fill', type=float, help='BG fill value, defaults to min(image.min, 0)')
 p.add_argument('--no-csf', action='store_true', help='exclude CSF from brain border')
 p.add_argument('--model', metavar='FILE', help='alternative model weights')
+p.add_argument('-v', '--version', action="store_true", help='print SynthStrip version')
+
 if len(sys.argv) == 1 or '-h' in sys.argv or '--help' in sys.argv:
     p.print_help()
     print(ref)
     exit(1)
+if ("-v" in sys.argv or "--version" in sys.argv):
+    v = os.environ.get('SYNTHSTRIP_VERSION', 'unknown')
+    print(v)
+    exit(1)
+
 args = p.parse_args()
 
 # do not wait for third-party imports just to show usage

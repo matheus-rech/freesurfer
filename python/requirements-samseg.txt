@@ -2,4 +2,10 @@
 # no numpy 2 requirement
 # samseg@git+https://github.com/freesurfer/samseg.git@9ceddd23495544a6c38cae205c8ff908c51beb21
 # 11/18/2025
-samseg@git+https://github.com/freesurfer/samseg.git@99ff4d8b6bdfeb9daf34e60ac9074fbb8f9e9119
+# samseg@git+https://github.com/freesurfer/samseg.git@99ff4d8b6bdfeb9daf34e60ac9074fbb8f9e9119
+# 12/18/2025
+# samseg@git+https://github.com/freesurfer/samseg.git@b961604591ad3caab3120b531dc4ba306974abe7
+# above removed due to surfa dependency issue
+samseg@git+https://github.com/freesurfer/samseg.git@dev
+# pointing to dev branch of samseg
+# samseg

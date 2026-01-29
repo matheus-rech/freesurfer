@@ -31,6 +31,7 @@
 #define VOLCLUSTER_SRC
 #include "surfcluster.h"
 #include "volcluster.h"
+#include "pointset.h"
 
 
 static int ConvertCRS2XYZ(int col, int row, int slc, MATRIX *CRS2XYZ, float *x, float *y, float *z);
@@ -2360,12 +2361,9 @@ int SpatTempCluster::Clusterize(void){
     printf("ERROR: nbrtype must set when topo=1, should be 1, 2, or 3\n");
     return(1);
   }
-  //printf("cl:VMPC1.0 %d\n",GetVmPeak());
   if(this->cnomap) MRIfree(&this->cnomap);
   this->cnomap = MRIclone(this->binmask,NULL);
-  //printf("cl:VMPC2.0 %d\n",GetVmPeak());
   this->ClusterList.clear();
-  //printf("cl:VMPC3.0 %d\n",GetVmPeak());
   int pointno = -1;
   int cno = -1;
   while(1){
@@ -2391,14 +2389,8 @@ int SpatTempCluster::Clusterize(void){
     cl.cno = cno;
     if(debug) printf("Adding cno=%d pointno=%d  %d %d %d %d =====\n",cno,pointno,vox[0],vox[1],vox[2],vox[3]);
     this->ClusterList.push_back(cl);
-    //printf("pregrow:VMPC3.1 %d\n",GetVmPeak());
     this->GrowOne(vox,cno);
-    //int nhits = this->GrowOne(vox,cno);
-    //printf("pstgrow:VMPC3.2 %d    %d\n",GetVmPeak(),nhits);
   }
-  //printf("cl:VMPC4.0 %d\n",GetVmPeak());
-  //printf("Found %d clusters\n",(int)this->ClusterList.size());
-  //printf("Adding ctab\n");
   if(this->GetCtab) {
     printf("getting ctab %d\n",(int)this->ClusterList.size()+1);
     if(this->cnomap->ct) CTABfree(&this->cnomap->ct);
@@ -2409,13 +2401,142 @@ int SpatTempCluster::Clusterize(void){
   return(this->ClusterList.size());
 }
 
-int SpatTempCluster::PrintClusterSum(FILE *fp){
+int SpatTempCluster::ClusterSummarize(MRI *statvol)
+{
+  this->GetClusterSizes();
+  // Tricky to to compute the size because spatial-temporal
+  for(int n=0; n < this->ClusterList.size(); n++){
+    Cluster &cl = this->ClusterList[n];
+    cl.nmembers = (int)cl.crst.size(); // have to do this?
+    if(this->topo == 1) {
+      double voxsize = binmask->xsize*binmask->ysize*binmask->zsize;
+      cl.csize = voxsize * cl.nmembers;
+    }
+    else {
+      if(this->surfarea == NULL){
+	cl.csize = cl.nmembers; // number of vertices
+      }
+      else {
+	cl.csize = 0;
+	for(int v=0; v < cl.nmembers; v++){
+	  cl.csize += MRIgetVoxVal(this->surfarea,cl.crst[v][0],0,0,0);
+	}
+      }
+    }
+    cl.maxstat = 0;
+    cl.crstmax = cl.crst[0];
+    if(statvol != NULL) {
+      for(int v=0; v < cl.nmembers; v++){
+	double val = MRIgetVoxVal(statvol,cl.crst[v][0],cl.crst[v][1],cl.crst[v][2],cl.crst[v][3]);
+	//printf("  v=%d  val=%g\n",v,val);
+	if(fabs(cl.maxstat) < val || v==0) {
+	  cl.maxstat = val;
+	  cl.crstmax = cl.crst[v];
+	}
+      }
+    }
+    //printf("Cno %d  size=%g  max=%g at %d %d %d %d\n",n,cl.csize,cl.maxstat,
+    //	   cl.crstmax[0],cl.crstmax[1],cl.crstmax[2],cl.crstmax[3]);
+
+  }
+  return(0);
+}
+
+int SpatTempCluster::WriteClusterSum(char *fname,MRI *statvol){
+  FILE *fp = fopen(fname,"w");
+  if(!fp) return(1);
+  this->PrintClusterSum(fp,statvol);
+  fclose(fp);
+  return(0);
+}
+
+int SpatTempCluster::PrintClusterSum(FILE *fp,MRI *statvol){
+  this->ClusterSummarize(statvol);
+  fprintf(fp," Cno      CSize        C   R   S    F    MaxStat  PValue\n");
   for(int n=0; n < this->ClusterList.size(); n++){
     Cluster cl = ClusterList[n];
-    fprintf(fp,"%2d %5d   %3d %3d %3d  %3d\n",n+1,(int)cl.crst.size(),
-	    cl.crst[0][0],cl.crst[0][1],cl.crst[0][2],cl.crst[0][3]);
+    fprintf(fp,"%4d %10.4lf   %6d %3d %3d  %3d   %8.4lf %8.7lf\n",n+1,cl.csize,
+	    cl.crstmax[0],cl.crstmax[1],cl.crstmax[2],cl.crstmax[3],cl.maxstat,cl.pvalue);
   }
   fflush(fp);
+  return(0);
+}
+
+int SpatTempCluster::WritePointSet(char *fname,MRI *statvol){
+  this->ClusterSummarize(statvol);
+  fsPointSet ps;
+  for(int n=0; n < this->ClusterList.size(); n++){
+    Cluster cl = ClusterList[n];
+    fsPointSet::Point p;
+    p.index = n+1;
+    p.count = cl.csize;
+    p.x = cl.crstmax[0];
+    p.y = cl.crstmax[1];
+    p.z = cl.crstmax[2];
+    p.value = cl.pvalue;
+    ps.add(p);
+  }
+  printf("WritePointSet() %s\n",fname);
+  int ok = ps.writeCentroidTable(fname,"");
+  if(!ok) printf("ERROR: WritePointSet() %s\n",fname);
+  return(ok);
+}
+
+int SpatTempCluster::SortClusters(MRI *statvol){
+  this->ClusterSummarize(statvol);
+  this->SortedClusterList = this->ClusterList;
+  std::sort(this->SortedClusterList.begin(), this->SortedClusterList.end(), this->CompareClusters);
+  std::vector<int> cmap_old_to_new(this->ClusterList.size());
+  for(int n=0; n < this->ClusterList.size(); n++){
+    cmap_old_to_new[SortedClusterList[n].cno] = n; //0-based
+    SortedClusterList[n].cno = n+1;
+  }
+  for(int c=0; c < this->cnomap->width; c++){
+    for(int r=0; r < this->cnomap->height; r++){
+      for(int s=0; s < this->cnomap->depth; s++){
+	for(int f=0; f < this->cnomap->nframes; f++){
+	  int oldcno = MRIgetVoxVal(this->cnomap,c,r,s,f);
+	  if(oldcno == 0) continue;
+	  MRIsetVoxVal(this->cnomap,c,r,s,f,cmap_old_to_new[oldcno-1]+1);
+	}
+      }
+    }
+  }
+  this->ClusterList = this->SortedClusterList;
+  return(0);
+}
+
+int SpatTempCluster::PruneClusters(double thresh){
+  std::vector<Cluster> PrunedClusterList;
+  int m = 0;
+  std::vector<int> cmap_old_to_new(this->ClusterList.size()); //0-based
+  for(int n=0; n < this->ClusterList.size(); n++){
+    Cluster cl = ClusterList[n];
+    if(cl.pvalue >= thresh) {
+      cmap_old_to_new[n] = -1;
+      continue;
+    }
+    PrunedClusterList.push_back(cl);
+    cmap_old_to_new[n] = m; //0-based
+    m++;
+    PrunedClusterList[m-1].cno = m;
+  }
+
+  printf("Pruning from %d to %d, thresh=%g\n",
+	 (int)this->ClusterList.size(),(int)PrunedClusterList.size(),thresh);
+  for(int c=0; c < this->cnomap->width; c++){
+    for(int r=0; r < this->cnomap->height; r++){
+      for(int s=0; s < this->cnomap->depth; s++){
+	for(int f=0; f < this->cnomap->nframes; f++){
+	  int oldcno = MRIgetVoxVal(this->cnomap,c,r,s,f);
+	  if(oldcno == 0) continue;
+	  if(cmap_old_to_new[oldcno-1] != -1) continue;
+	  MRIsetVoxVal(this->cnomap,c,r,s,f,0);
+	}
+      }
+    }
+  }
+  this->ClusterList = PrunedClusterList;
   return(0);
 }
 

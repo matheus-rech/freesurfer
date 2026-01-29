@@ -194,6 +194,9 @@ else
   set cmd0 = ($FREESURFER_HOME/python/scripts/run_samseg)
 endif
 set cmd0 = ($cmd0  -o $outdir --threads $threads)
+if($?SAMSEG_DATA_DIR) then
+  set cmd0 = ($cmd0 --atlas $SAMSEG_DATA_DIR)
+endif
 if($FatShift) set cmd0 = ($cmd0 --fat-shift)
 if($SaveMesh) set cmd0 = ($cmd0 --save-mesh)
 if($#regmat)  set cmd0 = ($cmd0 --reg $regmat)
@@ -752,6 +755,13 @@ while( $#argv != 0 )
       unsetenv SAMSEG_USE_LOGDOMAIN_COSTANDGRADIENT_CALCULATOR
       breaksw
 
+    case "--force":
+     set ForceUpdate = 1
+     breaksw
+    case "--no-force":
+     set ForceUpdate = 0
+     breaksw
+
     case "--tmp":
     case "--tmpdir":
       if($#argv < 1) goto arg1err;
@@ -947,6 +957,7 @@ usage_exit:
   echo " --ignore-unknown"
   echo " --smooth-wm-cortex sigma : smooth wm and cortex priors"
   echo " --profile file.prof : run run_samseg inside the cProfile python profiler"
+  echo " --force : force rerunning and overwriting results"
   echo ""
 
   if(! $PrintHelp) exit 1;
