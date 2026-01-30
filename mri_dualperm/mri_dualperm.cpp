@@ -681,6 +681,7 @@ static void print_usage(void) {
   printf("   --fsgdN fsgdNfile : FreeSurfer Group Descriptor File for modality N=1,2\n"); 
   printf("     see surfer.nmr.mgh.harvard.edu/fswiki/FsgdExamples\n");
   printf("   --osgmN : analyze modality N as a one-sample-group-mean (OSGM), instead of --fsgd \n");
+  printf("   --ptypeN permtype (0=noperm, 1=sign, 2=shuffle, 3=sign+shufflen\n");
   printf("   --no-residualizeN : do not residualize modality N before permuting (not recommended)\n");
   printf("   --pstacksaveN : save all surrogates in one file (a stack) for modality N=1,2\n");
   printf("   --map1-only only analyze modality 1 (for creating atlases and pstacks); modality 2 not needed\n");
@@ -696,7 +697,6 @@ static void print_usage(void) {
   printf("   --tsgdN : analyze modality N as a two-sample-group-diff (TSGD) \n");
   printf("   --subsetN nsubset type (first, last, rand)\n");
   printf("   --listN framelistfile\n");
-  printf("   --ptypeN permtype (0=noperm, 1=sign, 2=shuffle, 3=sign+shufflen\n");
   printf("   --pX-save : save permuted design matrices\n");
   printf("   --gdiag diagno : set diagnostic level\n");
   printf("   --debug     turn on debugging\n");
