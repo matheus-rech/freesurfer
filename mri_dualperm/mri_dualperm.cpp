@@ -493,8 +493,8 @@ int main(int argc, char *argv[])
   for(int modeno=0; modeno < nmodes; modeno++){
     ModeArg *ma  = &marg[modeno];
     if(ma->pstacksave){
-      sprintf(fname,"%s/pstack%d.nii.gz",outdir,modeno+1);
-      printf("Writing mode %d pstack to %s\n",modeno+1,fname);
+      sprintf(fname,"%s/surrogates%d.nii.gz",outdir,modeno+1);
+      printf("Writing mode %d surrogates to %s\n",modeno+1,fname);
       err = MRIwrite(pstacksave[modeno],fname);
       if(err) exit(1);
     }
@@ -594,17 +594,17 @@ static int parse_commandline(int argc, char **argv) {
       if(!strcasecmp(option, "--readd2")) modeno = 2;
       marg[modeno-1].residualize = 2;
     }
-    else if(!strcasecmp(option, "--pstack1") || !strcasecmp(option, "--pstack2")) {
-      if(!strcasecmp(option, "--pstack1")) modeno = 1;
-      if(!strcasecmp(option, "--pstack2")) modeno = 2;
+    else if(!strcasecmp(option, "--surrogates1") || !strcasecmp(option, "--surrogates2")) {
+      if(!strcasecmp(option, "--surrogates1")) modeno = 1;
+      if(!strcasecmp(option, "--surrogates2")) modeno = 2;
       if(nargc < 1) CMDargNErr(option,1);
       marg[modeno-1].pstackfile = pargv[0];
       dp.permtype[modeno-1] = 4;
       nargsused = 1;
     }
-    else if(!strcasecmp(option, "--pstacksave1") || !strcasecmp(option, "--pstacksave2")) {
-      if(!strcasecmp(option, "--pstacksave1")) modeno = 1;
-      if(!strcasecmp(option, "--pstacksave2")) modeno = 2;
+    else if(!strcasecmp(option, "--save-surrogates1") || !strcasecmp(option, "--save-surrogates2")) {
+      if(!strcasecmp(option, "--save-surrogates1")) modeno = 1;
+      if(!strcasecmp(option, "--save-surrogates2")) modeno = 2;
       marg[modeno-1].pstacksave = 1;
     }
     else if(!strcasecmp(option, "--list1") || !strcasecmp(option, "--list2")) {
@@ -683,9 +683,9 @@ static void print_usage(void) {
   printf("   --osgmN : analyze modality N as a one-sample-group-mean (OSGM), instead of --fsgd \n");
   printf("   --ptypeN permtype (0=noperm, 1=sign, 2=shuffle, 3=sign+shufflen\n");
   printf("   --no-residualizeN : do not residualize modality N before permuting (not recommended)\n");
-  printf("   --pstacksaveN : save all surrogates in one file (a stack) for modality N=1,2\n");
-  printf("   --map1-only only analyze modality 1 (for creating atlases and pstacks); modality 2 not needed\n");
-  printf("   --pstackN pstackNfile : input permuted surrogate stack for modality N\n");
+  printf("   --save-surrogatesN : save all surrogates in one file (a stack) for modality N=1,2\n");
+  printf("   --map1-only only analyze modality 1 (for creating atlases and surrogatess); modality 2 not needed\n");
+  printf("   --surrogatesN surrogatesNfile : input surrogate stack for modality N\n");
   printf("     as output from another run of mri_dualperm, possibly using --map1-only.\n");
   printf("     If using this option, then do not supply --mapN, --maskN, or --fsgdN\n");
   #ifdef _OPENMP
