@@ -28,7 +28,6 @@ from scipy.ndimage import binary_erosion, binary_fill_holes
 
 parser = argparse.ArgumentParser(description='NextBrain segmentation with SuperSynth and FireANTs.')
 parser.add_argument("--i", help="Image to segment.", required=True)
-parser.add_argument("--model_file", help="Multi-task deep learning model for preprocessing", required=True)
 parser.add_argument("--atlas_dir", help="Atlas directory", required=True)
 parser.add_argument("--o", help="Output directory.", required=True)
 parser.add_argument("--mode", help="Type of input (invivo, exvivo, cerebrum, hemi).", required=True)
@@ -58,8 +57,6 @@ args = parser.parse_args()
 
 if args.i is None:
     raise Exception('Input image is required')
-if args.model_file is None:
-    raise Exception('Model file is required')
 if args.atlas_dir is None:
     raise Exception('Atlas directory must be provided')
 if args.o is None:
@@ -126,7 +123,6 @@ torch.set_grad_enabled(False)
 
 # Input data
 input_volume = args.i
-model_file = args.model_file
 atlas_dir = args.atlas_dir
 LUT_file = os.path.join(BASE_PATH, 'data_simplified', 'AllenAtlasLUT')
 output_dir = args.o
