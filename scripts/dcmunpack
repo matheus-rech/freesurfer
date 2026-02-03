@@ -666,7 +666,7 @@ foreach run ($RunNos)
         set okstatus = 'err'
       else
         if(-e $outfname) then
-	  set dims = `mri_info $outfname --dim`
+	  set dims = `mri_info $outfname --dim | grep -v INFO` # More robust to do as a file
 	  set cols = `echo $dims | awk '{print $1}'`
 	  set rows = `echo $dims | awk '{print $2}'`
 	  set slice = `echo $dims | awk '{print $3}'`
