@@ -1,0 +1,202 @@
+#!/bin/tcsh -f
+
+# fs-check-os - this checks the operating system against any OS listed
+# in $SUBJECTS_DIR/fs-allowed-os.txt.
+
+if(-e $FREESURFER_HOME/sources.csh) then
+  source $FREESURFER_HOME/sources.csh
+endif
+
+set VERSION = '$Id$';
+set scriptname = `basename $0`
+
+set verb = 0 # verbose
+
+set inputargs = ($argv);
+set PrintHelp = 0;
+if($#argv == 0) goto usage_exit;
+set n = `echo $argv | grep -e -help | wc -l` 
+if($n != 0) then
+  set PrintHelp = 1;
+  goto usage_exit;
+endif
+set n = `echo $argv | grep -e -version | wc -l` 
+if($n != 0) then
+  echo $VERSION
+  exit 0;
+endif
+goto parse_args;
+parse_args_return:
+goto check_params;
+check_params_return:
+
+#========================================================
+if($?FS_CHECK_OS == 0) then
+  setenv FS_CHECK_OS = 1
+endif
+if(! $FS_CHECK_OS) then
+  if($verb) then
+    echo "Exiting with 0 because FS_CHECK_OS is 0"
+  endif
+  exit 0
+endif
+
+set osfile = $SUBJECTS_DIR/fs-allowed-os.txt
+if(! -e $osfile) then
+  if($verb) then
+    echo "Exiting with 0 because $osfile does not exist"
+  endif
+  exit 0
+endif
+
+set osnow = `fs-check-os --get`
+
+if($verb) then
+  echo "Current OS is $osnow"
+  echo "Allowable OSs are:"
+  cat $osfile
+endif
+
+foreach os (`cat $osfile`)
+  if($os == $osnow) then
+    if($verb) then
+      echo "Exiting with 0 because found a match to $osnow"
+    endif
+    exit 0
+  endif
+end
+
+if($verb) then
+  echo "Exiting with 1 because could not find a match to $osnow"
+endif
+exit 1
+
+###############################################
+
+############--------------##################
+error_exit:
+echo "ERROR:"
+
+exit 1;
+###############################################
+
+############--------------##################
+parse_args:
+set cmdline = ($argv);
+while( $#argv != 0 )
+
+  set flag = $argv[1]; shift;
+  
+  switch($flag)
+
+    case "--v":
+      set verb = 1
+      breaksw
+
+    case "--get":
+      # Remove special chars (spaces and parentheses) so that it appears as a full string
+      set OS = `cat /etc/os-release | grep PRETTY_NAME | sed 's/PRETTY_NAME=//g' | sed 's/"//g' | sed 's/ /-/g' | sed 's/(//g'| sed 's/)//g'`
+      echo ${OS}
+      #set kernel = `uname -r`
+      #echo ${OS}::${kernel}
+      exit 0
+      breaksw
+
+    case "--check":
+      setenv FS_CHECK_OS 1
+      breaksw
+
+    case "--no-check":
+      setenv FS_CHECK_OS 0
+      breaksw
+
+    case "--sd":
+      if($#argv < 1) goto arg1err;
+      setenv SUBJECTS_DIR $argv[1]; shift;
+      breaksw
+
+    case "--debug":
+      set verbose = 1;
+      set echo = 1;
+      breaksw
+
+    default:
+      echo ERROR: Flag $flag unrecognized. 
+      echo $cmdline
+      exit 1
+      breaksw
+  endsw
+
+end
+
+goto parse_args_return;
+############--------------##################
+
+############--------------##################
+check_params:
+
+if(! $?SUBJECTS_DIR) then
+  echo "ERROR: SUBJETS_DIR not defined"
+  exit 1
+endif
+
+
+goto check_params_return;
+############--------------##################
+
+############--------------##################
+arg1err:
+  echo "ERROR: flag $flag requires one argument"
+  exit 1
+############--------------##################
+arg2err:
+  echo "ERROR: flag $flag requires two arguments"
+  exit 1
+############--------------##################
+
+############--------------##################
+usage_exit:
+  echo ""
+  echo "fs-check-os (checks against SUBJECTS_DIR/fs-allowed-os.txt)"
+  echo " --check : do the check"
+  echo " --get : get the current OS string (removes spaces and parentheses)"
+  echo " --v : turn on verbosity"
+  echo " --no-check : setenv FS_CHECK_OS 0"
+  echo " --sd SUBJECTS_DIR"
+  echo " --debug"
+  echo " --help"
+  echo ""
+
+  if(! $PrintHelp) exit 1;
+  echo $VERSION
+  cat $0 | awk 'BEGIN{prt=0}{if(prt) print $0; if($1 == "BEGINHELP") prt = 1 }'
+exit 1;
+
+#---- Everything below here is printed out as part of help -----#
+BEGINHELP
+
+
+fs-check-os - this checks the operating system against any OS listed
+in $SUBJECTS_DIR/fs-allowed-os.txt using fs-check-os --get
+
+It will exit with 1 if the following criteria are met:
+1. env var FS_CHECK_OS is unset or set to 1
+2. the file fs-allowed-os.txt exists
+3. the current OS (fs-check-os --get) is NOT found in fs-allowed-os.txt
+Otherwise, it will exit with 1
+
+Verbosity: --v will turn on verbosity so that it explains the reasons
+it is exiting with a certain status. When using this script, it could
+be run without --v and, if it exists with 1, then run it again with
+--v to get the reasoning.
+
+To create a fs-allowed-os.txt, go to a computer with an allowable OS,
+cd $SUBJECTS_DIR, and run
+  fs-check-os --get > fs-allowed-os.txt
+
+If there are multiple allowable OSs, then go to each computer, 
+cd $SUBJECTS_DIR, and run
+  fs-check-os --get >> fs-allowed-os.txt
+
+Note that the double right arrow will append to the file
+

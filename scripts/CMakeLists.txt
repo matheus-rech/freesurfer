@@ -66,6 +66,7 @@ install_configured(
   freesurfer
   fsfirst.fsl
   fs-check-version
+  fs-check-os
   fs_install_mcr
   fs_install_cuda
   fs_lib_check
