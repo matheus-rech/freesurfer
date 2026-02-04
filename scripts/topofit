@@ -201,6 +201,11 @@ if($DoTF2) then
         echo $cmd | tee -a $LF
         fs_time $cmd | tee -a $LF
         if($status) exit 1
+        # Convert to surfaceRAS just to make sure
+        set cmd = (mris_convert --usesurfras $tfsurf $tfsurf)
+        echo $cmd | tee -a $LF
+        fs_time $cmd | tee -a $LF
+        if($status) exit 1
       end
     end
   endif
