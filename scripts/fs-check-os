@@ -95,7 +95,7 @@ while( $#argv != 0 )
 
     case "--get":
       # Remove special chars (spaces and parentheses) so that it appears as a full string
-      set OS = `cat /etc/os-release | grep PRETTY_NAME | sed 's/PRETTY_NAME=//g' | sed 's/"//g' | sed 's/ /-/g' | sed 's/(//g'| sed 's/)//g'`
+      set OS = ` | sed 's/PRETTY_NAME=//g' | sed 's/"//g' | sed 's/ /-/g' | sed 's/(//g'| sed 's/)//g'`
       echo ${OS}
       #set kernel = `uname -r`
       #echo ${OS}::${kernel}
@@ -179,11 +179,15 @@ BEGINHELP
 fs-check-os - this checks the operating system against any OS listed
 in $SUBJECTS_DIR/fs-allowed-os.txt using fs-check-os --get
 
+The OS string is created from the PRETTY_NAME as found in /etc/os-release.
+Any spaces in PRETTY_NAME are replaced with dashes and any parantheses are removed. 
+Eg, PRETTY_NAME="Rocky Linux 9.6 (Blue Onyx)" will become Rocky-Linux-9.6-Blue-Onyx
+
 It will exit with 1 if the following criteria are met:
 1. env var FS_CHECK_OS is unset or set to 1
 2. the file fs-allowed-os.txt exists
 3. the current OS (fs-check-os --get) is NOT found in fs-allowed-os.txt
-Otherwise, it will exit with 1
+Otherwise, it will exit with 0
 
 Verbosity: --v will turn on verbosity so that it explains the reasons
 it is exiting with a certain status. When using this script, it could
@@ -193,10 +197,12 @@ be run without --v and, if it exists with 1, then run it again with
 To create a fs-allowed-os.txt, go to a computer with an allowable OS,
 cd $SUBJECTS_DIR, and run
   fs-check-os --get > fs-allowed-os.txt
+Note if fs-allowed-os.txt already exists, this command will overwrite it.
 
 If there are multiple allowable OSs, then go to each computer, 
 cd $SUBJECTS_DIR, and run
   fs-check-os --get >> fs-allowed-os.txt
 
-Note that the double right arrow will append to the file
+Note that the double right arrow will append to the file (or create it
+if it does not exit).
 
