@@ -95,7 +95,8 @@ while( $#argv != 0 )
 
     case "--get":
       # Remove special chars (spaces and parentheses) so that it appears as a full string
-      set OS = ` | sed 's/PRETTY_NAME=//g' | sed 's/"//g' | sed 's/ /-/g' | sed 's/(//g'| sed 's/)//g'`
+      set osrel = /etc/os-release
+      set OS = `grep PRETTY_NAME $osrel | sed 's/PRETTY_NAME=//g' | sed 's/"//g' | sed 's/ /-/g' | sed 's/(//g'| sed 's/)//g'`
       echo ${OS}
       #set kernel = `uname -r`
       #echo ${OS}::${kernel}
