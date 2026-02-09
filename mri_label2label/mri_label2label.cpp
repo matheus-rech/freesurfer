@@ -71,6 +71,64 @@
 #include "version.h"
 #include "path.h"
 #include "cmdargs.h"
+#include "annotation.h"
+
+MRI *AnnotFillHoles(MRIS *surf, MRI *annot)
+{
+  // Make exceptions, eg, when V1 is inside V2 it looks like a whole
+  int freeannot=0;
+  if(!annot) {
+    if(surf->ct == NULL) {
+      printf("AnnotFillHoles(): error surf does not have a ctab\n");
+      return(NULL);
+    }
+    annot = MRISannot2seg(surf,0);
+    if(!annot) return(NULL);
+    freeannot = 1;
+  }
+  int nsegids;
+  int *segidlist = MRIsegIdList(annot, &nsegids, 0);
+  printf("Found %d segids\n",nsegids);
+  std::vector<LABEL*> labellist(nsegids);
+  for(int n=0; n < nsegids; n++)
+    labellist[n] = LabelAlloc(surf->nvertices, NULL, NULL);
+
+  for(int vno=0; vno < surf->nvertices; vno++){
+    VERTEX *vtx = (VERTEX*)&(surf->vertices[vno]);
+    int segid = MRIgetVoxVal(annot,vno,0,0,0);
+    int n;
+    for(n=0; n < nsegids; n++) if(segid == segidlist[n]) break;
+    LABEL *lab = labellist[n];
+    int np = lab->n_points;
+    LV* lv = &(lab->lv[np]);
+    lv->vno = vno;
+    lv->x = vtx->x; lv->y = vtx->y; lv->z = vtx->z; 
+    lab->n_points++;
+  }
+  for(int n=0; n < nsegids; n++){
+    //LABEL *lab = LabelFillHolesWithOrig(labellist[n], surf);
+    LABEL *lab = LabelRemoveHolesSurf(surf,labellist[n]);
+    LabelFree(&labellist[n]);
+    labellist[n] = lab;
+  }
+  MRI *annot2 = MRIalloc(surf->nvertices,1,1,MRI_INT);
+  annot2->ct = CTABdeepCopy(annot->ct);
+
+  for(int n=0; n < nsegids; n++){
+    LABEL *lab = labellist[n];
+    for(int k=0; k < lab->n_points; k++){
+      LV* lv = &(lab->lv[k]);
+      MRIsetVoxVal(annot2,lv->vno,0,0,0, segidlist[n]);
+    }
+  }
+  if(freeannot) {
+    MRIfree(&annot);
+    MRISseg2annot(surf, annot2, NULL); //???
+  }
+  for(int n=0; n < nsegids; n++) LabelFree(&labellist[n]);
+
+  return(annot2);
+}
 
 static int  parse_commandline(int argc, char **argv);
 static void check_options(void);
@@ -1167,6 +1225,18 @@ static int parse_commandline(int argc, char **argv) {
       LabelWrite(outlab, pargv[3]);
       exit(0);
     } 
+    else if (!strcmp(option, "--annot-fill-holes")) {
+      // Standa-alone: 0=surf, 1=annot, 2=outannot
+      if(nargc < 3) argnerr(option,3);
+      MRIS *mris = MRISread(pargv[0]);
+      if(mris==NULL) exit(1);
+      MRI* annot = MRIread(pargv[1]);
+      if(!annot) exit(1);
+      MRI *annot2 = AnnotFillHoles(mris,annot);
+      if(!annot2) exit(1);
+      int err = MRIwrite(annot2,pargv[2]);
+      exit(err);
+    }
     else {
       fprintf(stderr,"ERROR: Option %s unknown\n",option);
       if (singledash(option))
@@ -1228,6 +1298,7 @@ static void print_usage(void) {
   printf("   --baryfill surf surflabel delta outlabel\n");
   printf("   --label-cortex surface aseg KeepHipAmyg01 outlabel : create a label like ?h.cortex.label <entowm.mgz>\n");
   printf("   --surf-label2mask label surf mask : stand-alone way to convert a label to a binary mask\n");
+  printf("   --annot-fill-holes surf inannot outannot : stand-alone option to fill holes in the annot/parc overlay segmentation\n");
   printf("\n");
   printf("   --srcmask     surfvalfile thresh <format>\n");
   printf("   --srcmasksign sign (<abs>,pos,neg)\n");
