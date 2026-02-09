@@ -91,15 +91,18 @@ mri_info --o $tmpfile --conformed-to-min $segvol > /dev/null
 set isconf = `cat $tmpfile | head -n 1`
 echo IsConformed $isconf | tee -a $LF
 if($isconf == yes) then
-  set cmd = (mri_cc -aseg $noccname.mgz -o $ccname.mgz -lta transforms/cc_up.lta)
-  if($LHonly) set cmd = ($cmd -lh )
-  if($RHonly) set cmd = ($cmd -rh )
-  set cmd = ($cmd $subject)
-  date | tee -a $LF
-  echo $cmd | tee -a $LF
-  fs_time $cmd | tee -a $LF
-  if($status) goto error_exit;
-  date | tee -a $LF
+  set ud = `UpdateNeeded $ccname.mgz $noccname.mgz`
+  if($ud || $ForceUpdate) then
+    set cmd = (mri_cc -aseg $noccname.mgz -o $ccname.mgz -lta transforms/cc_up.lta)
+    if($LHonly) set cmd = ($cmd -lh)
+    if($RHonly) set cmd = ($cmd -rh)
+    set cmd = ($cmd $subject)
+    date | tee -a $LF
+    echo $cmd | tee -a $LF
+    fs_time $cmd | tee -a $LF
+    if($status) goto error_exit;
+    date | tee -a $LF
+  endif
 else
   # If it is not conformed, have to go through some gymnastics because mri_cc
   # needs things to be conformed
