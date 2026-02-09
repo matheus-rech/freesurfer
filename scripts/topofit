@@ -27,6 +27,7 @@ set fstkey = (-k "@#@FSTIME-TF ")
 
 set DoTF2 = 0
 set tf2 = /autofs/vast/freesurfer/projects/ds-testing/recon-cortex
+set tf2dir = /space/iddhi/5/users/topofit
 
 set tmpdir = ();
 set cleanup = 1;
@@ -105,39 +106,81 @@ foreach hemi ($hemilist)
   end
 end
 
+# Run Topofit
 if($DoTF2 == 0) then
-if($ud || $ForceUpdate) then
-  #set cmd = (fspython $ds fit-cortex --image $invol --threads $threads --outdir $outdir --io si)
-  set cmd = (dsurffe fit-cortex --image $invol --threads $threads --outdir $outdir --io si)
-  if(! $UseGPU) set cmd = ($cmd --cpu)
-  if($#hemilist == 1) set cmd = ($cmd --hemi $hemilist)
-  if($#model) set cmd = ($cmd --model $model)
-  echo \n\n ==============================================| tee -a $LF
-  echo $cmd | tee -a $LF
-  echo \n\n ==============================================| tee -a $LF
-  fs_time $fstkey  $cmd |& tee -a $LF
-  if($status) goto error_exit
-  set udmade = 1
-endif
-
-if($ico7) then
-  # Have to left-right reverse. Should put this in the deepsurfer dist
-  set tfspherelrrev = $outdir/topofit.sphere-reg.lrrev.$surfext
-  if(! -e $tfspherelrrev) then
-    set cmd = (mris_convert --left-right-rev $tfsphere $tfspherelrrev)
+  if($ud || $ForceUpdate) then
+    #set cmd = (fspython $ds fit-cortex --image $invol --threads $threads --outdir $outdir --io si)
+    set cmd = (dsurffe fit-cortex --image $invol --threads $threads --outdir $outdir --io si)
+    if(! $UseGPU) set cmd = ($cmd --cpu)
+    if($#hemilist == 1) set cmd = ($cmd --hemi $hemilist)
+    if($#model) set cmd = ($cmd --model $model)
+    echo \n\n ==============================================| tee -a $LF
     echo $cmd | tee -a $LF
-    fs_time $fstkey  $cmd | tee -a $LF
+    echo \n\n ==============================================| tee -a $LF
+    fs_time $fstkey  $cmd |& tee -a $LF
     if($status) goto error_exit
     set udmade = 1
   endif
+else #DoTF2
+  if($ud || $ForceUpdate) then
+    set cmd = ($tf2 -i $invol -o $outdir --io ds --threads $threads )
+    if(! $UseGPU) set cmd = ($cmd --device cpu)
+    if($#hemilist == 1) set cmd = ($cmd --hemi $hemilist)
+    echo "" | tee -a $LF
+    echo $cmd | tee -a $LF
+    echo "" | tee -a $LF
+    fs_time $cmd | tee -a $LF
+    if($status) exit 1
+    set udmade = 1
+    # TF2 does not fill the surface header correctly, so do it now
+    foreach hemi ($hemilist)
+      foreach surf (int ext)
+        set tfsurf = $outdir/cortex-$surf-$hemi.$surfext
+        set cmd = (mris_convert --userealras --vol-geom $invol $tfsurf $tfsurf)
+        echo $cmd | tee -a $LF
+        fs_time $cmd | tee -a $LF
+        if($status) exit 1
+        # Convert to surfaceRAS just to make sure
+        set cmd = (mris_convert --usesurfras $tfsurf $tfsurf)
+        echo $cmd | tee -a $LF
+        fs_time $cmd | tee -a $LF
+        if($status) exit 1
+      end
+    end
+  endif
+endif
+
+# Convert to fsaverage ico7 topology if desired. Downsample the white
+# and pial surfaces through the spheres.  The native topofit has
+# 246k/200k and fsaverage has 160k
+if($ico7) then
+  # Get target sphere
+  if($DoTF2 == 0) then
+    # Have to left-right reverse. Should put this in the deepsurfer dist
+    set tfspherelrrev = $outdir/topofit.sphere-reg.lrrev.$surfext
+    if(! -e $tfspherelrrev) then
+      set cmd = (mris_convert --left-right-rev $tfsphere $tfspherelrrev)
+      echo $cmd | tee -a $LF
+      fs_time $fstkey  $cmd | tee -a $LF
+      if($status) goto error_exit
+      set udmade = 1
+    endif
+  else #DoTF2
+    set tfspherelrrev = $tf2dir/rh.sphere.source
+  endif
+  
+  # Now convert to fsaverage topology
   foreach hemi ($hemilist)
-    # Downsample the surface through the spheres. The native topofit
-    # has 246k and fsaverage has 160k
     set ico7targ = $FREESURFER/subjects/fsaverage/surf/$hemi.sphere.reg
-    set sphere = $outdir/sphere-topofit-$hemi.$surfext
+    #set sphere = $outdir/sphere-topofit-$hemi.$surfext
     foreach surf (int ext)
       set tfsurf = $outdir/cortex-$surf-$hemi.$surfext
       set tfsurfico7 = $outdir/cortex-$surf-$hemi.ico7.$surfext
+      if($DoTF2) then
+        if($surf == int) set surfname = white
+        if($surf == ext) set surfname = pial
+        set tfsurfico7 = $outdir/$hemi.$surfname.ico7
+      endif
       set tfsphere0 = $tfsphere
       if($hemi == rh) set tfsphere0 = $tfspherelrrev
       set ud = `UpdateNeeded $tfsurfico7 $tfsurf`
@@ -161,6 +204,12 @@ if($MakeSphere) then
     set white = $outdir/cortex-int-$hemi$ico7str.$surfext
     set pial  = $outdir/cortex-ext-$hemi$ico7str.$surfext
     set sphere = $outdir/sphere-topofit-$hemi$ico7str.$surfext
+    if($DoTF2) then
+      #set tfsurfico7 = $outdir/$hemi.sphere.$ico7str
+      set white = $outdir/$hemi.white$ico7str
+      set pial  = $outdir/$hemi.pial$ico7str
+      set sphere = $outdir/$hemi.sphere$ico7str
+    endif
     set ud = `UpdateNeeded $sphere $white`
     if($ud || $ForceUpdate) then  
       set lrrevarg = ()
@@ -172,71 +221,35 @@ if($MakeSphere) then
         set targsphere = $FREESURFER/subjects/fsaverage/surf/$hemi.sphere.reg
       endif
       # Create the sphere starting with the fsaverage or TF sphere. It only needs
-      # minimize the distortion
+      # to minimize the distortion
       # -o means "orig" surf
       set cmd = (mris_sphere -threads $threads -o $white -seed 1234 $lrrevarg $targsphere $sphere)
-      echo $cmd | tee -a $LF
+      echo "\n\n$cmd\n\n" | tee -a $LF
       fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
       set udmade = 1
     endif
   end
 endif
-endif # Not DoTF2
-
-if($DoTF2) then
-  # ud set above
-  if($ud || $ForceUpdate) then
-    set cmd = ($tf2 -i $invol -o $outdir --io ds --threads $threads )
-    if(! $UseGPU) set cmd = ($cmd --device cpu)
-    if($#hemilist == 1) set cmd = ($cmd --$hemilist)
-    echo "" | tee -a $LF
-    echo $cmd | tee -a $LF
-    echo "" | tee -a $LF
-    fs_time $cmd | tee -a $LF
-    if($status) exit 1
-    set udmade = 1
-    # TF2 does not fill the surface header correctly, so do it now
-    foreach hemi ($hemilist)
-      foreach surf (int ext)
-        set tfsurf = $outdir/cortex-$surf-$hemi.$surfext
-        set cmd = (mris_convert --userealras --vol-geom $invol $tfsurf $tfsurf)
-        echo $cmd | tee -a $LF
-        fs_time $cmd | tee -a $LF
-        if($status) exit 1
-        # Convert to surfaceRAS just to make sure
-        set cmd = (mris_convert --usesurfras $tfsurf $tfsurf)
-        echo $cmd | tee -a $LF
-        fs_time $cmd | tee -a $LF
-        if($status) exit 1
-      end
-    end
-  endif
-  if($MakeLinks) then
-    foreach hemi ($hemilist)
-      pushd $outdir
-      foreach surf (orig.nofix smoothwm.nofix orig smoothwm white.preaparc orig.premesh)
-        ln -sf $hemi.white $hemi.$surf
-      end
-    end # hemi
-    ln -sf $hemi.pial $hemi.pial.T1
-    popd
-  endif
-  set ico7str = ""
-endif
 
 if($MakeLinks) then
   foreach hemi ($hemilist)
     pushd $outdir
     foreach surf (orig.nofix smoothwm.nofix orig smoothwm white white.preaparc orig.premesh)
-      ln -sf cortex-int-$hemi$ico7str.$surfext $hemi.$surf
+      set surfname = cortex-int-$hemi$ico7str.$surfext
+      if($DoTF2) set surfname = $hemi.white$ico7str
+      ln -sf $surfname $hemi.$surf
     end
     foreach surf (pial.T1 pial)
-      ln -sf cortex-ext-$hemi$ico7str.$surfext $hemi.$surf
+      set surfname = cortex-ext-$hemi$ico7str.$surfext
+      if($DoTF2) set surfname = $hemi.pial$ico7str
+      ln -sf $surfname $hemi.$surf
     end
-    if($MakeSphere && ! $DoTF2) then
+    if($MakeSphere) then
       foreach surf (qsphere.nofix sphere)
-        ln -sf sphere-topofit-$hemi$ico7str.$surfext $hemi.$surf
+        set surfname = sphere-topofit-$hemi$ico7str.$surfext
+        if($DoTF2) set surfname = $hemi.sphere$ico7str	
+        ln -sf $surfname $hemi.$surf
       end
     endif
     popd
@@ -247,6 +260,10 @@ if($DoPost) then
   foreach hemi ($hemilist)
     set white = $outdir/cortex-int-$hemi$ico7str.$surfext
     set pial  = $outdir/cortex-ext-$hemi$ico7str.$surfext
+    if($DoTF2) then
+      set white = $outdir/$hemi.white$ico7str
+      set pial  = $outdir/$hemi.pial$ico7str
+    endif
     
     # Inflate. May need more iters for TF because many more vertices
     set inflated = $outdir/$hemi.inflated
@@ -325,7 +342,7 @@ if($DoPost) then
       set udmade = 1
     endif
 
-    if($DoTF2 && $MakeSphere) then
+    if(0 && $DoTF2 && $MakeSphere) then
       set inflated = $outdir/$hemi.inflated
       set sphere = $outdir/$hemi.sphere
       set ud = `UpdateNeeded $sphere $inflated`
@@ -496,7 +513,6 @@ while( $#argv != 0 )
 
     case "--tf2":
       set DoTF2 = 1
-      set ico7 = 0
      breaksw
     case "--no-tf2":
       set DoTF2 = 0
@@ -627,12 +643,14 @@ if($MakeLinks) then
 endif
 
 if($DoTF2 == 0) then
-set dsdir = `fspython -m pip show deepsurfer | grep Location | awk '{print $2}'`
-set tfsphere = $dsdir/deepsurfer/resource/template/sphere-reg.$surfext
-if(! -e $tfsphere && $MakeSphere) then
-  echo "ERROR: command line ok but cannot find $tfsphere"
-  exit 1
-endif
+  set dsdir = `fspython -m pip show deepsurfer | grep Location | awk '{print $2}'`
+  set tfsphere = $dsdir/deepsurfer/resource/template/sphere-reg.$surfext
+  if(! -e $tfsphere && $MakeSphere) then
+    echo "ERROR: command line ok but cannot find $tfsphere"
+    exit 1
+  endif
+else
+  set tfsphere = $tf2dir/lh.sphere.source
 endif
 
 goto check_params_return;
