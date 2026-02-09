@@ -80,6 +80,100 @@ int main(int argc, char *argv[]) ;
 
 const char *Progname = NULL;
 
+class V2SLabel {
+public:
+  // Add most likley? 
+  // Add filling of holes, largest con comp
+  // Add removing of islands; reseg based on most likely?
+  // Erode/dilate? 
+  // Connect large components
+  // Add along-surf distance constraint as to whether an island should be joined or removed
+  // Holes between labels (won't be picked up by concomp)
+  // Make sure not to loose small labels
+  // LabelDilate(lb, surf, label_dilate, CURRENT_VERTICES) ;
+  // LabelErode(lb, surf, label_erode) ;
+  // LABEL *tmplabel = LabelRemoveHolesAndIslandsSurf(surf, lb);
+  // LABEL *LabelRemoveHolesSurf(MRIS *surf, LABEL *lb)
+  // LABEL *LabelRemoveIslandsSurf(MRIS *surf, LABEL *lb)
+  // for(n=0; n < lb->n_points; n++)
+  //   surf->vertices[lb->lv[n].vno].val = 1;
+  // scs = sclustMapSurfClusters(surf,0.5,2,+1,0,&NClusters,NULL,NULL);
+  // Make exceptions when filling holes, eg, when V1 is inside V2 it looks like a whole
+  MRIS *surf=NULL;
+  MRI *volseg=NULL,*surfprof=NULL,*surfseg=NULL;
+  MRI *distmap=NULL; //eg, thickness; if non-null, then dist is interp as frac of distmap
+    double distinward=0.5, distoutward=1.0, delta=0.1; //mm or fraction
+  std::vector<double> dlist;
+  MRI *profile = NULL;
+  int nd0 = 0;
+  /*-------------------------------------------------------*/
+  int LabelSurf(void){
+    this->SampleProfile();
+    if(this->surfseg) MRIfree(&this->surfseg);
+    this->surfseg = MRIallocSequence(this->surf->nvertices,1,1,MRI_INT,1);
+    MRIcopyHeader(this->volseg,this->surfseg);
+    if(this->volseg->ct) this->surfseg->ct = CTABdeepCopy(this->volseg->ct);
+    MRIcopyPulseParameters(this->volseg,this->surfseg);
+    int nfound = 0;
+    for(int vno=0; vno < this->surf->nvertices; vno++) nfound += this->LabelVertex(vno);
+    printf("nfound tot %d, nd0 = %d\n",nfound,this->nd0);
+    return(nfound);
+  };
+  /*-------------------------------------------------------*/
+  int LabelVertex(int vno){
+    int found = 0;
+    // Take the first one in the outer direction
+    for(int n=this->nd0; n < this->surfprof->nframes; n++){
+      int segid = MRIgetVoxVal(this->surfprof,vno,0,0,n);
+      if(segid > 0){
+	MRIsetVoxVal(this->surfseg,vno,0,0,0, segid);
+	found = 1;
+	break;
+      }
+    }
+    if(!found){
+      // A voxel was not found in the outer direction, so look inward
+      for(int n=this->nd0; n > 0; n--){
+	int segid = MRIgetVoxVal(this->surfprof,vno,0,0,n);
+	if(segid > 0){
+	  MRIsetVoxVal(this->surfseg,vno,0,0,0, segid);
+	  found = 1;
+	  break;
+	}
+      }
+    }
+    return(found);
+  }
+  /*-------------------------------------------------------*/
+  int SampleProfile(void){
+    if(this->surfprof) MRIfree(&this->surfprof);
+    // Need to update MRISsamp to take a thickness arg and interp
+    // distance as a fraction of the thickness
+    this->surfprof = MRISsampleProfile(this->surf, this->volseg, 
+				       -this->distinward, this->distoutward, 
+				       this->delta, -1, SAMPLE_NEAREST, NULL, 
+				       this->distmap);
+    if(this->volseg->ct) this->surfprof->ct = CTABdeepCopy(this->volseg->ct);
+    dlist.clear();
+    double dmin = 10e10;
+    int n=0;
+    this->nd0 = 0;
+    for(double d = -this->distinward; d <= this->distoutward; d += this->delta){
+      dlist.push_back(d);
+      if(dmin > fabs(d)) {
+	dmin = fabs(d);
+	nd0 = n;
+      }
+      printf("n=%d d=%g dmin=%g nd0=%d\n",n,d,dmin,this->nd0);
+      n++;
+    }
+    return(0);
+  };
+    
+    
+}; // end class V2SLabel
+  
+
 static char *defaulttypestring;
 static int  defaulttype = MRI_VOLUME_TYPE_UNKNOWN;
 
@@ -509,6 +603,10 @@ int main(int argc, char **argv) {
           vol2surf_linear(SrcVol, Qsrc, Fsrc, Wsrc, Dsrc,
                           Surf, ProjFrac, interpmethod, float2int, SrcHitVol,
                           ProjDistFlag, 1);
+	if(Gdiag_no > 0){
+	  printf("P#@# %d %f\n", Gdiag_no, MRIgetVoxVal(SurfValsP,Gdiag_no,0,0,0));
+	  fflush(stdout);
+	}
       }
       else{
         printf("using new\n");
@@ -527,6 +625,10 @@ int main(int argc, char **argv) {
         if (!GetProjMax) MRIadd(SurfVals,SurfValsP,SurfVals);
         else             MRImax(SurfVals,SurfValsP,SurfVals);
       }
+	if(Gdiag_no > 0){
+	  printf("S#@# %d %f\n", Gdiag_no, MRIgetVoxVal(SurfVals,Gdiag_no,0,0,0));
+	  fflush(stdout);
+	}
       MRIfree(&SurfValsP);
       nproj ++;
     } // end proj loop
@@ -1127,6 +1229,29 @@ static int parse_commandline(int argc, char **argv) {
       seedfile = pargv[0];
       nargsused = 1;
     } 
+    else if (!strcmp(option, "--v2slabel")) {
+      // --v2slabel 0=seg 1=surf 2=din 3=dout 4=delta 5=distmap 6=output 7=profile
+      V2SLabel v2sl;
+      v2sl.volseg = MRIread(pargv[0]);
+      if(!v2sl.volseg) exit(1);
+      v2sl.surf = MRISread(pargv[1]);
+      if(!v2sl.surf) exit(1);
+      sscanf(pargv[2],"%lf",&v2sl.distinward);
+      sscanf(pargv[3],"%lf",&v2sl.distoutward);
+      sscanf(pargv[4],"%lf",&v2sl.delta);
+      if(strcmp(pargv[5],"ignore") != 0){
+	v2sl.distmap = MRIread(pargv[5]);
+	if(!v2sl.distmap) exit(1);
+      }
+      v2sl.LabelSurf();
+      int err = MRIwrite(v2sl.surfseg,pargv[6]);
+      if(err) exit(1);
+      if(strcmp(pargv[7],"ignore") != 0){
+	err = MRIwrite(v2sl.surfprof,pargv[7]);
+	if(err) exit(1);
+      }
+      exit(0);
+    }
     else if (!strcmp(option, "--profile")) {
       if(nargc < 7){
 	printf("ERROR: --profile requires 7 args\n");
@@ -1372,6 +1497,7 @@ static void print_usage(void) {
   printf("     If sigma >= 0, then the gradient is estimated with smoothing parameter sigma\n");
   printf("   --norm-pointset surf vtxno dist delta output\n");
   printf("     Creates a freeview pointset using points along the normal\n");
+  printf("   --v2slabel 0=seg 1=surf 2=din 3=dout 4=delta 5=distmap 6=output 7=profile : stand-alone\n");
   printf("\n");
   printf("  --vsm vsmvol <pedir> : Apply a voxel shift map. pedir: +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)\n");
   printf("  --vsm-pedir pedir : set pedir +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)\n");
