@@ -598,6 +598,8 @@ if(! $DoVersionsOnly) then
   echo $inputargs                          >> $ENVF
   uname -a                                 >> $ENVF
   echo ""                                  >> $ENVF
+  if(-e /etc/os-release) cat /etc/os-release >> $ENVF
+  echo ""                                  >> $ENVF
   limit                                    >> $ENVF
   echo ""                                  >> $ENVF
   printenv                                 >> $ENVF
@@ -655,6 +657,7 @@ if (-e $FREESURFER_HOME/build-stamp.txt) then
   echo "build-stamp.txt: `cat $FREESURFER_HOME/build-stamp.txt`" >> $LF
 endif
 uname -a | tee -a $LF
+if(-e /etc/os-release) cat /etc/os-release | tee -a $LF
 limit >> $LF
 if (-e /usr/bin/free) then
   echo "" >> $LF
@@ -8617,6 +8620,12 @@ check_params:
       echo "recon-all: version check failed"
       echo $cmd
       echo ""
+      exit 1
+    endif
+    # Check OS 
+    fs-check-os --check
+    if($status) then # If it fails, run again verbosely
+      fs-check-os --v --check 
       exit 1
     endif
   endif
