@@ -187,9 +187,12 @@ endif # Not DoTF2
 if($DoTF2) then
   # ud set above
   if($ud || $ForceUpdate) then
-    set cmd = ($tf2 -i $invol -o $outdir --io ds --threads $threads)
+    set cmd = ($tf2 -i $invol -o $outdir --io ds --threads $threads )
+    if(! $UseGPU) set cmd = ($cmd --device cpu)
     if($#hemilist == 1) set cmd = ($cmd --$hemilist)
+    echo "" | tee -a $LF
     echo $cmd | tee -a $LF
+    echo "" | tee -a $LF
     fs_time $cmd | tee -a $LF
     if($status) exit 1
     set udmade = 1
