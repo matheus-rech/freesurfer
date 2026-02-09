@@ -1,5 +1,5 @@
-function [tbl, rowid, colid] = fast_ldtable(tablefile)
-% [tbl, rowid, colid] = fast_ldtable(tablefile)
+function [tbl, rowid, colid] = fast_ldtable(tablefile,delim)
+% [tbl, rowid, colid] = fast_ldtable(tablefile,<delim>)
 %
 % Loads a text data table where the data table is 
 % formatted in the following way:
@@ -11,7 +11,7 @@ function [tbl, rowid, colid] = fast_ldtable(tablefile)
 %   4. Blank lines are ignored
 %   5. Any line begining with a # is ignored
 %
-%
+% delim is a white space by default
 %
 
 
@@ -35,7 +35,7 @@ tbl=[];
 colid=[];
 rowid=[];
 
-if(nargin ~= 1)
+if(nargin ~= 1 & nargin ~= 2)
   fprintf('[tbl, rowid, colid] = fast_ldtable(tablefile)\n');
   return;
 end
@@ -53,14 +53,22 @@ if(tline == -1)
   fclose(fid);
   return;
 end
-colid = splitstring(tline);
+if(~exist('delim','var')) 
+  colid = splitstring(tline);
+else
+  colid = char(split(tline,delim));
+end
 colid = colid(2:end,:);
 
 if(1)
   % This is a much faster version
   fclose(fid);
   ncols = single(size(colid,1))+1;
-  s = textread(tablefile,'%s','commentstyle','shell');
+  if(~exist('delim','var')) 
+    s = textread(tablefile,'%s','commentstyle','shell');
+  else
+    s = textread(tablefile,'%s','commentstyle','shell','delimiter',delim);
+  end
   ntot = size(s,1);
   nrows = round(ntot/ncols);
   if(ntot ~= nrows*ncols)
