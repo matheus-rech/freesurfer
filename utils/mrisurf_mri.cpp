@@ -7673,7 +7673,7 @@ double MRISsampleValue(MRI_SURFACE *mris, FACE *f, double xp, double yp, double 
   controls the interpolation type (but does not apply to derivative). The derivative was only added 
   to help study ComputeBorderValues when placing the surface.
 */
-MRI *MRISsampleProfile(MRIS *mris, MRI *mri, double dstart, double dend, double dstep, double sigma, int interptype, MRI *profile)
+MRI *MRISsampleProfile(MRIS *mris, MRI *mri, double dstart, double dend, double dstep, double sigma, int interptype, MRI *profile, MRI *dmap)
 {
   int vno, nframes;
 
@@ -7691,11 +7691,13 @@ MRI *MRISsampleProfile(MRIS *mris, MRI *mri, double dstart, double dend, double 
   #endif
   for (vno = 0; vno < mris->nvertices; vno++) {
     VERTEX *v = &mris->vertices[vno];
-    double val, x, y, z, c,r,s, d;
+    double val, x, y, z, c,r,s, d, d0;
     int frame;
     if (v->ripflag || v->val < 0) continue;
     frame = 0;
-    for(d=dstart; d<=dend; d += dstep){
+    for(d0=dstart; d0<=dend; d0 += dstep){
+      d = d0;
+      if(dmap) d = d0*MRIgetVoxVal(dmap,vno,0,0,0);
       x = v->x + d*v->nx;
       y = v->y + d*v->ny;
       z = v->z + d*v->nz;
