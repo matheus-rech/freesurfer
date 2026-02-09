@@ -189,6 +189,23 @@ foreach hemi ($hemilist)
     end
   end
 
+  # This is fast-and-dirty. Just use the fsaverage aparc and the
+  # thickness mapped into josa space to compute some stats. Ideally,
+  # this subject would be segmented natively.
+  set thick = $outdir/$hemi.thickness.josa.mgz
+  if(-e $thick) then
+    set fsaaparc = $FREESURFER/subjects/fsaverage/label/$hemi.aparc.annot
+    set stats = $outdir/$hemi.aparc.josa.stats
+    set ud = `UpdateNeeded $stats $thick`
+    if($ud || $ForceUpdate) then
+      set cmd = (mri_segstats --seg $fsaaparc --i $thick --sum $stats)
+      echo $cmd | tee -a $LF
+      fs_time $cmd |& tee -a $LF
+      if($status) goto error_exit
+      set udmade = 1
+    endif
+  endif
+
 end
 
 #========================================================
