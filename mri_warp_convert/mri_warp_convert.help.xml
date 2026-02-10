@@ -25,8 +25,8 @@
 
 <help>
   <name>mri_warp_convert</name>
-  <synopsis>mri_warp_convert [options]</synopsis>
-  <description>This program converts non-linear deformation field warp file formats. Some formats may require you to pass an image if the geometry information is missing form the transform file.</description>
+  <synopsis>mri_warp_convert &lt;input-type&gt; &lt;output-type&gt; [options]</synopsis>
+  <description>This program converts non-linear deformation warp fields between different file formats. Some formats may require you to pass an image if the geometry information is missing from the transform file.</description>
   <arguments>
     <positional>
       <intro>None.</intro>
@@ -34,32 +34,32 @@
     <required-flagged>
       <intro>Exactly one input is required:</intro>
       <argument>--inm3z &lt;in.m3z&gt;</argument>
-      <explanation>input M3Z warp</explanation>
+      <explanation>input Freesurfer 3D morph in M3Z format</explanation>
       <argument>--inmgzwarp &lt;inwarp.mgz&gt;</argument>
-      <explanation>input mgz warp (Freesurfer 3D morph in mgz format)</explanation>       
+      <explanation>input Freesurfer 3D morph in mgz format</explanation>       
       <argument>--infsl &lt;in.nii.gz&gt;</argument>
       <explanation>input FSL warp (recommend to use with --insrcgeom)</explanation>
       <argument>--inspm &lt;y_rinput.nii&gt;</argument>
-      <explanation>input SPM warp (use use with --insrcgeom), data format is either abs-ras (default) or abs-crs (use --inwarpformat to specify)</explanation>
+      <explanation>input SPM warp (use with --insrcgeom). Use --inwarpformat  &lt;&gt; to specify the data format, which is either abs-ras (default) or abs-crs.)</explanation>
       <argument>--inlps, --initk &lt;in.nii.gz&gt;</argument>
       <explanation>input LPS-to-LPS displacement field (e.g. ITK, ANTs)</explanation>
       <argument>--inras &lt;in.nii.gz&gt;</argument>
       <explanation>input RAS-to-RAS displacement field (e.g. NiftyReg)</explanation>
       <argument>--invox &lt;in.mgz&gt;</argument>
-      <explanation>input file with displacements in source-voxel space</explanation>
+      <explanation>input displacement field in source-voxel space</explanation>
       <intro>Exactly one output is required:</intro>
       <argument>--outm3z &lt;out.m3z&gt;</argument>
-      <explanation>output warp (M3Z Freesurfer format)</explanation>
+      <explanation>output Freesurfer 3D morph in M3Z format</explanation>
       <argument>--outmgzwarp &lt;outwarp.mgz&gt;</argument>
-      <explanation>output mgz warp (Freesurfer 3D morph in mgz format)</explanation>      
+      <explanation>output Freesurfer 3D morph in mgz format</explanation>      
       <argument>--outfsl &lt;out.nii.gz&gt;</argument>
-      <explanation>output warp (FSL format)</explanation>
+      <explanation>output warp in FSL format</explanation>
       <argument>--outlps, --outitk &lt;out.nii.gz&gt;</argument>
       <explanation>output LPS-to-LPS displacement field (e.g. ITK, ANTs)</explanation>
       <argument>--outras &lt;out.nii.gz&gt;</argument>
       <explanation>output RAS-to-RAS displacement field (e.g. NiftyReg)</explanation>
       <argument>--outvox &lt;out.mgz&gt;</argument>
-      <explanation>output file with displacements in source-voxel space</explanation>
+      <explanation>output displacement field in source-voxel space</explanation>
     </required-flagged>
     <optional-flagged>
       <argument>-g, --insrcgeom &lt;geom.mgz&gt;</argument>
@@ -72,11 +72,11 @@
       <argument>-lta2 LTA (or -lta2-inv)</argument>
       <explanation> Create composite morph for warping a source image -> LTA1 -> GCAM -> LTA2 -> atlas/destination image</explanation>
       <argument>--inwarpformat inwarp-format</argument>
-      <explanation>specify warp data format: abs-crs, disp-crs, abs-ras, or disp-ras (default is abs-crs)</explanation>      
+      <explanation>specify warp data format: abs-crs, disp-crs, abs-ras, or disp-ras (default is abs-crs). This option only works with '--inspm &lt;out.mgz&gt;'. </explanation>      
       <argument>--outwarpformat outwarp-format</argument>
       <explanation>specify warp data format: abs-crs, disp-crs, abs-ras, or disp-ras (default is abs-crs)</explanation>
       <argument>--vg-thresh vgthresh</argument>
-      <explanation>threshold for testing diffs in volume geom</explanation>
+      <explanation>specify threshold for testing diffs in volume geom</explanation>
     </optional-flagged>
   </arguments>
   <example>Convert FSL warp to M3Z (FreeSurfer):
@@ -85,7 +85,7 @@
     mri_warp_convert --initk itk.nii.gz --outm3z out.m3z --insrcgeom src.nii.gz</example>
   <example>Convert ANTS antsRegistrationSyN.sh or antsRegistrationSyNQuick.sh output to M3Z (FreeSurfer):
     antsRegistrationSyNQuick.sh -d 3 -m mov.mgz -f targ.mgz -o reg. 
-    ConvertTransformFile 3 ants.reg0GenericAffine.mat      ants.reg0GenericAffine.txt --hm --ras
+    ConvertTransformFile 3 ants.reg0GenericAffine.mat ants.reg0GenericAffine.txt --hm --ras
     lta_convert --src mov.mgz --trg targ.mgz --inniftyreg ants.reg0GenericAffine.txt --outlta ants.reg0GenericAffine.lta
     mri_warp_convert --lta1-inv ants.reg0GenericAffine.lta --initk ants.reg1Warp.nii.gz --outm3z out.m3z --insrcgeom targ.mgz
       Note that the insrcgeom is the target, not the mov; this is needed to work with --lta1-inv.
@@ -93,5 +93,10 @@
   <example>Convert M3Z (FreeSurfer) to ITK warp (e.g. ANTs):
     mri_warp_convert --inm3z in.m3z --outitk out.nii.gz</example>
   <example>Convert M3Z (FreeSurfer) to mgz warp (FreeSurfer) in absolute CRS:
-    mri_warp_convert --inm3z in.m3z --outmgzwarp outwarp.mgz --outwarpformat abs-crs</example>  
+    mri_warp_convert --inm3z in.m3z --outmgzwarp outwarp.mgz --outwarpformat abs-crs</example>
+  <reporting>Report bugs to &lt;freesurfer@nmr.mgh.harvard.edu&gt;</reporting>
+  <see-also>mri_convert -at or -ait (apply transforms to an image)
+lta_convert (convert between different linear transform formats)
+mri_concatenate_lta (concatenate or invert LTA transforms)
+mri_concatenate_gcam (concatenate or invert warp fields)</see-also>
 </help>

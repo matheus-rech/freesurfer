@@ -63,5 +63,5 @@
     mri_concatenate_gcam -s norm.nii in.m3z out.m3z</example>
   <bugs>None</bugs>
   <reporting>Report bugs to &lt;freesurfer@nmr.mgh.harvard.edu&gt;</reporting>
-  <see-also>mri_concatenate_lta, mri_info, mri_convert</see-also>
+  <see-also>mri_concatenate_lta, mri_convert, lta_convert, mri_warp_convert</see-also>
 </help>
