@@ -48,11 +48,12 @@ struct Parameters
   bool downsample;
   LTA *lta1;
   LTA *lta2;
+  bool has_inwarpformat;
 };
 
 
 static struct Parameters P =
-  { "", "", "", "abs-crs", "abs-crs", filetypes::UNKNOWN, filetypes::UNKNOWN, false,NULL,NULL};
+  { "", "", "", "abs-crs", "abs-crs", filetypes::UNKNOWN, filetypes::UNKNOWN, false,NULL,NULL, false};
 
 static void printUsage(void);
 static bool parseCommandLine(int argc, char *argv[], Parameters & P);
@@ -399,6 +400,15 @@ GCAM* read_voxel(const string& warp_file, const string& src_geom)
         node->yn = r;
         node->zn = s;
 
+	/* Some questions (2026-02-10 YJH):
+	 * 1. If the value @crs is the displacement (delta = src - dst) in voxel space,
+         *    should node->x,y,z be calculated as following?
+         *        node->x = MRIgetVoxVal(in, c, r, s, 0) + c;
+         *        node->y = MRIgetVoxVal(in, c, r, s, 1) + r;
+         *        node->z = MRIgetVoxVal(in, c, r, s, 2) + s;
+         * 2. Can src_vox be calculated from dst_vox using a linear transform?
+         *        src_vox = MatrixMultiplyD(dst2src_vox, dst_vox, src_vox);
+         */ 
         VECTOR3_LOAD(dst_vox, c, r, s);
         src_vox = MatrixMultiplyD(dst2src_vox, dst_vox, src_vox);
         node->x = MRIgetVoxVal(in, c, r, s, 0) + VECTOR_ELT(src_vox, 1);
@@ -526,9 +536,6 @@ void write_world(const string& fname, GCAM* gcam, bool is_lps=false)
 }
 
 // Write a warp file as displacements in source-voxel space.
-// ??? is this right to calculate src_CRS from dst_CRS as following:
-//     MatrixMultiplyD(dst2src_vox, dst_vox, src_vox); ???
-// ??? GCAMsampleMorph() (node->[x,y,z]) returns src_CRS for given dst_CRS ???
 void write_voxel(const string& fname, GCAM* gcam)
 {
   MATRIX* dst_vox2ras = VGgetVoxelToRasXform(&gcam->atlas, NULL, 0);
@@ -561,6 +568,14 @@ void write_voxel(const string& fname, GCAM* gcam)
 		else {
 		  GCAMsampleMorph(gcam, c, r, s, &x, &y, &z);
 		}
+	
+	/* Some questions (2026-02-10 YJH):
+	 * src_CRS is calculated using both linear and non-linear transforms.
+	 *    1. calculate src_CRS from dst_CRS using linear transform
+	 *          MatrixMultiplyD(dst2src_vox, dst_vox, src_vox);
+	 *    2. calculate src_CRS using non-linear transform
+	 *          GCAMsampleMorph() (node->[x,y,z]); # returns src_CRS for given dst_CRS
+	 */  
         VECTOR3_LOAD(dst_vox, c, r, s);
         MatrixMultiplyD(dst2src_vox, dst_vox, src_vox);
         MRIsetVoxVal(out, c, r, s, 0, x - VECTOR_ELT(src_vox, 1));
@@ -617,6 +632,10 @@ int main(int argc, char *argv[])
       else                      gcam = readFSL2(P.in_warp.c_str(),P.in_src_geom);
       break;
     case filetypes::SPM:
+      // set default warp format for SPM to "abs-ras"
+      if (!P.has_inwarpformat)
+	P.in_warpformat = string("abs-ras");
+
       if (P.in_warpformat.compare("abs-ras") != 0 && P.in_warpformat.compare("abs-crs") != 0) {
 	printf("ERROR: --inspm only handles abs-ras or abs-crs\n");
 	exit(1);
@@ -708,9 +727,6 @@ static void printUsage(void)
  */
 static int parseNextCommand(int argc, char *argv[], Parameters & P)
 {
-  bool have_input = false;
-  bool have_output = false;
-
   int nargs = 0;
   char *option;
 
@@ -721,16 +737,23 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   StrUpper(option);
 
+  if (P.in_type != filetypes::UNKNOWN && strstr(option, "IN") != NULL) {
+    cout << "--" << StrLower(option) << ": " << string(argv[1]) << endl;
+    cerr << endl << endl << "ERROR: Only one input warp can be specified"
+         << endl << endl;
+    //printUsage();
+    exit(1);
+  }
+  if (P.out_type != filetypes::UNKNOWN && strstr(option, "OUT")) {
+    cout << "--" << StrLower(option) << ": " << string(argv[1]) << endl;
+    cerr << endl << endl << "ERROR: Only one output warp can be specified"
+         << endl << endl;
+    //printUsage();
+    exit(1);
+  }
+
   if (!strcmp(option, "INM3Z") )
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::M3Z;
     nargs = 1;
@@ -738,14 +761,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "INMGZWARP"))
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::MGZWARP;
     nargs = 1;
@@ -753,14 +768,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }  
   else if (!strcmp(option, "INFSL"))
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::FSL;
     nargs = 1;
@@ -768,30 +775,13 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "INSPM"))
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::SPM;
-    P.in_warpformat = string("abs-ras");
     nargs = 1;
     cout << "--inspm: " << P.in_warp << " input SPM warp." << endl;
   }
   else if (!strcmp(option, "INITK") || !strcmp(option, "INLPS"))
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::ITK;
     nargs = 1;
@@ -799,14 +789,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "INVOX"))
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::VOX;
     nargs = 1;
@@ -814,14 +796,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "INRAS"))
   {
-    if (have_input) {
-      cerr << endl << endl << "ERROR: Only one input warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_input = true;
-
     P.in_warp = string(argv[1]);
     P.in_type = filetypes::RAS;
     nargs = 1;
@@ -829,14 +803,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "OUTMGZWARP"))
   {
-    if (have_output) {
-      cerr << endl << endl << "ERROR: Only one output warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_output = true;
-
     P.out_warp = string(argv[1]);
     P.out_type = filetypes::MGZWARP;
     nargs = 1;
@@ -844,14 +810,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "OUTM3Z") )
   {
-    if (have_output) {
-      cerr << endl << endl << "ERROR: Only one output warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_output = true;
-
     P.out_warp = string(argv[1]);
     P.out_type = filetypes::M3Z;
     nargs = 1;
@@ -859,14 +817,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "OUTFSL") )
   {
-    if (have_output) {
-      cerr << endl << endl << "ERROR: Only one output warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_output = true;
-
     P.out_warp = string(argv[1]);
     P.out_type = filetypes::FSL;
     nargs = 1;
@@ -874,14 +824,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "OUTITK") || !strcmp(option, "OUTLPS"))
   {
-    if (have_output) {
-      cerr << endl << endl << "ERROR: Only one output warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_output = true;
-
     P.out_warp = string(argv[1]);
     P.out_type = filetypes::ITK;
     nargs = 1;
@@ -889,14 +831,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "OUTVOX") )
   {
-    if (have_output) {
-      cerr << endl << endl << "ERROR: Only one output warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_output = true;
-
     P.out_warp = string(argv[1]);
     P.out_type = filetypes::VOX;
     nargs = 1;
@@ -904,14 +838,6 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "OUTRAS") )
   {
-    if (have_output) {
-      cerr << endl << endl << "ERROR: Only one output warp can be specified"
-           << endl << endl;
-      printUsage();
-      exit(1);
-    }
-    have_output = true;
-
     P.out_warp = string(argv[1]);
     P.out_type = filetypes::RAS;
     nargs = 1;
@@ -958,6 +884,7 @@ static int parseNextCommand(int argc, char *argv[], Parameters & P)
   }
   else if (!strcmp(option, "INWARPFORMAT"))
   {
+    P.has_inwarpformat = true;
     P.in_warpformat = string(argv[1]);
     nargs = 1;
     cout << "--inwarpformat: " << P.in_warpformat
