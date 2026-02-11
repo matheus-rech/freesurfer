@@ -414,12 +414,16 @@ static void usage(int exit_val)
           "                                         1 RAS2RAS\n\n") ;
   fprintf(fout, "  -subject subject : set subject in output lta\n");
   fprintf(fout, "\n");
-  fprintf(fout, "-rmsdiff radius outputfile : computes RMS diff between transforms using MJ's formula\n");
+  fprintf(fout, "  -rmsdiff radius outputfile : computes RMS diff between transforms using MJ's formula\n");
   fprintf(fout, "   a radius of 70 is suggested. RMS will be saved in outputfile unless outputfile = nofile\n");
   fprintf(fout, "   Eg, mri_concatenate_lta -rmsdiff 70 rms.dat lta1 lta2, note: no output lta\n");
   fprintf(fout, "\n");
   fprintf(fout, "You can use 'identity.nofile' as the filename for lta2\n") ;
   fprintf(fout, "  e.g.: %s -invert1 lta1.lta identity.nofile inv1.lta\n\n",Progname) ;
+  fprintf(fout, "\n");
+  fprintf(fout, "See Also\n");
+  fprintf(fout, "  mri_concatenate_gcam, mri_convert, lta_convert, mri_warp_convert\n");
+  fprintf(fout, "\n");
 
 
   exit(exit_val);
