@@ -74,15 +74,14 @@ def main():
     # Determine FREESURFER_HOME or fallback
     fshome = os.environ.get('FREESURFER_HOME')
     if not fshome:
-        # Try to locate installed package location
-        try:
+        from importlib.util import find_spec
+        spec = find_spec("py_synthsr")
+        if (spec is not None):
             import py_synthsr
             fshome = os.path.dirname(os.path.realpath(py_synthsr.__file__))
-        except ImportError:
-            # Fallback to script dir (editable installs or dev mode)
-            fshome = os.path.dirname(os.path.realpath(__file__))
-    
-        print(f"FREESURFER_HOME is not set. Assuming: {fshome}")
+            print(f"FREESURFER_HOME is not set. Assuming: {fshome}")
+        else:
+            raise RuntimeError('FREESURFER_HOME is not set. Please source freesurfer.')
     
     # Locate model weights
     if args.model is not None:
@@ -181,7 +180,7 @@ def predict(path_images,
 
         # postprocessing
         try:
-            pred = postprocess(pred, pad_idx, aff, disable_sharpening)
+            pred = postprocess(pred.clip(0,128), pad_idx, aff, disable_sharpening)
         except Exception as e:
             print('\nthe following problem occured when postprocessing prediction for image %s :' % path_image)
             print(e)
@@ -621,8 +620,7 @@ def conv_dec(nb_features,
         last_tensor = input_model.output
         if isinstance(last_tensor, list):
             last_tensor = last_tensor[0]
-        #CR input_shape = last_tensor.shape.as_list()[1:]
-        input_shape = list(last_tensor.shape)[1:]
+        input_shape = last_tensor.shape.as_list()[1:]
 
     # vol size info
     ndims = len(input_shape) - 1
