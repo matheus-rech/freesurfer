@@ -61,10 +61,15 @@ set day   = `date +%d`
 set hour   = `date +%H`
 set min    = `date +%M`
 
-mkdir -p $outdir/log
+mkdir -p $outdir/log $outdir/work
 pushd $outdir > /dev/null
 set outdir = `pwd`;
 popd > /dev/null
+
+if(! -e $fico7) then
+  echo $ico7 > $fico7
+endif
+echo $invol > $outdir/log/invol.txt
 
 if($#tmpdir == 0) then
   if(-dw /scratch)   set tmpdir = /scratch/tmpdir.topofit.$$
@@ -96,11 +101,15 @@ endif
 
 #========================================================
 
+echo "\nInput volume specs ========================"| tee -a $LF
+echo $invol  | tee -a $LF
+mri_info $invol | tee -a $LF
+echo "=========================================\n"| tee -a $LF
+
 set ud = 0
 foreach hemi ($hemilist)
   foreach surf (int ext)
-    set f = $outdir/cortex-$surf-$hemi.$surfext
-    if($DoTF2) set f = $outdir/cortex-$surf-$hemi.surf
+    set f = $outdir/work/cortex-$surf-$hemi.$surfext
     set udA = `UpdateNeeded $f $invol`
     if($udA) set ud = 1
   end
@@ -109,8 +118,7 @@ end
 # Run Topofit
 if($DoTF2 == 0) then
   if($ud || $ForceUpdate) then
-    #set cmd = (fspython $ds fit-cortex --image $invol --threads $threads --outdir $outdir --io si)
-    set cmd = (dsurffe fit-cortex --image $invol --threads $threads --outdir $outdir --io si)
+    set cmd = (dsurffe fit-cortex --image $invol --threads $threads --outdir $outdir/work --io si)
     if(! $UseGPU) set cmd = ($cmd --cpu)
     if($#hemilist == 1) set cmd = ($cmd --hemi $hemilist)
     if($#model) set cmd = ($cmd --model $model)
@@ -123,19 +131,19 @@ if($DoTF2 == 0) then
   endif
 else #DoTF2
   if($ud || $ForceUpdate) then
-    set cmd = ($tf2 -i $invol -o $outdir --io ds --threads $threads )
+    set cmd = ($tf2 -i $invol -o $outdir/work --io ds --threads $threads )
     if(! $UseGPU) set cmd = ($cmd --device cpu)
     if($#hemilist == 1) set cmd = ($cmd --hemi $hemilist)
-    echo "" | tee -a $LF
+    echo \n\n ==============================================| tee -a $LF
     echo $cmd | tee -a $LF
-    echo "" | tee -a $LF
+    echo \n\n ==============================================| tee -a $LF
     fs_time $cmd | tee -a $LF
     if($status) exit 1
     set udmade = 1
     # TF2 does not fill the surface header correctly, so do it now
     foreach hemi ($hemilist)
       foreach surf (int ext)
-        set tfsurf = $outdir/cortex-$surf-$hemi.$surfext
+        set tfsurf = $outdir/work/cortex-$surf-$hemi.$surfext
         set cmd = (mris_convert --userealras --vol-geom $invol $tfsurf $tfsurf)
         echo $cmd | tee -a $LF
         fs_time $cmd | tee -a $LF
@@ -150,43 +158,22 @@ else #DoTF2
   endif
 endif
 
-# Convert to fsaverage ico7 topology if desired. Downsample the white
-# and pial surfaces through the spheres.  The native topofit has
-# 246k/200k and fsaverage has 160k
 if($ico7) then
-  # Get target sphere
-  if($DoTF2 == 0) then
-    # Have to left-right reverse. Should put this in the deepsurfer dist
-    set tfspherelrrev = $outdir/topofit.sphere-reg.lrrev.$surfext
-    if(! -e $tfspherelrrev) then
-      set cmd = (mris_convert --left-right-rev $tfsphere $tfspherelrrev)
-      echo $cmd | tee -a $LF
-      fs_time $fstkey  $cmd | tee -a $LF
-      if($status) goto error_exit
-      set udmade = 1
-    endif
-  else #DoTF2
-    set tfspherelrrev = $tf2dir/rh.sphere.source
-  endif
-  
-  # Now convert to fsaverage topology
+  # Convert white and pial to fsaverage ico7 topology if
+  # desired. Downsample the white and pial surfaces through the
+  # spheres.  The native topofit has 246k/200k and fsaverage has 160k
   foreach hemi ($hemilist)
-    set ico7targ = $FREESURFER/subjects/fsaverage/surf/$hemi.sphere.reg
-    #set sphere = $outdir/sphere-topofit-$hemi.$surfext
-    foreach surf (int ext)
-      set tfsurf = $outdir/cortex-$surf-$hemi.$surfext
-      set tfsurfico7 = $outdir/cortex-$surf-$hemi.ico7.$surfext
-      if($DoTF2) then
-        if($surf == int) set surfname = white
-        if($surf == ext) set surfname = pial
-        set tfsurfico7 = $outdir/$hemi.$surfname.ico7
-      endif
-      set tfsphere0 = $tfsphere
-      if($hemi == rh) set tfsphere0 = $tfspherelrrev
+    set srcsphere = $tf2dir/$hemi.sphere.tf1
+    if($DoTF2) set srcsphere = $tf2dir/$hemi.sphere.tf2
+    set ico7targ = $tf2dir/$hemi.sphere.fsaverage
+    foreach surf (white pial)
+      if($surf == white) set tfsurf = $outdir/work/cortex-int-$hemi.$surfext
+      if($surf == pial)  set tfsurf = $outdir/work/cortex-ext-$hemi.$surfext
+      set tfsurfico7 = $outdir/work/$hemi.$surf.ico7
       set ud = `UpdateNeeded $tfsurfico7 $tfsurf`
       if($ud || $ForceUpdate) then  
-        set cmd = (mris_apply_reg --bci-xyz $tfsurf $tfsphere0 $ico7targ $tfsurfico7)
-        echo $cmd | tee -a $LF
+        set cmd = (mris_apply_reg --bci-xyz $tfsurf $srcsphere $ico7targ $tfsurfico7)
+        echo "\n $cmd \n" | tee -a $LF
         fs_time $fstkey  $cmd |& tee -a $LF
         if($status) goto error_exit
         set udmade = 1
@@ -194,36 +181,44 @@ if($ico7) then
       endif
     end # surf
   end # hemi
-  set ico7str = ".ico7"
-else
-  set ico7str = ""
 endif
 
+pushd $outdir
+foreach hemi (lh rh)
+  if($ico7) then
+    if(! -e $hemi.white) ln -s work/$hemi.white.ico7 $hemi.white
+    if(! -e $hemi.pial)  ln -s work/$hemi.pial.ico7  $hemi.pial
+  else
+    if(! -e $hemi.white) ln -s work/cortex-int-$hemi.$surfext $hemi.white
+    if(! -e $hemi.pial)  ln -s work/cortex-ext-$hemi.$surfext $hemi.pial
+  endif
+end
+popd
+
 if($MakeSphere) then
+  # Create sphere starting with the TF sphere (or fsaverage sphere if
+  # mapping to ico7).  This operation mainly just tries to enforce
+  # keeping the triangles the same size (ie, minimize metric
+  # distortion). It replaces creating the sphere from the white
+  # surface.  This should hopefully be faster, but I don't know
+  # whether it has less distortion. I don't know if it really all that
+  # helpful as the next step is to apply registration and that might
+  # do its own thing to he distortion.
   foreach hemi ($hemilist)
-    set white = $outdir/cortex-int-$hemi$ico7str.$surfext
-    set pial  = $outdir/cortex-ext-$hemi$ico7str.$surfext
-    set sphere = $outdir/sphere-topofit-$hemi$ico7str.$surfext
-    if($DoTF2) then
-      #set tfsurfico7 = $outdir/$hemi.sphere.$ico7str
-      set white = $outdir/$hemi.white$ico7str
-      set pial  = $outdir/$hemi.pial$ico7str
-      set sphere = $outdir/$hemi.sphere$ico7str
-    endif
+    set white = $outdir/$hemi.white
+    set pial  = $outdir/$hemi.pial
+    set sphere = $outdir/$hemi.sphere
     set ud = `UpdateNeeded $sphere $white`
     if($ud || $ForceUpdate) then  
-      set lrrevarg = ()
       if(! $ico7) then
-        if($hemi == rh) set lrrevarg = (-left-right-reverse)
-        set targsphere = $tfsphere
+        if($DoTF2 == 0) set srcsphere = $tf2dir/$hemi.sphere.tf1
+        if($DoTF2 == 1) set srcsphere = $tf2dir/$hemi.sphere.tf2
       else
-        set lrrevarg = ()
-        set targsphere = $FREESURFER/subjects/fsaverage/surf/$hemi.sphere.reg
+        set srcsphere = $tf2dir/$hemi.sphere.fsaverage
       endif
-      # Create the sphere starting with the fsaverage or TF sphere. It only needs
-      # to minimize the distortion
-      # -o means "orig" surf
-      set cmd = (mris_sphere -threads $threads -o $white -seed 1234 $lrrevarg $targsphere $sphere)
+      # Create the sphere starting with the fsaverage or TF sphere. It
+      # only needs to minimize the distortion. -o means "orig" surf
+      set cmd = (mris_sphere -threads $threads -o $white -seed 1234 $srcsphere $sphere)
       echo "\n\n$cmd\n\n" | tee -a $LF
       fs_time $fstkey  $cmd |& tee -a $LF
       if($status) goto error_exit
@@ -235,35 +230,33 @@ endif
 if($MakeLinks) then
   foreach hemi ($hemilist)
     pushd $outdir
-    foreach surf (orig.nofix smoothwm.nofix orig smoothwm white white.preaparc orig.premesh)
-      set surfname = cortex-int-$hemi$ico7str.$surfext
-      if($DoTF2) set surfname = $hemi.white$ico7str
-      ln -sf $surfname $hemi.$surf
+    foreach surf (orig.nofix smoothwm.nofix orig smoothwm white.preaparc orig.premesh)
+      if(! -e $hemi.$surf) ln -sf lh.white $hemi.$surf
     end
     foreach surf (pial.T1 pial)
-      set surfname = cortex-ext-$hemi$ico7str.$surfext
-      if($DoTF2) set surfname = $hemi.pial$ico7str
-      ln -sf $surfname $hemi.$surf
+      if(! -e $hemi.$surf) ln -sf lh.pial $hemi.$surf
     end
     if($MakeSphere) then
-      foreach surf (qsphere.nofix sphere)
-        set surfname = sphere-topofit-$hemi$ico7str.$surfext
-        if($DoTF2) set surfname = $hemi.sphere$ico7str	
-        ln -sf $surfname $hemi.$surf
+      foreach surf (qsphere.nofix)
+        ln -sf $hemi.sphere $hemi.$surf
       end
     endif
     popd
   end # hemi
 endif
 
+if($ico7) then
+  set ico7str = ".ico7"
+  set fullstr = ".full"
+else
+  set ico7str = ""
+  set fullstr = ""
+endif
+
 if($DoPost) then
   foreach hemi ($hemilist)
-    set white = $outdir/cortex-int-$hemi$ico7str.$surfext
-    set pial  = $outdir/cortex-ext-$hemi$ico7str.$surfext
-    if($DoTF2) then
-      set white = $outdir/$hemi.white$ico7str
-      set pial  = $outdir/$hemi.pial$ico7str
-    endif
+    set white = $outdir/$hemi.white
+    set pial  = $outdir/$hemi.pial
     
     # Inflate. May need more iters for TF because many more vertices
     set inflated = $outdir/$hemi.inflated
@@ -514,6 +507,7 @@ while( $#argv != 0 )
     case "--tf2":
       set DoTF2 = 1
      breaksw
+    case "--tf1":
     case "--no-tf2":
       set DoTF2 = 0
       breaksw
@@ -588,13 +582,28 @@ endif
 
 set invol = `getfullpath $invol`
 
+set fico7 = $outdir/log/ico7.txt
+if(-e $fico7) then
+  set tmp = `cat $fico7`
+  if($tmp && ! $ico7) then
+    echo "ERROR: This case has been run before without the --ico7 flag, but you specified"
+    echo "this option if you want to run this case again, remove the --ico7 flag"
+    exit 1
+  endif
+  if(! $tmp && $ico7) then
+    echo "ERROR: This case has been run before with --ico7, but you did not specify this"
+    echo "option if you want to run this case again, specify the --ico7 flag"
+    exit 1
+  endif
+endif
+
 # Set up the view command now
 set viewcmd = (fsvglrun freeview --hide-3d-slices -neuro-view -rotate-around-cursor -v $invol )
 foreach hemi ($hemilist)
-  foreach surf (int ext)
-    set f = $outdir/cortex-$surf-$hemi.$surfext
-    if($surf == int) set c = yellow
-    if($surf == ext) set c = red
+  foreach surf (white pial)
+    set f = $outdir/$hemi.$surf
+    if($surf == white) set c = yellow
+    if($surf == pial) set c = red
     set viewcmd = ($viewcmd -f ${f}:edgecolor=$c)
   end
 end
@@ -602,8 +611,8 @@ end
 # May need to redo this to look at other outputs
 set ud = 0
 foreach hemi ($hemilist)
-  foreach surf (int ext)
-    set f = $outdir/cortex-$surf-$hemi.$surfext
+  foreach surf (white pial)
+    set f = $outdir/$hemi.$surf
     set udA = `UpdateNeeded $f $invol`
     if($udA) set ud = 1
   end
@@ -684,6 +693,7 @@ usage_exit:
   echo " --gpu : use GPU (may not work; does not apply to sphere)"
   echo " --model model"
   echo " --involname involname : volume to use as input when spec subject (default is $involname)"
+  echo " --tf2 : use topofit2 (default is to use topofit1)"
   echo ""
 
   if(! $PrintHelp) exit 1;
