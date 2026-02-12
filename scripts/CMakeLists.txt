@@ -206,6 +206,7 @@ install_configured(
   rca-fix-ento
   rca-long-tp-init
   rca-rcac-prep
+  rca-talairach
   recon-all
   recon-all-exvivo
   recon-all.makefile
