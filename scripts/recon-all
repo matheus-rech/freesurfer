@@ -1613,7 +1613,9 @@ if($SynthStrip) then
   set ud = `UpdateNeeded $synthstrip $origvol`
   if($ud || $ForceUpdate) then
     set xopts = `fsr-getxopts synthstrip $V8XoptsFile $GlobXOptsFile $XOptsFile`;
-    set cmd = (mri_synthstrip --threads $OMP_NUM_THREADS -i $origvol -o $synthstrip $xopts)
+    set cmd = (mri_synthstrip --threads $OMP_NUM_THREADS -i $origvol -o $synthstrip)
+    if($UseGPU) set cmd = ($cmd --gpu)
+    set cmd = ($cmd $xopts)
     echo "\n $cmd \n" |& tee -a $LF |& tee -a $CF
     if($RunIt) then
       $fs_time $cmd |& tee -a $LF
@@ -4207,58 +4209,17 @@ endif
 ##---------------       -surfreg       -------------------#
 #----------------                      -------------------#
 if($DoSurfReg) then
-  if(! $JosaReg) then
-    set CMDFS = () # see earlier notes on -parallel implementation
-    foreach hemi ($hemilist)
-      echo "#--------------------------------------------" \
-        |& tee -a $LF |& tee -a $CF
-      echo "#@# Surf Reg $hemi `date`" |& tee -a $SF |& tee -a $LF |& tee -a $CF
-      cd $subjdir/scripts > /dev/null
-      $PWD |& tee -a $LF
-      set AvgTif = ${AvgCurvTifPath}/$hemi.${AvgCurvTif}
-      set xopts = `fsr-getxopts mris_register $V8XoptsFile $GlobXOptsFile $XOptsFile `;
-      set cmd = (mris_register -curv -threads $OMP_NUM_THREADS)
-      if($UseNoNeg) set cmd = ($cmd -remove_negative 1)
-      set cmd = ($cmd $xopts)
-      if($longitudinal) then
-        # longitudinal processing:
-        set cmd = ($cmd  -nosulc -norot $longbasedir/surf/$hemi.sphere.reg \
-                   $AvgTif ../surf/$hemi.sphere.reg)
-      else
-        # default stream:
-        set cmd = ($cmd ../surf/$hemi.sphere $AvgTif ../surf/$hemi.sphere.reg)
-      endif
-      echo "\n $cmd \n"|& tee -a $LF |& tee -a $CF
-      if($DoParallel) then
-        set CMDF = mris_register_${hemi}.cmd
-        echo "$cmd" > $CMDF
-        set CMDFS = ( $CMDFS $CMDF )
-      else
-        if($RunIt) $fs_time $cmd |& tee -a $LF
-        if($status) goto error_exit;
-        # Create a symbolic link to $hemi.fsaverage.sphere.reg
-        if($RunIt) then
-          pushd ../surf
-          set cmd = (ln -sf $hemi.sphere.reg$FS_GII $hemi.fsaverage.sphere.reg$FS_GII)
-          echo "\n $cmd \n"|& tee -a $LF |& tee -a $CF
-          $cmd |& tee -a $LF
-          if($status) goto error_exit;
-          popd
-        endif
-      endif
-      echo $cmd > $touchdir/$hemi.sphreg.touch
-    end # Loop over hemilist
-    if($RunIt && $DoParallel) then
-      reconbatchjobs $LF $CMDFS |& tee -a $LF
-      if($status) goto error_exit;
-    endif
-  else # JosaReg
-    set cmd = (josareg --s $subjid --threads $OMP_NUM_THREADS --no-post --links)
-    if($#hemilist == 1) set cmd = ($cmd --$hemilist)
-    set xopts = `fsr-getxopts rca-josareg $V8XoptsFile $GlobXOptsFile $XOptsFile `;
-    set cmd = ($cmd $xopts)
-    echo "\n $cmd \n"|& tee -a $LF |& tee -a $CF
-    if($RunIt) $cmd |& tee -a $LF
+  set cmd = (rca-surfreg --s $subjid --threads $OMP_NUM_THREADS \
+   --tif-path $AvgCurvTifPath --tif-name $AvgCurvTif)
+  if($#hemilist == 1) set cmd = ($cmd --$hemilist)
+  if($longitudinal) set cmd = ($cmd --long)
+  if($UseNoNeg) set cmd = ($cmd --usenoneg)
+  if($JosaReg) set cmd = ($cmd --josa)
+  if($ForceUpdate) set cmd = ($cmd --force)
+  if($XOptsFile) set cmd = ($cmd --expert $XOptsFile)
+  echo "#@# Surf Reg  `date`" |& tee -a $SF |& tee -a $LF |& tee -a $CF
+  if($RunIt) then
+    $fs_time $cmd |& tee -a $LF
     if($status) goto error_exit;
   endif
 endif
