@@ -31,7 +31,7 @@ set DoAllVol = 0;
 set DoComputeTal = 1;
 set DoEstimateTal = 0;
 set gcaprep = 0
-set CoRegThreads = 1
+set threads = 1
 
 # Not all of the lists below are really needed (orig T1 brain needed by make_ave_vol)
 set vollist = (orig T1 brain brainmask norm aseg aseg.presurf aparc+aseg)
@@ -191,22 +191,7 @@ foreach srchemi ($srchemilist)
     # The LTA may be used to init the surfreg
     if($DoComputeTal) then
       # Recompute talairach registration by doing the registration
-      set cmd = (recon-all -sb $subject/xhemi -talairach)
-      date | tee -a $LF
-      echo $cmd  | tee -a $LF
-      $cmd | tee -a $LF
-      if($status) exit 1;
-      # Create the LTA
-      set ud = `UpdateNeeded $xlta $xxfm`
-      if($ud) then
-        set mni305 = $FREESURFER_HOME/average/mni305.cor.mgz
-        set cmd = (lta_convert --src $subjdir/mri/orig.mgz --trg $mni305 --inxfm $xxfm \
-            --outlta $xlta --subject fsaverage --ltavox2vox)
-        echo $cmd |& tee -a $LF 
-        $cmd |& tee -a $LF
-        if($status) exit 1
-      endif
-
+      set cmd = (rca-talairach --s $subject/xhemi)
     endif
 
     if($DoEstimateTal) then 
@@ -254,7 +239,7 @@ foreach srchemi ($srchemilist)
       # the lrrev.register.dat above as this is an actual registration
       # of intensities
       set cmd = (mri_coreg --mov $outdir/mri/brainmask.mgz --targ mri/brainmask.mgz \
-        --reg $outdir/mri/transforms/reg.lrrev-to-norev.lta --threads $CoRegThreads)
+        --reg $outdir/mri/transforms/reg.lrrev-to-norev.lta --threads $threads)
       echo $cmd  | tee -a $LF
       $cmd | tee -a $LF
       if($status) exit 1;
@@ -325,7 +310,7 @@ foreach srchemi ($srchemilist)
 
   # Perform Surface-based registration to fsaverage
   if($DoReg) then
-    set cmd = (recon-all -sb $xsubject -hemi $trghemi -surfreg)
+    set cmd = (rca-surfreg --s $xsubject -hemi $trghemi -threads $threads)
     date | tee -a $LF
     echo $cmd  | tee -a $LF
     $cmd | tee -a $LF
@@ -395,7 +380,7 @@ while( $#argv != 0 )
 
     case "--threads":
       if( $#argv < 1) goto arg1err;
-      set CoRegThreads = $argv[1]; shift;
+      set threads = $argv[1]; shift;
       breaksw
 
     case "--avgerage-subject":
