@@ -1852,7 +1852,7 @@ talairach:
   echo $cmd > $touchdir/talairach.touch
 endif
 
-if($DoTalairach) then 
+if($DoTalairach && ! $UseSynthMorph) then 
   # Always convert the talairach.xfm into an LTA
   cd $subjdir/mri > /dev/null
   set xfm = transforms/talairach.xfm 
@@ -2018,26 +2018,16 @@ endif
 
 set synthmorphdir = ()
 if($UseSynthMorph) then
-  # Now affine register to the mni305
-  set mni305stripped = $FREESURFER/average/mni305.cor.stripped.mgz
-  set sm_mni305dir = $mdir/transforms/synthmorph.mni305
-  set mni305lta = $sm_mni305dir/aff.lta
-  set cmd = (fs-synthmorph-reg --i $synthstrip --t $mni305stripped --affine-only \
-      --o $sm_mni305dir --threads $OMP_NUM_THREADS)
+  # Affine registration to the mni305 to create talairach.xfm
+  set cmd = (rca-talairach --s $subjid --threads $OMP_NUM_THREADS)
+  if($ForceUpdate) set cmd = ($cmd --force)
+  echo "\n $cmd \n"|& tee -a $LF |& tee -a $CF
   if($RunIt) then
     $fs_time $cmd |& tee -a $LF
     if($status) goto error_exit;
-    pushd $mdir/transforms
-    set cmd = (lta_convert --ltavox2vox --inlta synthmorph.mni305/aff.lta --outlta talairach.xfm.lta) # convert to VOX2VOX
-    $cmd |& tee -a $LF
-    if($status) goto error_exit;
-    set cmd = (lta_convert --inlta talairach.xfm.lta --outmni talairach.xfm)
-    $cmd |& tee -a $LF
-    if($status) goto error_exit;
-    popd
   endif
   set synthmorphdir = $mdir/transforms/synthmorph.1.0mm.1.0mm
-  # This will use nu by default
+  # Nonlinear reg to 152. This will use nu by default so spec orig
   set xopts = `fsr-getxopts fs-synthmorph-reg $V8XoptsFile $GlobXOptsFile $XOptsFile `;
   set cmd = (fs-synthmorph-reg --s $subjid --threads $OMP_NUM_THREADS \
     --i $subjdir/mri/orig.mgz --test)
