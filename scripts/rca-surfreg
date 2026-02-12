@@ -1,0 +1,383 @@
+#!/bin/tcsh -f
+# rca-surfreg - sources
+if(-e $FREESURFER_HOME/sources.csh) then
+  source $FREESURFER_HOME/sources.csh
+endif
+
+set VERSION = '$Id$';
+set scriptname = `basename $0`
+
+if($?FS_V8_XOPTS == 0) setenv FS_V8_XOPTS 1
+set UseV8 = $FS_V8_XOPTS;
+if($?FS_GII == 0) setenv FS_GII ""
+
+set outdir = ();
+set subject = ();
+set ForceUpdate = 0
+set threads = 1
+set RunIt = 1
+set JosaReg = 0
+set AvgCurvTifPath = ${FREESURFER_HOME}/average
+set AvgCurvTif = folding.atlas.acfb40.noaparc.i12.2016-08-02.tif
+set UseNoNeg = 0 # if 1, add '-remove_negative 1' to mris_sphere,mris_register
+set V8XoptsFile = ()
+set GlobXOptsFile = ()
+set XOptsFile = ()
+set longitudinal = 0
+set hemilist = (lh rh)
+
+set fs_time = "";
+fs_time ls >& /dev/null
+if (! $status) set fs_time=(fs_time)
+
+set tmpdir = ();
+set cleanup = 1;
+set LF = ();
+
+set inputargs = ($argv);
+set PrintHelp = 0;
+if($#argv == 0) goto usage_exit;
+set n = `echo $argv | grep -e -help | wc -l` 
+if($n != 0) then
+  set PrintHelp = 1;
+  goto usage_exit;
+endif
+set n = `echo $argv | grep -e -version | wc -l` 
+if($n != 0) then
+  echo $VERSION
+  exit 0;
+endif
+goto parse_args;
+parse_args_return:
+goto check_params;
+check_params_return:
+
+set StartTime = `date`;
+set tSecStart = `date '+%s'`;
+set year  = `date +%Y`
+set month = `date +%m`
+set day   = `date +%d`
+set hour   = `date +%H`
+set min    = `date +%M`
+
+#mkdir -p $outdir/log
+#pushd $outdir > /dev/null
+#set outdir = `pwd`;
+#popd > /dev/null
+
+if($#tmpdir == 0) then
+  if(-dw /scratch)   set tmpdir = /scratch/tmpdir.rca-surfreg.$$
+  if(! -dw /scratch) set tmpdir = $outdir/tmpdir.rca-surfreg.$$
+endif
+#mkdir -p $tmpdir
+
+# Set up log file
+if($#LF == 0) set LF = $SUBJECTS_DIR/$subject/scripts/rca-surfreg.Y$year.M$month.D$day.H$hour.M$min.log
+if($LF != /dev/null) rm -f $LF
+echo "Log file for rca-surfreg" >> $LF
+date  | tee -a $LF
+echo "" | tee -a $LF
+echo "setenv SUBJECTS_DIR $SUBJECTS_DIR" | tee -a $LF
+echo "cd `pwd`"  | tee -a $LF
+echo $0 $inputargs | tee -a $LF
+ls -l $0  | tee -a $LF
+echo "" | tee -a $LF
+cat $FREESURFER_HOME/build-stamp.txt | tee -a $LF
+echo $VERSION | tee -a $LF
+uname -a  | tee -a $LF
+echo "pid $$" | tee -a $LF
+if($?PBS_JOBID) then
+  echo "pbsjob $PBS_JOBID"  >> $LF
+endif
+if($?SLURM_JOB_ID) then
+  echo SLURM_JOB_ID $SLURM_JOB_ID >> $LF
+endif
+
+#========================================================
+set surfdir = $SUBJECTS_DIR/$subject/surf
+if(! $JosaReg) then
+  foreach hemi ($hemilist)
+    echo "#--------------------------------------------" |& tee -a $LF 
+    echo "#@# Surf Reg $hemi `date`" |& tee -a $LF 
+    set AvgTif = ${AvgCurvTifPath}/$hemi.${AvgCurvTif}
+    set sphere = $surfdir/$hemi.sphere 
+    set spherereg = $surfdir/$hemi.sphere.reg
+    set deps = ($surfdir/$hemi.curv $surfdir/$hemi.sulc $surfdir/$hemi.smoothwm)
+    if($longitudinal == 0) set deps = ($deps $surfdir/$hemi.sphere)
+    if($longitudinal == 1) set deps = ($deps $longbasedir/surf/$hemi.sphere.reg)
+    set ud = `UpdateNeeded $spherereg $deps`
+    if($ud || $ForceUpdate) then
+      set cmd = (mris_register -curv -threads $OMP_NUM_THREADS)
+      if($UseNoNeg) set cmd = ($cmd -remove_negative 1)
+      if($longitudinal) then
+        set cmd = ($cmd -nosulc -norot $longbasedir/surf/$hemi.sphere.reg)
+      else
+        set cmd = ($cmd $sphere)
+      endif # long
+      set xopts = `fsr-getxopts mris_register $V8XoptsFile $GlobXOptsFile $XOptsFile `;
+      set cmd = ($cmd $xopts)
+      set cmd = ($cmd $AvgTif $spherereg)
+      echo "\n $cmd \n"|& tee -a $LF 
+      if($RunIt) then
+        $fs_time $cmd |& tee -a $LF
+        if($status) goto error_exit;
+        pushd $surfdir
+        set cmd = (ln -sf $hemi.sphere.reg$FS_GII $hemi.fsaverage.sphere.reg$FS_GII)
+        echo "\n $cmd \n"|& tee -a $LF 
+        $cmd |& tee -a $LF
+        if($status) goto error_exit;
+        popd
+      endif # Runit
+    endif # Update
+  end # Loop over hemilist
+else # JosaReg
+  set cmd = (josareg --s $subject --threads $OMP_NUM_THREADS --no-post --links)
+  if($#hemilist == 1) set cmd = ($cmd --$hemilist)
+  if($ForceUpdate) set cmd = ($cmd --force)
+  set xopts = `fsr-getxopts rca-josareg $V8XoptsFile $GlobXOptsFile $XOptsFile `;
+  set cmd = ($cmd $xopts)
+  echo "\n $cmd \n"|& tee -a $LF
+  if($RunIt) $cmd |& tee -a $LF
+  if($status) goto error_exit;
+endif
+
+#========================================================
+
+# Cleanup
+# if($cleanup) rm -rf $tmpdir
+
+# Done
+echo " " |& tee -a $LF
+set tSecEnd = `date '+%s'`;
+@ tSecRun = $tSecEnd - $tSecStart;
+set tRunMin = `echo $tSecRun/60|bc -l`
+set tRunMin = `printf %5.2f $tRunMin`
+set tRunHours = `echo $tSecRun/3600|bc -l`
+set tRunHours = `printf %5.2f $tRunHours`
+echo "Started at $StartTime " |& tee -a $LF
+echo "Ended   at `date`" |& tee -a $LF
+echo "Rca-Surfreg-Run-Time-Sec $tSecRun" |& tee -a $LF
+echo "Rca-Surfreg-Run-Time-Min $tRunMin" |& tee -a $LF
+echo "Rca-Surfreg-Run-Time-Hours $tRunHours" |& tee -a $LF
+echo " " |& tee -a $LF
+echo "rca-surfreg Done" |& tee -a $LF
+exit 0
+
+###############################################
+
+############--------------##################
+error_exit:
+echo "ERROR:"
+
+exit 1;
+###############################################
+
+############--------------##################
+parse_args:
+set cmdline = ($argv);
+while( $#argv != 0 )
+
+  set flag = $argv[1]; shift;
+  
+  switch($flag)
+
+    case "--s":
+    case "-s":
+      if($#argv < 1) goto arg1err;
+      set subject = $argv[1]; shift;
+      breaksw
+
+   case "-sd":
+   case "--sd":
+   case "--sdir":
+      if($#argv < 1) goto arg1err;
+      setenv SUBJECTS_DIR $argv[1]; shift;
+      breaksw
+
+    case "--threads":
+    case "-threads":
+      if($#argv < 1) goto arg1err;
+      set threads = $argv[1]; shift;
+      setenv OMP_NUM_THREADS $threads
+      setenv FS_OMP_NUM_THREADS $OMP_NUM_THREADS
+      breaksw
+
+    case "--tif-path":
+    case "-tif-path":
+      if($#argv < 1) goto arg1err;
+      set AvgCurvTifPath = $argv[1]; shift
+      breaksw
+
+    case "--tif-name":
+    case "-tif-name":
+      if($#argv < 1) goto arg1err;
+      set AvgCurvTif = $argv[1]; shift
+      breaksw
+
+    case "--josa":
+    case "-josa":
+      set JosaReg = 1
+      breaksw
+
+    case "--lh":
+    case "-lh":
+      set hemilist = lh
+      breaksw
+
+    case "--rh":
+    case "-rh":
+      set hemilist = rh
+      breaksw
+
+    case "-long":
+    case "--long":
+      if($#argv < 1) goto arg1err;
+      set longbaseid = $argv[1]; shift
+      set longitudinal = 1
+      breaksw
+
+    case "--usenoneg":
+    case "-usenoneg":
+      set UseNoNeg = 1
+      breaksw
+
+    case "-dontrun":
+    case "--dontrun":
+      set RunIt = 0;
+      breaksw
+
+    case "-expert":
+      if( $#argv < 1) goto arg1err;
+      set XOptsFile = $argv[1]; shift;
+      fsr-checkxopts $XOptsFile
+      if($status) goto error_exit;
+      set XOptsFile = `getfullpath $XOptsFile`
+      breaksw
+
+    case "--force":
+     set ForceUpdate = 1
+     breaksw
+    case "--no-force":
+     set ForceUpdate = 0
+     breaksw
+
+    case "--log":
+      if($#argv < 1) goto arg1err;
+      set LF = $argv[1]; shift;
+      breaksw
+
+    case "--nolog":
+    case "--no-log":
+      set LF = /dev/null
+      breaksw
+
+    case "--o":
+      if($#argv < 1) goto arg1err;
+      set outdir = $argv[1]; shift;
+      # Not used
+      breaksw
+
+    case "--i":
+      if($#argv < 1) goto arg1err;
+      set invol = $argv[1]; shift;
+      # Not used
+      breaksw
+
+    case "--tmp":
+    case "--tmpdir":
+      if($#argv < 1) goto arg1err;
+      set tmpdir = $argv[1]; shift;
+      set cleanup = 0;
+      breaksw
+
+    case "--nocleanup":
+      set cleanup = 0;
+      breaksw
+
+    case "--cleanup":
+      set cleanup = 1;
+      breaksw
+
+    case "--debug":
+      set verbose = 1;
+      set echo = 1;
+      breaksw
+
+    default:
+      echo ERROR: Flag $flag unrecognized. 
+      echo $cmdline
+      exit 1
+      breaksw
+  endsw
+
+end
+
+goto parse_args_return;
+############--------------##################
+
+############--------------##################
+check_params:
+
+if($#subject == 0) then
+  echo "ERROR: must spec subject"
+  exit 1;
+endif
+if(! -e $SUBJECTS_DIR/$subject) then
+  echo "ERROR: cannot find $subject"
+  exit 1;
+endif
+set mdir = $SUBJECTS_DIR/$subject/mri
+
+set longbasedir = ""
+if($longitudinal) then
+  set longbasedir = $SUBJECTS_DIR/$longbaseid
+  if(! -e $longbasedir) then
+    echo "ERROR: cannot find $subject"
+    exit 1;
+  endif
+endif
+
+if($UseV8) then
+  set V8XoptsFile = $FREESURFER/etc/global-expert-options.v8.txt
+endif
+if(-e $SUBJECTS_DIR/global-expert-options.txt) then
+  set GlobXOptsFile = $SUBJECTS_DIR/global-expert-options.txt
+endif
+
+goto check_params_return;
+############--------------##################
+
+############--------------##################
+arg1err:
+  echo "ERROR: flag $flag requires one argument"
+  exit 1
+############--------------##################
+arg2err:
+  echo "ERROR: flag $flag requires two arguments"
+  exit 1
+############--------------##################
+
+############--------------##################
+usage_exit:
+  echo ""
+  echo "rca-surfreg - register surface to fsaverage (creates ?h.sphere.reg)"
+  echo " --s subject"
+  echo " --long longbaseid : use longitudinal options to mris_register"
+  echo " --usenoneg : add  -remove_negative 1 to mris_register command"
+  echo " --lh, --rh : only do one hemi (default is both)"
+  echo " --tif-path path : path to find the tif reg target ($AvgCurvTifPath)"
+  echo " --tif-name name : name of reg target without hemi ($AvgCurvTif)"
+  echo " --josa : use josareg instead of mris_register"
+  echo " --threads threads"
+  echo " --sdir SUBJECTS_DIR "
+  echo " --force : force update"
+  echo " --dontrun"
+  echo ""
+
+  if(! $PrintHelp) exit 1;
+  echo $VERSION
+  cat $0 | awk 'BEGIN{prt=0}{if(prt) print $0; if($1 == "BEGINHELP") prt = 1 }'
+exit 1;
+
+#---- Everything below here is printed out as part of help -----#
+BEGINHELP
