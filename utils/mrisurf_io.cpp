@@ -2881,6 +2881,12 @@ MRI_SURFACE *MRISreadVTK(MRI_SURFACE *mris, const char *fname, MRI *curvmri)
     if (strncmp(cp, "vtk output", 10) == 0) {
       checks++;
     }
+    if (strncmp(cp, "surface file", 12) == 0) {
+      checks++;
+    }
+    if (strncmp(cp, "SURFACE FILE", 12) == 0) {
+      checks++;
+    }
     if (strncmp(cp, "ASCII", 5) == 0) {
       checks++;
     }
