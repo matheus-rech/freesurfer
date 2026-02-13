@@ -2517,20 +2517,25 @@ int CountEdits(char *subject, char *outfile)
   wmstats = WMAnatStats(subject, "norm.mgz", 3, 2);
 
   // Compute gray/white contrast, its spatial stddev, cnr = mean/std
-  double gwconmeansum=0, gwconvarsum=0;
+  double gwconmeansum=0, gwconvarsum=1e-10;
   int hemi;
   for(hemi = 0; hemi < 2; hemi++){
-    LABEL *clabel;
-    MRI *wgcon;
     const char *hemistr = (hemi == 0) ? "lh" : "rh";
+    sprintf(tmpstr,"%s/%s/surf/%s.w-g.pct.mgh",SUBJECTS_DIR,subject,hemistr);
+    if(!fio_FileExistsReadable(tmpstr)) {
+      printf("Cannot find %s ... skipping\n",tmpstr);
+      continue; // won't exist for base
+    }
+    MRI *wgcon;
+    wgcon = MRIread(tmpstr);
+    if(wgcon == NULL) exit(1);
+    LABEL *clabel;
     sprintf(tmpstr,"%s/%s/surf/%s.white",SUBJECTS_DIR,subject,hemistr);
     MRIS *mris_white = MRISread(tmpstr);
     if(mris_white==NULL) exit(1);
     sprintf(tmpstr,"%s/%s/label/%s.cortex.label",SUBJECTS_DIR,subject,hemistr);
     clabel = LabelRead(NULL,tmpstr);
     if(clabel == NULL) exit(1);
-    sprintf(tmpstr,"%s/%s/surf/%s.w-g.pct.mgh",SUBJECTS_DIR,subject,hemistr);
-    wgcon = MRIread(tmpstr);
     seg = MRIalloc(mris_white->nvertices,1,1,MRI_INT);
     int n;
     for (n = 0; n < clabel->n_points; n++){
