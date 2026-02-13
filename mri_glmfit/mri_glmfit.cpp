@@ -745,7 +745,8 @@ int DoMRTM1=0;
 int DoMRTM2=0;
 int DoLogan=0;
 int DoLoganMA1=0;
-double MRTM2_k2p=0, Logan_Tstar=0;
+int DoPatlak=0;
+double MRTM2_k2p=0, Logan_Tstar=0, Patlak_Tstar=0;
 MATRIX *MRTM2_x1;
 int BPClipNeg=0;
 double BPClipMax=-1;
@@ -1201,28 +1202,6 @@ int main(int argc, char **argv) {
     sprintf(tmpstr,"%s/time.min.dat",GLMDir);
     MatrixWriteTxt(tmpstr, RTM_TimeMin);
   }
-  // Invasive Logan ------------------------------------
-  if(DoLogan) {
-    // Model integralYi = [integralCp Yi]*beta
-    //  Vt = beta[1]
-    //  The equation is solved only for time points > tstar
-    // This equation does not match the original logan or the Ichise MA1
-    // but it generally tracks the original logan very well
-    printf("Performing Logan\n"); fflush(stdout);
-    mriglm->Xg = RTM_intCr;
-    mriglm->npvr = 1;
-    printf("Computing integral of input ..."); fflush(stdout);
-    mriglm->pvr[0] = mriglm->y;
-    mriglm->y = fMRIcumTrapZ(mriglm->y,RTM_TimeMin,NULL,NULL);
-    printf("done.\n"); fflush(stdout);
-    printf("Loganizing\n"); fflush(stdout);
-    MRIloganize(&(mriglm->Xg), &(mriglm->y), &(mriglm->pvr[0]),RTM_TimeMin,Logan_Tstar/60);
-    NoContrastsOK = 1;
-    nContrasts = 0;
-    mriglm->glm->ncontrasts = nContrasts;
-    sprintf(tmpstr,"%s/time.min.dat",GLMDir);
-    MatrixWriteTxt(tmpstr, RTM_TimeMin);
-  }
   if(DoLoganMA1) {
     // Model Yi = [integralRef integralYi]*beta
     //  Vt = beta[0]/beta[1]
@@ -1240,6 +1219,31 @@ int main(int argc, char **argv) {
     mriglm->glm->ncontrasts = nContrasts;
     sprintf(tmpstr,"%s/time.min.dat",GLMDir);
     MatrixWriteTxt(tmpstr, RTM_TimeMin);
+  }
+  // Invasive Logan ------------------------------------
+  if(DoPatlak) {
+    // Model Ct/Cp = K*intRef + Vt
+    //  V0 = beta[0]
+    //  Ki = beta[1]
+    //  The equation is solved only for time points > tstar
+    printf("Performing Patlak\n"); fflush(stdout);
+    mriglm->Xg = MatrixAlloc(RTM_intCr->rows,2,MATRIX_REAL);
+    for(int n=0; n < RTM_intCr->rows; n++){
+      // Technically, Patlak is y = Ct/Cp, X = [1 intCr/Cr]
+      mriglm->Xg->rptr[n+1][1] = RTM_Cr->rptr[n+1][1];
+      mriglm->Xg->rptr[n+1][2] = RTM_intCr->rptr[n+1][1];
+    }
+    printf("Patlakizing\n"); fflush(stdout);
+    MRIloganize(&(mriglm->Xg), &(mriglm->y), NULL,RTM_TimeMin,Patlak_Tstar/60);
+    NoContrastsOK = 1;
+    nContrasts = 0;
+    mriglm->glm->ncontrasts = nContrasts;
+    sprintf(tmpstr,"%s/time.min.dat",GLMDir);
+    MatrixWriteTxt(tmpstr, RTM_TimeMin);
+    sprintf(tmpstr,"%s/Cr.dat",GLMDir);
+    MatrixWriteTxt(tmpstr, RTM_Cr);
+    sprintf(tmpstr,"%s/intCr.dat",GLMDir);
+    MatrixWriteTxt(tmpstr, RTM_intCr);
   }
 
   if(! DontSave) {
@@ -1469,7 +1473,7 @@ int main(int argc, char **argv) {
       exit(1);
     }
   }
-  else if(!DoMRTM1 && !DoMRTM2 && !DoLogan && !DoLoganMA1) {
+  else if(!DoMRTM1 && !DoMRTM2 && !DoLogan && !DoLoganMA1 && !DoPatlak) {
     mriglm->w = NULL;
     mriglm->wg = NULL;
   }
@@ -1560,7 +1564,7 @@ int main(int argc, char **argv) {
   mriglm->glm->ncontrasts = nContrasts;
   if(nContrasts > 0) {
     for(n=0; n < nContrasts; n++) {
-      if (! useasl && ! useqa  && !(fsgd != NULL && fsgd->nContrasts != 0) && !DoMRTM1 && !DoMRTM2 && !DoLogan && !DoLoganMA1) {
+      if (! useasl && ! useqa  && !(fsgd != NULL && fsgd->nContrasts != 0) && !DoMRTM1 && !DoMRTM2 && !DoLogan && !DoLoganMA1 && !DoPatlak) {
         // Get its name
         mriglm->glm->Cname[n] =
           fio_basename(CFile[n],".mat"); //strip .mat
@@ -2258,7 +2262,7 @@ int main(int argc, char **argv) {
     }
   } // contrasts
   
-  if(UseStatTable && !DoLogan && !DoLoganMA1){
+  if(UseStatTable && !DoLogan && !DoLoganMA1 && !DoPatlak){
     PrintStatTable(stdout, OutStatTable);
     sprintf(tmpstr,"%s/sig.table.dat",GLMDir);
     WriteStatTable(tmpstr, OutStatTable);
@@ -2459,6 +2463,29 @@ int main(int argc, char **argv) {
     }
     MRIfree(&mritmp);
   }
+  if(DoLogan){
+    mritmp = MRIcloneBySpace(mriglm->y,MRI_FLOAT,1);
+    for(c=0; c < mriglm->y->width; c++) {
+      for(r=0; r < mriglm->y->height; r++) {
+	for(s=0; s < mriglm->y->depth; s++) {
+	  if(mriglm->mask && MRIgetVoxVal(mriglm->mask,c,r,s,0)<0.5) continue;
+	  double v = MRIgetVoxVal(mriglm->beta,c,r,s,0);
+	  MRIsetVoxVal(mritmp,c,r,s,0,v);
+	}//s
+      }//r
+    }//s
+    sprintf(tmpstr,"%s/vt.%s",GLMDir,format);
+    err = MRIwrite(mritmp,tmpstr);
+    if(err) exit(1);
+    if(UseStatTable){
+      sprintf(tmpstr,"%s/vt.dat",GLMDir);
+      FILE *fp = fopen(tmpstr,"w");
+      for(int c=0; c < mritmp->width; c++)
+	fprintf(fp,"%-30s %10.5f\n",StatTable->colnames[c],MRIgetVoxVal(mritmp,c,0,0,0));
+      fclose(fp);
+    }
+    MRIfree(&mritmp);
+  }
   if(DoLoganMA1){
     mritmp = MRIcloneBySpace(mriglm->y,MRI_FLOAT,1);
     for(c=0; c < mriglm->y->width; c++) {
@@ -2480,6 +2507,33 @@ int main(int argc, char **argv) {
       for(int c=0; c < mritmp->width; c++)
 	fprintf(fp,"%-30s %10.5f\n",StatTable->colnames[c],MRIgetVoxVal(mritmp,c,0,0,0));
       fclose(fp);
+    }
+    MRIfree(&mritmp);
+  }
+  if(DoPatlak){
+    mritmp = MRIcloneBySpace(mriglm->y,MRI_FLOAT,1);
+    for(int k=0; k < 2; k++){
+      for(c=0; c < mriglm->y->width; c++) {
+	for(r=0; r < mriglm->y->height; r++) {
+	  for(s=0; s < mriglm->y->depth; s++) {
+	    if(mriglm->mask && MRIgetVoxVal(mriglm->mask,c,r,s,0)<0.5) continue;
+	    double v = MRIgetVoxVal(mriglm->beta,c,r,s,k);
+	    MRIsetVoxVal(mritmp,c,r,s,0,v);
+	  }//s
+	}//r
+      }//s
+      if(k==0) sprintf(tmpstr,"%s/v0.%s",GLMDir,format);
+      if(k==1) sprintf(tmpstr,"%s/Ki.%s",GLMDir,format);
+      err = MRIwrite(mritmp,tmpstr);
+      if(err) exit(1);
+      if(UseStatTable){
+	if(k==0) sprintf(tmpstr,"%s/v0.dat",GLMDir);
+	if(k==1) sprintf(tmpstr,"%s/Ki.dat",GLMDir);
+	FILE *fp = fopen(tmpstr,"w");
+	for(int c=0; c < mritmp->width; c++)
+	  fprintf(fp,"%-30s %10.5f\n",StatTable->colnames[c],MRIgetVoxVal(mritmp,c,0,0,0));
+	fclose(fp);
+      }
     }
     MRIfree(&mritmp);
   }
@@ -3050,6 +3104,7 @@ static int parse_commandline(int argc, char **argv) {
       for(k=0; k < RTM_TimeSec->rows; k++)
 	RTM_TimeMin->rptr[k+1][1] = RTM_TimeSec->rptr[k+1][1]/60;
       RTM_intCr = MatrixCumTrapZ(RTM_Cr, RTM_TimeMin, NULL);
+
       prunemask = 0;
       NoContrastsOK = 1;
       DoPCC = 0;
@@ -3091,7 +3146,7 @@ static int parse_commandline(int argc, char **argv) {
     } 
     else if (!strcmp(option, "--logan") || !strcmp(option, "--logan-ma1")) {
       // --logan cr.dat time.sec.dat tstar
-      // Logan non-invasive
+      // Logan invasive
       if(nargc < 3) CMDargNErr(option,1);
       TSV tsv;
       if(!tsv.IsTSVExt(pargv[0])){
@@ -3123,6 +3178,41 @@ static int parse_commandline(int argc, char **argv) {
       DoPCC = 0;
       if(!strcmp(option, "--logan")) DoLogan=1;
       else                           DoLoganMA1=1;
+      nargsused = 3;
+    } 
+    else if (!strcmp(option, "--patlak")){
+      // --patlak cr.dat time.sec.dat tstar
+      // Patlak invasive
+      DoPatlak = 1;
+      if(nargc < 3) CMDargNErr(option,1);
+      TSV tsv;
+      if(!tsv.IsTSVExt(pargv[0])){
+	RTM_Cr = MatrixReadTxt(pargv[0], NULL);
+	if(RTM_Cr == NULL) exit(1);
+      }
+      else {
+	int err = tsv.read(pargv[0]);
+	if(err) exit(1);
+      }
+
+      RTM_TimeSec = MatrixReadTxt(pargv[1], NULL);
+      if(RTM_TimeSec == NULL) exit(1);
+      RTM_TimeMin = MatrixAlloc(RTM_TimeSec->rows,1,MATRIX_REAL);
+      for(k=0; k < RTM_TimeSec->rows; k++)
+	RTM_TimeMin->rptr[k+1][1] = RTM_TimeSec->rptr[k+1][1]/60;
+
+      sscanf(pargv[2],"%lf",&Patlak_Tstar);
+      printf("Patlak tstar %g\n",Patlak_Tstar);
+      if(!tsv.IsTSVExt(pargv[0]))
+	RTM_intCr = MatrixCumTrapZ(RTM_Cr, RTM_TimeMin, NULL);
+      else {
+	int err = TSV2PET(tsv,RTM_TimeMin,&RTM_Cr,&RTM_intCr);
+	if(err) exit(1);
+      }
+
+      prunemask = 0;
+      NoContrastsOK = 1;
+      DoPCC = 0;
       nargsused = 3;
     } 
     else if (!strcmp(option, "--pvr")) {
@@ -3733,7 +3823,8 @@ static void print_version(void) {
 /* --------------------------------------------- */
 static void check_options(void) {
   if(XFile == NULL && bvalfile == NULL && fsgdfile == NULL &&
-     ! OneSampleGroupMean && ! useasl && !useqa && !DoMRTM1 && !DoMRTM2 && !DoLogan&& !DoLoganMA1) {
+     ! OneSampleGroupMean && ! useasl && !useqa && !DoMRTM1 && !DoMRTM2 && 
+     !DoLogan&& !DoLoganMA1 && !DoPatlak) {
     printf("ERROR: must specify an input X file or fsgd file or --osgm\n");
     exit(1);
   }
@@ -4333,7 +4424,8 @@ MRI *MRIremoveSpatialMean(MRI *vol, MRI *mask, MRI *out)
 
 /*!
  \fn int MRIloganize(MATRIX **X, MRI **Ct, MRI **intCt, const MATRIX *t, const double tstar)
- \brief Removes time points less than tstar. X, Ct, and intCt are changed
+ \brief Removes time points less than tstar. X, Ct, and intCt are changed. For Patlak, just
+ pass intCt=NULL.
 */
 int MRIloganize(MATRIX **X, MRI **Ct, MRI **intCt, const MATRIX *t, const double tstar)
 {
@@ -4345,19 +4437,25 @@ int MRIloganize(MATRIX **X, MRI **Ct, MRI **intCt, const MATRIX *t, const double
   n0 = n + 1;
   printf("Loganize tstar = %g, n0 = %d, nkeep=%d\n",tstar,n0,nkeep);
 
-  MATRIX *XX = MatrixAlloc(nkeep,1,MATRIX_REAL);
+  MATRIX *XX = MatrixAlloc(nkeep,(*X)->cols,MATRIX_REAL);
   int k=0;
   for(n=n0; n < (*Ct)->nframes; n++){
-    XX->rptr[k+1][1] = (*X)->rptr[n+1][1];
+    for(int c=0; c < (*X)->cols; c++){
+      XX->rptr[k+1][c+1] = (*X)->rptr[n+1][c+1];
+    }
     k++;
   }
 
   MRI *Ct2 = MRIallocSequence((*Ct)->width,(*Ct)->height,(*Ct)->depth,MRI_FLOAT,nkeep);
   MRIcopyHeader((*Ct),Ct2);
   MRIcopyPulseParameters((*Ct),Ct2);
-  MRI *intCt2 = MRIallocSequence((*Ct)->width,(*Ct)->height,(*Ct)->depth,MRI_FLOAT,nkeep);
-  MRIcopyHeader((*Ct),intCt2);
-  MRIcopyPulseParameters((*Ct),intCt2);
+
+  MRI *intCt2 = NULL;
+  if(intCt){
+    intCt2 = MRIallocSequence((*Ct)->width,(*Ct)->height,(*Ct)->depth,MRI_FLOAT,nkeep);
+    MRIcopyHeader((*Ct),intCt2);
+    MRIcopyPulseParameters((*Ct),intCt2);
+  }
   int c,r,s;
   double v;
   for(c=0; c < (*Ct)->width; c++){
@@ -4367,18 +4465,22 @@ int MRIloganize(MATRIX **X, MRI **Ct, MRI **intCt, const MATRIX *t, const double
 	for(n=n0; n < (*Ct)->nframes; n++){
 	  v = MRIgetVoxVal((*Ct),c,r,s,n);
 	  MRIsetVoxVal(Ct2,c,r,s,k,v);
-	  v = MRIgetVoxVal((*intCt),c,r,s,n);
-	  MRIsetVoxVal(intCt2,c,r,s,k,v);
+	  if(intCt){
+	    v = MRIgetVoxVal((*intCt),c,r,s,n);
+	    MRIsetVoxVal(intCt2,c,r,s,k,v);
+	  }
 	  k++;
 	}
       }
     }
   }
   MRIfree(Ct);
-  MRIfree(intCt);
   MatrixFree(X);
   *Ct = Ct2;
-  *intCt = intCt2;
+  if(intCt) {
+    MRIfree(intCt);
+    *intCt = intCt2;
+  }
   *X = XX;
   printf("nframes = %d\n",(*Ct)->nframes);
 
