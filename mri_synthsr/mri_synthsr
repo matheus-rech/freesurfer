@@ -7,7 +7,6 @@ import time
 import numpy as np
 import argparse
 import nibabel as nib
-import surfa as sf
 from datetime import timedelta
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import RegularGridInterpolator
@@ -24,6 +23,15 @@ backend.set_image_data_format('channels_last')
 # ================================================================================================
 #                                         Main Entrypoint
 # ================================================================================================
+
+def batch_normalization(axis, name, tensor):
+    major, minor, patch = (int(x) for x in tf.__version__.split(".")[:3])
+    if (major, minor) <= (2, 13):
+        # Old behavior requires fused=False
+        return keras.layers.BatchNormalization(axis=axis, name=name, fused=False)(tensor)
+    else:
+        # New behavior (fused argument removed)
+        return keras.layers.BatchNormalization(axis=axis, name=name)(tensor)
 
 
 def main():
@@ -63,27 +71,40 @@ def main():
         print('using CPU, hiding all CUDA_VISIBLE_DEVICES')
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-    # locate model weights
-    if not os.environ.get('FREESURFER_HOME'):
-        path_model = None
-        sf.system.fatal('FREESURFER_HOME is not set. Please source freesurfer.')
-    elif args.model is None:
+    # Determine FREESURFER_HOME or fallback
+    fshome = os.environ.get('FREESURFER_HOME')
+    if not fshome:
+        from importlib.util import find_spec
+        spec = find_spec("py_synthsr")
+        if (spec is not None):
+            import py_synthsr
+            fshome = os.path.dirname(os.path.realpath(py_synthsr.__file__))
+            print(f"FREESURFER_HOME is not set. Assuming: {fshome}")
+        else:
+            raise RuntimeError('FREESURFER_HOME is not set. Please source freesurfer.')
+    
+    # Locate model weights
+    if args.model is not None:
+        print(f"Using user-specified model: {args.model}")
+        path_model = args.model
+    else:
         if args.v1:
             print('Using version 1 model from July 2021')
-            path_model = os.path.join(os.environ.get('FREESURFER_HOME'), 'models', 'synthsr_v10_210712.h5')
+            path_model = os.path.join(fshome, 'models', 'synthsr_v10_210712.h5')
         elif args.lowfield:
             print('Using model for low-field scans from January 2023 (version 2)')
-            path_model = os.path.join(os.environ.get('FREESURFER_HOME'), 'models', 'synthsr_lowfield_v20_230130.h5')
+            path_model = os.path.join(fshome, 'models', 'synthsr_lowfield_v20_230130.h5')
         else:
             print('Using general model from January 2023 (version 2)')
-            path_model = os.path.join(os.environ.get('FREESURFER_HOME'), 'models', 'synthsr_v20_230130.h5')
-
-    else:
-        print('Using user-specified model: ' + args.model)
-        path_model = args.model
-
+            path_model = os.path.join(fshome, 'models', 'synthsr_v20_230130.h5')
+    
+    # Verify the model file exists
+    if not os.path.isfile(path_model):
+        sys.exit(f"ERROR: Model file not found at: {path_model}\n"
+                 f"Please specify the correct model with --model or ensure it exists in {os.path.dirname(path_model)}.")
+    
     print(path_model)
-
+    
     # run prediction
     predict(
         path_images=args.i,
@@ -94,7 +115,6 @@ def main():
         disable_flipping=args.disable_flipping,
         threads=args.threads
     )
-
 
 # ================================================================================================
 #                                 Prediction and Processing Utilities
@@ -113,7 +133,7 @@ def predict(path_images,
     '''
 
     if path_model is None:
-        sf.system.fatal("A model file is necessary")
+        raise RuntimeError("A model file is necessary")
 
     # prepare input/output filepaths
     path_images, path_predictions = prepare_output_files(path_images, path_predictions)
@@ -213,9 +233,9 @@ def prepare_output_files(path_images, path_predictions):
 
     # check inputs
     if path_images is None:
-        sf.system.fatal('please specify an input file/folder (--i)')
+        raise RuntimeError('please specify an input file/folder (--i)')
     if path_predictions is None:
-        sf.system.fatal('please specify an output file/folder (--o)')
+        raise RuntimeError('please specify an output file/folder (--o)')
 
     # convert path to absolute paths
     path_images = os.path.abspath(path_images)
@@ -226,13 +246,13 @@ def prepare_output_files(path_images, path_predictions):
 
         # input images
         if not os.path.isfile(path_images):
-            sf.system.fatal('provided text file containing paths of input images does not exist' % path_images)
+            raise RuntimeError('provided text file containing paths of input images does not exist' % path_images)
         with open(path_images, 'r') as f:
             path_images = [line.replace('\n', '') for line in f.readlines() if line != '\n']
 
         # predictions
         if path_predictions[-4:] != '.txt':
-            sf.system.fatal('if path_images given as text file, so must be the output predictions')
+            raise RuntimeError('if path_images given as text file, so must be the output predictions')
         with open(path_predictions, 'r') as f:
             path_predictions = [line.replace('\n', '') for line in f.readlines() if line != '\n']
 
@@ -241,15 +261,15 @@ def prepare_output_files(path_images, path_predictions):
 
         # input images
         if os.path.isfile(path_images):
-            sf.system.fatal('Extension not supported for %s, only use: .nii.gz, .nii, .mgz, or .npz' % path_images)
+            raise RuntimeError('Extension not supported for %s, only use: .nii.gz, .nii, .mgz, or .npz' % path_images)
         path_images = list_images_in_folder(path_images)
 
         # predictions
         if path_predictions[-4:] == '.txt':
-            sf.system.fatal('path_predictions can only be given as text file when path_images is.')
+            raise RuntimeError('path_predictions can only be given as text file when path_images is.')
         if (path_predictions[-7:] == '.nii.gz') | (path_predictions[-4:] == '.nii') | \
                 (path_predictions[-4:] == '.mgz') | (path_predictions[-4:] == '.npz'):
-            sf.system.fatal('Output folders cannot have extensions: .nii.gz, .nii, .mgz, or .npz, had %s' % path_predictions)
+            raise RuntimeError('Output folders cannot have extensions: .nii.gz, .nii, .mgz, or .npz, had %s' % path_predictions)
         mkdir(path_predictions)
         path_predictions = [os.path.join(path_predictions, os.path.basename(image)).replace('.nii', '_synthsr.nii')
                             for image in path_images]
@@ -261,12 +281,12 @@ def prepare_output_files(path_images, path_predictions):
 
         # input images
         if not os.path.isfile(path_images):
-            sf.system.fatal("file does not exist: %s \nplease make sure the path and the extension are correct" % path_images)
+            raise RuntimeError("file does not exist: %s \nplease make sure the path and the extension are correct" % path_images)
         path_images = [path_images]
 
         # predictions
         if path_predictions[-4:] == '.txt':
-            sf.system.fatal('path_predictions can only be given as text file when path_images is.')
+            raise RuntimeError('path_predictions can only be given as text file when path_images is.')
         if ('.nii.gz' not in path_predictions) & ('.nii' not in path_predictions) & \
                 ('.mgz' not in path_predictions) & ('.npz' not in path_predictions):
             mkdir(path_predictions)
@@ -286,11 +306,11 @@ def preprocess(path_image, ct_mode, n_levels=5):
     # read image and corresponding info
     im, _, aff, n_dims, n_channels, h, _ = get_volume_info(path_image, True)
     if n_dims < 3:
-        sf.system.fatal('input should have 3 dimensions, had %s' % n_dims)
+        raise RuntimeError('input should have 3 dimensions, had %s' % n_dims)
     elif n_dims == 4 and n_channels == 1:
         im = im[..., 0]
     elif n_dims > 3:
-        sf.system.fatal('input should have 3 dimensions, had %s' % n_dims)
+        raise RuntimeError('input should have 3 dimensions, had %s' % n_dims)
     elif n_channels > 1:
         print('WARNING: detected more than 1 channel, only keeping the first channel.')
         im = im[..., 0]
@@ -320,7 +340,7 @@ def build_model(model_file):
     Builds keras unet model.
     '''
     if not os.path.isfile(model_file):
-        sf.system.fatal("The provided model path does not exist.")
+        raise RuntimeError("The provided model path does not exist.")
 
     # build UNet
     net = unet(nb_features=24,
@@ -538,7 +558,7 @@ def conv_enc(nb_features,
 
         if batch_norm is not None:
             name = '%s_bn_down_%d' % (prefix, level)
-            last_tensor = keras.layers.BatchNormalization(axis=batch_norm, name=name, fused=False)(last_tensor)
+            last_tensor = batch_normalization(batch_norm, name, last_tensor)
 
         # max pool if we're not at the last level
         if level < (nb_levels - 1):
@@ -598,7 +618,12 @@ def conv_dec(nb_features,
     else:
         input_tensor = input_model.input
         last_tensor = input_model.output
-        input_shape = last_tensor.shape.as_list()[1:]
+        if isinstance(last_tensor, list):
+            last_tensor = last_tensor[0]
+        #CR input_shape = last_tensor.shape.as_list()[1:]
+        input_shape = list(last_tensor.shape)[1:]
+
+
 
     # vol size info
     ndims = len(input_shape) - 1
@@ -673,7 +698,7 @@ def conv_dec(nb_features,
 
         if batch_norm is not None:
             name = '%s_bn_up_%d' % (prefix, level)
-            last_tensor = keras.layers.BatchNormalization(axis=batch_norm, name=name, fused=False)(last_tensor)
+            last_tensor = batch_normalization(batch_norm, name, last_tensor)
 
     # Compute likelyhood prediction (no activation yet)
     name = '%s_likelihood' % prefix
