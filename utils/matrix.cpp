@@ -161,7 +161,11 @@ MATRIX *MatrixCopy(const MATRIX *mIn, MATRIX *mOut)
   rows = mIn->rows;
   cols = mIn->cols;
 
-  if (!mOut) mOut = MatrixAlloc(rows, cols, mIn->type);
+  if (!mOut) 
+	  mOut = MatrixAlloc(rows, cols, mIn->type);
+  else (mOut->rows < mIn->rows || mOut->cols < mIn->cols)
+	  return (NULL);
+  //MatrixZero(mOut->rows, mOut->cols, mOut); // Not really necessary, every element will be overwritten.
 
   if (!mOut) ErrorExit(ERROR_NO_MEMORY, "MatrixCopy: couldn't allocate mOut");
 
