@@ -83,5 +83,5 @@ cmd="fspython $BASEPATH/scripts/inference.py $@ --model_file $MODEL_FILE --test_
 echo "Running command:"
 echo $cmd
 echo "  "
-$cmd
+eval ${cmd}
 
