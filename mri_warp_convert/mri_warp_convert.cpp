@@ -132,7 +132,7 @@ GCAM* readSPM(const string& warp_file, const string& src_geom)
   //Now copy the warp into a GCAM
   GCA_MORPH* gcam = GCAMalloc(warp->width, warp->height, warp->depth) ;
   GCAMinitVolGeom(gcam, src, warp) ;
-  GCAMreadWarpFromMRI(gcam, warp, 0) ; //0 = warp is in absolute source CRS coords
+  GCAMreadWarpFromMRI(gcam, warp, 0) ; //0 = warp is in absolute source CRS coords, warp is abs_crs
 
   MRIfree(&warp);
   MRIfree(&src);  
@@ -176,6 +176,8 @@ GCAM* readFSL2(const string& warp_file, const string& src_geom)
 	// Add the warp value at this voxel to get the FSL RAS in the source space
 	for(int k=0; k<3; k++) {
 	  double w = MRIgetVoxVal(warp, c,r,s,k);
+	  // 2026-02-17 YJH: it looks like it flips every frame not just the first one
+	  // readFSL() flips only the first frame
 	  if(det > 0) w *= -1; // only flip first frame (by negating relative shifts)
 	  fslras->rptr[k+1][1] += w;
 	}
@@ -190,10 +192,10 @@ GCAM* readFSL2(const string& warp_file, const string& src_geom)
   MatrixFree(&fslras2vox_src);
   MatrixFree(&vox2fslras_warp);
 
-  //Now copy the warp into a GCAM
+  //Now copy the warp into a GCAM (type = GCAM_VOX)
   GCA_MORPH* gcam = GCAMalloc(warp->width, warp->height, warp->depth) ;
   GCAMinitVolGeom(gcam, src, warp) ;
-  GCAMreadWarpFromMRI(gcam, warp, 0) ; //0 = absolute source CRS coords
+  GCAMreadWarpFromMRI(gcam, warp, 0) ; //0 = absolute source CRS coords, warp is abs_crs
 
   // In the first incarnation of this function, this was run. If it is to be run
   // here, then the function needs to be changed to handle an absolute warp
@@ -270,6 +272,14 @@ GCAM* readFSL(const string& warp_file)
 #if 1
   GCAMremoveSingularitiesAndReadWarpFromMRI(gcam, mri) ;
 #else
+  /* 2026-02-17 YJH: 
+   * Google AI says
+   *    "the displacements in an FSL warpfield are defined as millimeter (mm) scanner space, not raw voxel indices".
+   * So, mri is in disp_abs interpretation. 
+   * Not sure GCAMreadWarpFromMRI(gcam, mri, 1) will correctly convert mri to gcam with type GCAM_VOX.
+   * I think GCAMreadWarpFromMRI() requires the input MRI to be in abs_crs or disp_crs interpretation
+   * because gcamn->origx, origy, origz are initialized to be target crs in GCAMalloc().
+   */
   GCAMreadWarpFromMRI(gcam, mri, 1) ;
 #endif
 

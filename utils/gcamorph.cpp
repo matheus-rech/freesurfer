@@ -15110,6 +15110,10 @@ int GCAMcompose(GCA_MORPH *gcam, MRI *mri_warp)
  */
 int GCAMreadWarpFromMRI(GCA_MORPH *gcam, const MRI *mri_warp, int DeformationFlag)
 {
+  /* 2026-02-17 YJH:
+   * I think GCAMreadWarpFromMRI() requires the input mri_warp to be in abs_crs or disp_crs interpretation
+   * because gcamn->origx, origy, origz are initialized to be target crs in GCAMalloc().
+   */
   int xp, yp, zp, xv, yv, zv;
   double dx, dy, dz;
   GCA_MORPH_NODE *gcamn;
@@ -15483,6 +15487,10 @@ double MRIlabelMorphSSE(MRI *mri_source, MRI *mri_atlas, MRI *mri_warp)
   sse = sse / nvox;
   return (sse);
 }
+
+// 2026-02-17 YJH:
+// It looks like that before calling GCAMwriteWarpToMRI(), GCAM needs to be converted to GCAM_VOX.                                  
+// The output MRI is in disp_crs.
 MRI *GCAMwriteWarpToMRI(const GCA_MORPH *gcam, MRI *mri_warp)
 {
   int x, y, z;
@@ -17297,6 +17305,9 @@ static int most_likely_label(GCA_MORPH *gcam, TRANSFORM *transform, int xp, int 
   to 3 frames in the MRI. Note that the "xyz" is actually
   the col, row, slice in the source image. The geometry
   is set to match that of the atlas image.
+  2026-02-17 YJH:
+  It seems that the above comment is true only if gcam->type = GCAM_VOX.
+  If gcam->type = GCAM_RAS, the "xyz" is the coordinates in RAS in source image space.
  */
 MRI *GCAMtoMRI(GCAM *gcam, MRI *mri)
 {

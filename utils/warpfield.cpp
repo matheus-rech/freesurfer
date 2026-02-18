@@ -119,9 +119,16 @@ MRI* Warpfield::convert(const char *fname, const int dataformat, int doGCAMsampl
 //
 // similar functionality is also implemented in
 //   MRI *GCAMwriteWarpToMRI(const GCA_MORPH *gcam, MRI *mri_warp);         (gcamorph.cpp)
+//       2026-02-17 YJH:
+//       It looks like that before calling GCAMwriteWarpToMRI(),
+//       GCAM needs to be converted to GCAM_VOX. The output MRI is in disp_crs.
 //   void write_world(const string& fname, GCAM* gcam, bool is_lps=false);  (mri_warp_convert.cpp)
 //   void write_voxel(const string& fname, GCAM* gcam);                     (mri_warp_convert.cpp)
 //   MRI *GCAMtoMRI(GCAM *gcam, MRI *mri);                                  (gcamorph.cpp)
+//       2026-02-17 YJH:
+//       It seems that the output MRI is either abs_crs or abs_ras
+//       depending on if gcan->type is GCAM_VOX or GCAM_RAS.
+//   MRI *GCAMwriteMRI(GCAM *gcam, MRI *mri, int frame);                    (gcamorph.cpp)
 MRI* Warpfield::convert(GCA_MORPH *gcam, const int dataformat, int doGCAMsampleMorph)
 {
   if (dataformat == WarpfieldDTFMT::WARPFIELD_DTFMT_UNKNOWN)
@@ -395,6 +402,9 @@ MRI* Warpfield::invert(GCA_MORPH *gcam, const int dataformat)
 //
 // similar functionality is also implemented in
 //   int GCAMreadWarpFromMRI(GCA_MORPH *gcam, const MRI *mri_warp, int DeformationFlag)     (gcamorph.cpp)
+//       2026-02-17 YJH:
+//       I think GCAMreadWarpFromMRI() requires the input mri_warp to be in abs_crs or disp_crs interpretation
+//       because gcamn->origx, origy, origz are initialized to be target crs in GCAMalloc().
 //   GCAM* read_voxel(const string& warp_file, const string& src_geom);                     (mri_warp_convert.cpp)
 //       [origx, origy, origz], [xn, yn, zn] are set to dst [c, r, s]
 //   GCAM* read_world(const string& warp_file, const string& src_geom, bool is_lps=false);  (mri_warp_convert.cpp)
