@@ -1,0 +1,533 @@
+#!/bin/tcsh -f
+# fs-topup - sources
+if(-e $FREESURFER_HOME/sources.csh) then
+  source $FREESURFER_HOME/sources.csh
+endif
+
+set VERSION = '$Id$';
+set scriptname = `basename $0`
+setenv IGNORE_TAG_RAS_XFORM
+
+# The topup config depends on the number of slices. Eg, if odd, then
+# use b02b0_1.cnf; if even then b02b0_2.cnf = b02b0.cnf, and topup
+# will die if you give it the wrong one. However, if you don't give topup
+# a config file at all, it will not die, though I'm not sure if it will
+# do the right thing
+set config = ()
+set configodd  = /usr/pubsw/packages/fsl/6.0.1/src/topup/flirtsch/b02b0_1.cnf
+set configeven = /usr/pubsw/packages/fsl/6.0.1/src/topup/flirtsch/b02b0_2.cnf
+set UseConfig = 1 # 
+
+set outdir = ();
+set b0dc = ()
+set subject = ();
+set ForceUpdate = 0
+set threads = 1
+set vols = ()
+set DoQA = 1
+set ndilations = 1
+set DoMask = 1
+set params = ()
+set DoMultiFrameMean = 1
+
+set tmpdir = ();
+set cleanup = 1;
+set LF = ();
+
+set inputargs = ($argv);
+set PrintHelp = 0;
+if($#argv == 0) goto usage_exit;
+set n = `echo $argv | grep -e -help | wc -l` 
+if($n != 0) then
+  set PrintHelp = 1;
+  goto usage_exit;
+endif
+set n = `echo $argv | grep -e -version | wc -l` 
+if($n != 0) then
+  echo $VERSION
+  exit 0;
+endif
+goto parse_args;
+parse_args_return:
+goto check_params;
+check_params_return:
+
+set StartTime = `date`;
+set tSecStart = `date '+%s'`;
+set year  = `date +%Y`
+set month = `date +%m`
+set day   = `date +%d`
+set hour   = `date +%H`
+set min    = `date +%M`
+
+mkdir -p $outdir/log
+if($DoQA) mkdir -p $outdir/qa
+if($#subject) mkdir -p $outdir/reg
+pushd $outdir > /dev/null
+set outdir = `pwd`;
+popd > /dev/null
+
+if($#tmpdir == 0) then
+  if(-dw /scratch)   set tmpdir = /scratch/tmpdir.fs-topup.$$
+  if(! -dw /scratch) set tmpdir = $outdir/tmpdir.fs-topup.$$
+endif
+#mkdir -p $tmpdir
+
+# Set up log file
+if($#LF == 0) set LF = $outdir/log/fs-topup.Y$year.M$month.D$day.H$hour.M$min.log
+if($LF != /dev/null) rm -f $LF
+echo "Log file for fs-topup" >> $LF
+date  | tee -a $LF
+echo "" | tee -a $LF
+echo "setenv SUBJECTS_DIR $SUBJECTS_DIR" | tee -a $LF
+echo "cd `pwd`"  | tee -a $LF
+echo $0 $inputargs | tee -a $LF
+ls -l $0  | tee -a $LF
+echo "" | tee -a $LF
+cat $FREESURFER_HOME/build-stamp.txt | tee -a $LF
+echo $VERSION | tee -a $LF
+uname -a  | tee -a $LF
+echo "pid $$" | tee -a $LF
+if($?PBS_JOBID) then
+  echo "pbsjob $PBS_JOBID"  >> $LF
+endif
+if($?SLURM_JOB_ID) then
+  echo SLURM_JOB_ID $SLURM_JOB_ID >> $LF
+endif
+
+if($UseConfig && $#config == 0) then
+  # Get number of slices
+  set tmpfile = /tmp/fs-topup.$$
+  mri_info --o $tmpfile --dim $vols[1] 
+  if($status) exit 1
+  set dim = `cat $tmpfile`
+  rm $tmpfile
+  set nslices = $dim[3];
+  set IsOdd = `python -c "print($nslices%2)"`
+  echo "Dim: $dim  IsOdd $IsOdd" | tee -a $LF
+  if($IsOdd) then
+    set config = $configodd
+  else
+    set config = $configeven
+  endif
+endif
+
+# Check for multiple frames. If so, compute the mean.  Should also do
+# motion correction? Might not be needed as these scans are usually
+# pretty quick.
+set nframes = ()
+set vols2 = ()
+@ n = 0
+foreach v ($vols)
+  @ n = $n + 1
+  set nframesfile = $outdir/log/nframes$n.dat
+  set ud = `UpdateNeeded $nframesfile $v`
+  if($ud || $ForceUpdate) then
+    set cmd = (mri_info --nframes --o $nframesfile $v)
+    echo $cmd | tee -a $LF
+    $cmd | tee -a $LF
+    if($status) goto error_exit
+  endif
+  set nf = `cat $nframesfile`
+  set nframes = ($nframes $nf)
+  if($nf > 1 && $DoMultiFrameMean) then
+    set vmn = $outdir/vol$n.nii.gz
+    set ud = `UpdateNeeded $vmn $v`
+    if($ud || $ForceUpdate) then
+      set cmd = (mri_concat $v --mean --o $vmn)
+      echo $cmd | tee -a $LF
+      $cmd | tee -a $LF
+      if($status) goto error_exit
+    endif
+    set vols2 = ($vols2 $vmn)
+  else
+    if($nf > 1 && $#params == 0) then
+      echo "ERROR: multiframe data needs either --p or allowing of multiframemean"
+      exit 1
+    endif
+    set vols2 = ($vols2 $v)
+  endif
+end
+set vols = ($vols2)
+
+# Concatenate the two directions (will be more if multiple frames allowed)
+set both = $outdir/both.nii.gz
+set ud = `UpdateNeeded $both $vols`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_concat $vols --o $both)
+  echo "\n" $cmd | tee -a $LF
+  $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+# I think this indicates the phase encode direction This is for AP
+# then PA. See also BBR command.  When running vol2vol or vol2surf or
+# bbr on the 2nd volume have to change the PE dir.
+if($#params == 0) then
+  set params = $outdir/params.dat
+  if(! -e $params) then
+    echo "0  1 0 1" > $params
+    echo "0 -1 0 1" >> $params
+  endif
+else
+  cp $params $outdir/log
+endif
+
+set b0dcnomask = $outdir/b0dc.nomask.nii.gz # Hz
+set bothb0dc = $outdir/both.b0dc.nii.gz
+set ud = `UpdateNeeded $b0dcnomask $both`
+if($ud || $ForceUpdate) then
+  set cmd = (fs_time topup --imain=$both --datain=$params --out=$outdir \
+   --fout=$b0dcnomask --iout=$bothb0dc)
+  if($#config) set cmd = ($cmd --config=$config)
+  if($threads > 1) set cmd = ($cmd --nthr=$threads) # FSL>=6.0.6, not sure it works
+  echo "fsl-topup-command"  | tee -a $LF # makes it easier to find in log file
+  echo "\n" $cmd | tee -a $LF
+  fs_time $cmd |& tee -a $LF
+  if($status) then
+    if($threads > 1) then
+      echo "If this error has to do with the --nthr topup option, then make sure you are using FSL>=6.0.6" | tee -a $LF
+    endif
+    goto error_exit
+  endif
+  # annoyingly creates ${outdir}_fieldcoef.nii.gz ${outdir}_movpar.txt
+  # Move them to the output folder
+  mv ${outdir}_fieldcoef.nii.gz $outdir/fieldcoef.nii.gz 
+  mv ${outdir}_movpar.txt $outdir/movpar.txt
+endif
+
+# Compute the mean of the two (or more) corrected volumes
+set meanb0dc = $outdir/mean.b0dc.nii.gz
+set ud = `UpdateNeeded $meanb0dc $bothb0dc`
+if($ud || $ForceUpdate) then
+  set cmd = (mri_concat $bothb0dc --mean --o $meanb0dc)
+  echo "\n" $cmd | tee -a $LF
+  $cmd |& tee -a $LF
+  if($status) goto error_exit
+endif
+
+if($DoMask) then
+  # Create a mask in the corrected space
+  set maskb0dc = $outdir/mask.b0dc.nii.gz
+  set ud = `UpdateNeeded $maskb0dc $meanb0dc`
+  if($ud || $ForceUpdate) then
+    set cmd = (fs_time mri_synthstrip -i $meanb0dc -m $maskb0dc -t $threads)
+    echo "\n" $cmd | tee -a $LF
+    $cmd | tee -a $LF
+    if($status) goto error_exit
+    if($ndilations > 0) then
+      set cmd = (mri_binarize --i $maskb0dc --min 0.5 --dilate $ndilations --o $maskb0dc)
+      echo "\n" $cmd | tee -a $LF
+      $cmd | tee -a $LF
+      if($status) goto error_exit
+    endif
+  endif
+  # Now mask the VSM volume
+  set b0dc = $outdir/b0dc.nii.gz
+  set ud = `UpdateNeeded $b0dc $maskb0dc $b0dcnomask`
+  if($ud || $ForceUpdate) then
+    set cmd = (mri_mask $b0dcnomask $maskb0dc $b0dc)
+    echo "\n" $cmd | tee -a $LF
+    $cmd |& tee -a $LF
+    if($status) goto error_exit
+  endif
+else
+  set b0dc = $b0dcnomask
+endif
+
+if($DoQA) then
+  # Compare both.b0dc.nii (the fsl-corrected vols) to v1.qa and v2.qa.
+  # both.b0dc.nii has two frames corresponding to v1 and v2.  Note:
+  # vol2vol will not do jacobian correction whereas topup will, so you
+  # might see some bright spots in the FSL output. When I examined
+  # these more carefully, FS and FSL were both very close, but I
+  # thought FS was better for v2 but FSL was better for v1; bbregister
+  # mincost agrees. Not sure what is going on. The RMS diff in the
+  # registrations is 0.4mm and 0.3mm, so not such a big deal
+  foreach v (1 2) # might not be perfect with multiple frames
+    set vb0dc = $outdir/qa/v$v.qa.nii.gz
+    set ud = `UpdateNeeded $vb0dc $vols[$v] $b0dc` 
+    if($ud || $ForceUpdate) then
+      set cmd = (mri_vol2vol --mov $vols[$v] --targ $meanb0dc --regheader --vsm $b0dc --o $vb0dc)
+      if($v == 2) set cmd = ($cmd --vsm-pedir -2)
+      echo "\n" $cmd | tee -a $LF
+      $cmd |& tee -a $LF
+      if($status) goto error_exit
+    endif
+  end
+endif
+
+if($#subject) then
+  # If a subject was passed, then run BBR, mostly to do QA in that the mincost
+  # should be lower after correction
+  set mov = $meanb0dc
+  set regmean = $outdir/reg/reg.mean.b0dc.lta
+  set ud = `UpdateNeeded $regmean $mov` # should add b0dc
+  if($ud || $ForceUpdate) then
+    set cmd = (bbregister --s $subject --mov $mov --bold --reg $regmean --threads $threads)
+    echo "\n" $cmd | tee -a $LF
+    $cmd |& tee -a $LF
+    if($status) goto error_exit
+  endif
+ 
+  foreach v (1 2) # might not be perfect with multiple frames
+    foreach c (nob0dc b0dc)
+      set reg = $outdir/reg/reg.v$v.$c.lta
+      set mov = $vols[$v]
+      set vsm = ""
+      if($c == b0dc) set vsm = "--vsm $b0dc"
+      set ud = `UpdateNeeded $reg $mov` # should add b0dc
+      if($ud || $ForceUpdate) then
+        set cmd = (bbregister --s $subject --mov $mov --bold --reg $reg $vsm \
+          --init-reg $regmean --threads $threads)
+        if($v == 2) set cmd = ($cmd --vsm-pedir -2)
+        echo "\n" $cmd | tee -a $LF
+        $cmd |& tee -a $LF
+        if($status) goto error_exit
+      endif
+    end # cor
+  end # vol
+endif
+
+#========================================================
+
+# Cleanup
+# if($cleanup) rm -rf $tmpdir
+
+# Done
+echo " " |& tee -a $LF
+set tSecEnd = `date '+%s'`;
+@ tSecRun = $tSecEnd - $tSecStart;
+set tRunMin = `echo $tSecRun/60|bc -l`
+set tRunMin = `printf %5.2f $tRunMin`
+set tRunHours = `echo $tSecRun/3600|bc -l`
+set tRunHours = `printf %5.2f $tRunHours`
+echo "Started at $StartTime " |& tee -a $LF
+echo "Ended   at `date`" |& tee -a $LF
+echo "Fs-Topup-Run-Time-Sec $tSecRun" |& tee -a $LF
+echo "Fs-Topup-Run-Time-Min $tRunMin" |& tee -a $LF
+echo "Fs-Topup-Run-Time-Hours $tRunHours" |& tee -a $LF
+echo " " |& tee -a $LF
+echo "fs-topup Done" |& tee -a $LF
+exit 0
+
+###############################################
+
+############--------------##################
+error_exit:
+echo "ERROR:"
+
+exit 1;
+###############################################
+
+############--------------##################
+parse_args:
+set cmdline = ($argv);
+while( $#argv != 0 )
+
+  set flag = $argv[1]; shift;
+  
+  switch($flag)
+
+    case "--o":
+      if($#argv < 1) goto arg1err;
+      set outdir = $argv[1]; shift;
+      breaksw
+
+    case "--s":
+      if($#argv < 1) goto arg1err;
+      set subject = $argv[1]; shift;
+      breaksw
+
+    case "--sd":
+      if($#argv < 1) goto arg1err;
+      setenv SUBJECTS_DIR $argv[1]; shift;
+      breaksw
+
+    case "--threads":
+      if($#argv < 1) goto arg1err;
+      set threads = $argv[1]; shift;
+      breaksw
+
+    case "--ndil":
+    case "--ndilations":
+      if($#argv < 1) goto arg1err;
+      set ndilations = $argv[1]; shift;
+      breaksw
+
+    case "--i":
+      if($#argv < 2) goto arg2err;
+      set vols = ($argv[1] $argv[2]);
+      shift;shift;
+      breaksw
+
+    case "--config":
+      if($#argv < 1) goto arg1err;
+      set config = $argv[1]; shift
+      set UseConfig = 1
+      breaksw
+
+    case "--no-config":
+      set UseConfig = 0
+      breaksw
+
+    case "--config-odd":
+      set config = $configodd
+      breaksw
+
+    case "--config-even":
+      set config = $configeven
+      breaksw
+
+    case "--p":
+      if($#argv < 1) goto arg1err;
+      set params = $argv[1]; shift
+      breaksw
+
+    case "--multi-frame-mean":
+      set DoMultiFrameMean = 1
+      breaksw
+    case "--no-multi-frame-mean":
+      set DoMultiFrameMean = 0
+      breaksw
+
+    case "--qa":
+      set DoQA = 1
+      breaksw
+
+    case "--no-mask":
+      set DoMask = 0
+      breaksw
+
+    case "--force":
+     set ForceUpdate = 1
+     breaksw
+    case "--no-force":
+     set ForceUpdate = 0
+     breaksw
+
+    case "--log":
+      if($#argv < 1) goto arg1err;
+      set LF = $argv[1]; shift;
+      breaksw
+
+    case "--nolog":
+    case "--no-log":
+      set LF = /dev/null
+      breaksw
+
+    case "--tmp":
+    case "--tmpdir":
+      if($#argv < 1) goto arg1err;
+      set tmpdir = $argv[1]; shift;
+      set cleanup = 0;
+      breaksw
+
+    case "--nocleanup":
+      set cleanup = 0;
+      breaksw
+
+    case "--cleanup":
+      set cleanup = 1;
+      breaksw
+
+    case "--debug":
+      set verbose = 1;
+      set echo = 1;
+      breaksw
+
+    default:
+      echo ERROR: Flag $flag unrecognized. 
+      echo $cmdline
+      exit 1
+      breaksw
+  endsw
+
+end
+
+goto parse_args_return;
+############--------------##################
+
+############--------------##################
+check_params:
+
+if($#outdir == 0) then
+  echo "ERROR: must spec outdir"
+  exit 1;
+endif
+if($#vols == 0) then
+  echo "ERROR: must spec input volumes"
+  exit 1;
+endif
+if($#subject) then
+  if(! -e $SUBJECTS_DIR/$subject) then
+    echo "ERROR: cannot find $subject"
+    exit 1;
+  endif
+endif
+
+if($#config) then
+  if(!-e $config) then
+    echo "ERROR: cannot find $config"
+    exit 1
+  endif
+  if($UseConfig == 0) then
+    echo "ERROR: cannot spec both --config and --no-config"
+    exit 1
+  endif
+endif
+
+if($#params) then
+  if(! -e $params) then
+    echo "ERROR: cannot find $params"
+    exit 1
+  endif
+endif
+
+which topup >& /dev/null
+if($status) then
+  echo "ERROR: cannot find topup in the path."
+  echo " Do you have FSL installed and in your path?"
+  exit 1
+endif
+
+goto check_params_return;
+############--------------##################
+
+############--------------##################
+arg1err:
+  echo "ERROR: flag $flag requires one argument"
+  exit 1
+############--------------##################
+arg2err:
+  echo "ERROR: flag $flag requires two arguments"
+  exit 1
+############--------------##################
+
+############--------------##################
+usage_exit:
+  echo ""
+  echo "fs-topup - FS front end for FSL's topup (developed under FSL 6.0.5.1)"
+  echo " --i vol1 vol2"
+  echo " --o outdir"
+  echo " --ndilations ndil : dilate mask"
+  echo " --no-mask : do not mask the B0 map"
+  echo " --s subject (for QA and mincost)"
+  echo " --config topup.cfn : topup config file (does not use a config file by default)"
+  echo " --config-{odd,even}: use b02b0_{1,2}.cnf"
+  echo " --p params : parameter file passed to topup (default is assuming AP/PA)"
+  echo " --no-multi-frame-mean : do not comute the mean of multi-frame inputs (will need a param file)"
+  echo " --qa : apply B0 cor to compare to the output of topup"
+  echo " --threads nthreads "
+  echo ""
+
+  if(! $PrintHelp) exit 1;
+  echo $VERSION
+  cat $0 | awk 'BEGIN{prt=0}{if(prt) print $0; if($1 == "BEGINHELP") prt = 1 }'
+exit 1;
+
+#---- Everything below here is printed out as part of help -----#
+BEGINHELP
+
+When using in conjunction with eddy_correct, the first volume input to
+topup must be the same as the first volume in --imain to eddy_correct.

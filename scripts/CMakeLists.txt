@@ -72,6 +72,7 @@ install_configured(
   fs_lib_check
   fs_run_from_mcr
   fs_time
+  fs-topup
   fs_tutorial_data
   fs_update
   fscalc
